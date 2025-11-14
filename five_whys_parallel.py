@@ -35,7 +35,7 @@ class FiveWhysOllama:
     def __init__(self, host: str, model: str, name: str = None, num_ctx: int = 8192, 
                  temperature: float = None, top_p: float = None, top_k: int = None,
                  repeat_penalty: float = None, num_predict: int = None, thinking: bool = False,
-                 be_brief: bool = False):
+                 be_brief: bool = False, keep_alive: str = "10m"):
         self.host = host.rstrip('/')
         self.model = model
         self.name = name or f"{host} ({model})"
@@ -47,6 +47,7 @@ class FiveWhysOllama:
         self.num_predict = num_predict
         self.thinking = thinking
         self.be_brief = be_brief
+        self.keep_alive = keep_alive  # Keep model loaded in memory (default: 10 minutes)
         self.conversation_history: List[Dict] = []
         self.messages: List[Dict] = []  # Full conversation for Ollama context
         self.total_prompt_tokens = 0
@@ -114,7 +115,8 @@ class FiveWhysOllama:
         payload = {
             "model": self.model,
             "messages": self.messages,  # Send full conversation context
-            "stream": True
+            "stream": True,
+            "keep_alive": self.keep_alive  # Keep model loaded in memory to avoid reload overhead
         }
         
         # Add thinking/reasoning mode if enabled
@@ -136,7 +138,7 @@ class FiveWhysOllama:
             payload["num_predict"] = self.num_predict
         
         # Debug: Log message count and parameters being sent
-        payload_info = {'model': self.model, 'stream': True}
+        payload_info = {'model': self.model, 'stream': True, 'keep_alive': self.keep_alive}
         if self.thinking:
             payload_info['thinking'] = True
         if self.num_ctx is not None:
