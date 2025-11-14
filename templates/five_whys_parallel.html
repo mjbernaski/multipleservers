@@ -64,7 +64,7 @@
             margin-bottom: 5px;
             font-weight: 500;
             color: #1f4e78;
-            font-size: 13px;
+            font-size: 11px;
         }
 
         input[type="text"], textarea {
@@ -72,7 +72,7 @@
             padding: 8px 10px;
             border: 1px solid #d0d0d0;
             border-radius: 4px;
-            font-size: 13px;
+            font-size: 11px;
             background: #ffffff;
             color: #000000;
             transition: border-color 0.2s;
@@ -154,7 +154,7 @@
             font-weight: 600;
             margin-bottom: 8px;
             color: #1f4e78;
-            font-size: 13px;
+            font-size: 11px;
             display: flex;
             align-items: center;
             cursor: pointer;
@@ -404,54 +404,52 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="question">Initial Question:</label>
-                        <input type="text" id="question" placeholder="Enter your initial question here..." value="">
+                        <label for="question" style="font-size: 11px;">Initial Question:</label>
+                        <input type="text" id="question" placeholder="Enter your initial question here..." value="" style="font-size: 11px;">
                     </div>
 
                     <div class="form-group">
-                        <label for="fileUpload">Upload Context File (optional):</label>
-                        <input type="file" id="fileUpload" accept=".txt,.md,.log,.json" onchange="updateFileInfo()">
-                        <div id="fileInfo" style="margin-top: 5px; font-size: 11px; color: #808080;"></div>
+                        <label for="fileUpload" style="font-size: 11px;">Upload Context File (optional):</label>
+                        <input type="file" id="fileUpload" accept=".txt,.md,.log,.json" onchange="updateFileInfo()" style="font-size: 11px;">
+                        <div id="fileInfo" style="margin-top: 5px; font-size: 10px; color: #808080;"></div>
                     </div>
                 </div>
 
                 <!-- Right Column -->
                 <div>
-                    <div class="form-group" style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
-                        <label style="display: flex; align-items: center; cursor: pointer; margin: 0; font-weight: 600; color: #1f4e78;">
-                            <input type="checkbox" id="beBrief" style="width: auto; margin-right: 6px; cursor: pointer; accent-color: #4472c4; transform: scale(1.2);">
+                    <div class="form-group" style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap;">
+                        <label style="display: flex; align-items: center; cursor: pointer; margin: 0; font-weight: 600; color: #1f4e78; font-size: 11px;">
+                            <input type="checkbox" id="beBrief" style="width: auto; margin-right: 6px; cursor: pointer; accent-color: #4472c4; transform: scale(1.1);">
                             <span>Be Brief.</span>
                         </label>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="numWhys">Number of "Why?" Questions:</label>
-                        <select id="numWhys" style="width: 120px; padding: 6px; border: 1px solid #d0d0d0; border-radius: 4px; font-size: 14px; background: #ffffff; color: #000000;">
-                            <option value="1">1</option>
-                            <option value="2">2</option>
-                            <option value="3" selected>3</option>
-                            <option value="4">4</option>
-                            <option value="5">5</option>
-                            <option value="6">6</option>
-                            <option value="7">7</option>
-                            <option value="8">8</option>
-                            <option value="9">9</option>
-                            <option value="10">10</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label style="display: flex; align-items: center; cursor: pointer;">
-                            <input type="checkbox" id="restartDialog" checked style="width: auto; margin-right: 8px; cursor: pointer; accent-color: #4472c4;">
-                            <span style="font-size: 13px;">Restart Dialog</span>
+                        
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <label for="numWhys" style="margin: 0; font-size: 11px; color: #1f4e78; font-weight: 500;">Number of "Why?" Questions:</label>
+                            <select id="numWhys" style="padding: 4px 6px; border: 1px solid #d0d0d0; border-radius: 4px; font-size: 11px; background: #ffffff; color: #000000;">
+                                <option value="1">1</option>
+                                <option value="2">2</option>
+                                <option value="3" selected>3</option>
+                                <option value="4">4</option>
+                                <option value="5">5</option>
+                                <option value="6">6</option>
+                                <option value="7">7</option>
+                                <option value="8">8</option>
+                                <option value="9">9</option>
+                                <option value="10">10</option>
+                            </select>
+                        </div>
+                        
+                        <label style="display: flex; align-items: center; cursor: pointer; margin: 0; font-size: 11px;">
+                            <input type="checkbox" id="restartDialog" checked style="width: auto; margin-right: 6px; cursor: pointer; accent-color: #4472c4; transform: scale(1.1);">
+                            <span>Restart Dialog</span>
                         </label>
                     </div>
                 </div>
             </div>
 
             <div class="form-group" style="border-top: 1px solid #d0d0d0; padding-top: 12px; margin-top: 12px;">
-                <label style="display: flex; align-items: center; cursor: pointer; font-weight: 600; color: #1f4e78; margin-bottom: 10px;" onclick="toggleModelParams()">
-                    <span id="modelParamsToggle" style="margin-right: 8px; font-size: 14px;">▶</span>
+                <label style="display: flex; align-items: center; cursor: pointer; font-weight: 600; color: #1f4e78; margin-bottom: 10px; font-size: 11px;" onclick="toggleModelParams()">
+                    <span id="modelParamsToggle" style="margin-right: 8px; font-size: 11px;">▶</span>
                     <span>Model Parameters (Optional)</span>
                 </label>
                 
@@ -499,9 +497,9 @@
             </div>
 
             <div style="display: flex; gap: 10px; align-items: center; margin-top: 12px; padding-top: 12px; border-top: 1px solid #d0d0d0;">
-                <button id="startBtn" onclick="startAnalysis()" style="padding: 10px 20px; font-size: 14px;">Start Parallel Analysis</button>
-                <button id="createPdfBtn" onclick="createPdf()" style="display: none; background: #70ad47; padding: 10px 20px; font-size: 14px;">📄 Create PDF</button>
-                <button onclick="clearAll()" style="background: #c55a11; margin-left: auto; padding: 10px 20px; font-size: 14px;">Clear All</button>
+                <button id="startBtn" onclick="startAnalysis()" style="padding: 8px 16px; font-size: 12px;">Start Parallel Analysis</button>
+                <button id="createPdfBtn" onclick="createPdf()" style="display: none; background: #70ad47; padding: 8px 16px; font-size: 12px;">📄 Create PDF</button>
+                <button onclick="clearAll()" style="background: #c55a11; margin-left: auto; padding: 8px 16px; font-size: 12px;">Clear All</button>
             </div>
             <div id="status" class="status"></div>
         </div>
