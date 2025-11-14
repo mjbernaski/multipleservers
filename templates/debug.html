@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Logs - 5 Whys Analysis</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .header {
+            background: #252526;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid #3e3e42;
+        }
+
+        h1 {
+            color: #ffffff;
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .controls button {
+            background: #0e639c;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .controls button:hover {
+            background: #1177bb;
+        }
+
+        .controls button.danger {
+            background: #c72e2e;
+        }
+
+        .controls button.danger:hover {
+            background: #e74c3c;
+        }
+
+        .filter-controls {
+            background: #252526;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #3e3e42;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .filter-group label {
+            color: #cccccc;
+            font-size: 12px;
+        }
+
+        .filter-group input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+
+        .filter-group select {
+            background: #3c3c3c;
+            color: #cccccc;
+            border: 1px solid #3e3e42;
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .filter-group input[type="text"] {
+            background: #3c3c3c;
+            color: #cccccc;
+            border: 1px solid #3e3e42;
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            width: 200px;
+        }
+
+        .stats {
+            display: flex;
+            gap: 20px;
+            font-size: 12px;
+        }
+
+        .stat-item {
+            color: #858585;
+        }
+
+        .stat-value {
+            color: #4ec9b0;
+            font-weight: 600;
+        }
+
+        .log-container {
+            background: #1e1e1e;
+            border: 1px solid #3e3e42;
+            border-radius: 8px;
+            overflow: hidden;
+            height: calc(100vh - 250px);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .log-header {
+            background: #252526;
+            padding: 10px 15px;
+            border-bottom: 1px solid #3e3e42;
+            display: grid;
+            grid-template-columns: 120px 80px 100px 1fr;
+            gap: 15px;
+            font-weight: 600;
+            font-size: 12px;
+            color: #858585;
+        }
+
+        .log-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0;
+        }
+
+        .log-entry {
+            display: grid;
+            grid-template-columns: 120px 80px 100px 1fr;
+            gap: 15px;
+            padding: 8px 15px;
+            border-bottom: 1px solid #2d2d30;
+            transition: background 0.1s;
+        }
+
+        .log-entry:hover {
+            background: #2a2d2e;
+        }
+
+        .log-entry.info {
+            border-left: 3px solid #4ec9b0;
+        }
+
+        .log-entry.debug {
+            border-left: 3px solid #569cd6;
+        }
+
+        .log-entry.warning {
+            border-left: 3px solid #dcdcaa;
+        }
+
+        .log-entry.error {
+            border-left: 3px solid #f48771;
+        }
+
+        .log-timestamp {
+            color: #858585;
+            font-size: 11px;
+        }
+
+        .log-level {
+            font-weight: 600;
+            font-size: 11px;
+        }
+
+        .log-level.info {
+            color: #4ec9b0;
+        }
+
+        .log-level.debug {
+            color: #569cd6;
+        }
+
+        .log-level.warning {
+            color: #dcdcaa;
+        }
+
+        .log-level.error {
+            color: #f48771;
+        }
+
+        .log-server {
+            color: #ce9178;
+            font-size: 11px;
+        }
+
+        .log-message {
+            color: #d4d4d4;
+            word-break: break-word;
+        }
+
+        .log-data {
+            margin-top: 5px;
+            padding: 5px 10px;
+            background: #252526;
+            border-radius: 4px;
+            font-size: 11px;
+            color: #858585;
+            font-family: 'Monaco', 'Menlo', monospace;
+            white-space: pre-wrap;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #858585;
+        }
+
+        .auto-scroll-indicator {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: #0e639c;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+
+        .auto-scroll-indicator:hover {
+            background: #1177bb;
+        }
+
+        .auto-scroll-indicator.off {
+            background: #3c3c3c;
+        }
+
+        .auto-scroll-indicator.off:hover {
+            background: #4c4c4c;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔍 Debug Logs - 5 Whys Analysis</h1>
+        <div class="controls">
+            <button onclick="clearLogs()">Clear Logs</button>
+            <button onclick="exportLogs()">Export Logs</button>
+            <button class="danger" onclick="location.href='/'">Back to Main</button>
+        </div>
+    </div>
+
+    <div class="filter-controls">
+        <div class="filter-group">
+            <label>Level:</label>
+            <label><input type="checkbox" id="filter-info" checked> Info</label>
+            <label><input type="checkbox" id="filter-debug" checked> Debug</label>
+            <label><input type="checkbox" id="filter-warning" checked> Warning</label>
+            <label><input type="checkbox" id="filter-error" checked> Error</label>
+        </div>
+        <div class="filter-group">
+            <label>Server:</label>
+            <select id="filter-server">
+                <option value="">All Servers</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>Search:</label>
+            <input type="text" id="filter-search" placeholder="Search logs...">
+        </div>
+        <div class="stats">
+            <div class="stat-item">Total: <span class="stat-value" id="stat-total">0</span></div>
+            <div class="stat-item">Info: <span class="stat-value" id="stat-info">0</span></div>
+            <div class="stat-item">Debug: <span class="stat-value" id="stat-debug">0</span></div>
+            <div class="stat-item">Warning: <span class="stat-value" id="stat-warning">0</span></div>
+            <div class="stat-item">Error: <span class="stat-value" id="stat-error">0</span></div>
+        </div>
+    </div>
+
+    <div class="log-container">
+        <div class="log-header">
+            <div>Timestamp</div>
+            <div>Level</div>
+            <div>Server</div>
+            <div>Message</div>
+        </div>
+        <div class="log-content" id="logContent">
+            <div class="empty-state">Waiting for logs... Connect to the main page and start an analysis to see debug logs here.</div>
+        </div>
+    </div>
+
+    <div class="auto-scroll-indicator" id="autoScrollBtn" onclick="toggleAutoScroll()">Auto-scroll: ON</div>
+
+    <script>
+        const socket = io();
+        let logs = [];
+        let autoScroll = true;
+        let filters = {
+            levels: { info: true, debug: true, warning: true, error: true },
+            server: '',
+            search: ''
+        };
+
+        // Initialize filters
+        document.getElementById('filter-info').addEventListener('change', (e) => {
+            filters.levels.info = e.target.checked;
+            renderLogs();
+        });
+        document.getElementById('filter-debug').addEventListener('change', (e) => {
+            filters.levels.debug = e.target.checked;
+            renderLogs();
+        });
+        document.getElementById('filter-warning').addEventListener('change', (e) => {
+            filters.levels.warning = e.target.checked;
+            renderLogs();
+        });
+        document.getElementById('filter-error').addEventListener('change', (e) => {
+            filters.levels.error = e.target.checked;
+            renderLogs();
+        });
+
+        document.getElementById('filter-server').addEventListener('change', (e) => {
+            filters.server = e.target.value;
+            renderLogs();
+        });
+
+        document.getElementById('filter-search').addEventListener('input', (e) => {
+            filters.search = e.target.value.toLowerCase();
+            renderLogs();
+        });
+
+        socket.on('connect', () => {
+            console.log('Connected to debug log stream');
+        });
+
+        socket.on('debug_log', (logEntry) => {
+            logs.push(logEntry);
+            updateStats();
+            renderLogs();
+            
+            // Update server filter dropdown
+            if (logEntry.server && !Array.from(document.getElementById('filter-server').options).some(opt => opt.value === logEntry.server)) {
+                const option = document.createElement('option');
+                option.value = logEntry.server;
+                option.textContent = logEntry.server;
+                document.getElementById('filter-server').appendChild(option);
+            }
+        });
+
+        function renderLogs() {
+            const container = document.getElementById('logContent');
+            const filtered = logs.filter(log => {
+                if (!filters.levels[log.level]) return false;
+                if (filters.server && log.server !== filters.server) return false;
+                if (filters.search && !log.message.toLowerCase().includes(filters.search)) return false;
+                return true;
+            });
+
+            if (filtered.length === 0) {
+                container.innerHTML = '<div class="empty-state">No logs match the current filters.</div>';
+                return;
+            }
+
+            container.innerHTML = filtered.map(log => {
+                const dataHtml = log.data ? `<div class="log-data">${JSON.stringify(log.data, null, 2)}</div>` : '';
+                return `
+                    <div class="log-entry ${log.level}">
+                        <div class="log-timestamp">${log.timestamp}</div>
+                        <div class="log-level ${log.level}">${log.level.toUpperCase()}</div>
+                        <div class="log-server">${log.server || '-'}</div>
+                        <div class="log-message">
+                            ${escapeHtml(log.message)}
+                            ${dataHtml}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            if (autoScroll) {
+                container.scrollTop = container.scrollHeight;
+            }
+        }
+
+        function updateStats() {
+            const stats = {
+                total: logs.length,
+                info: logs.filter(l => l.level === 'info').length,
+                debug: logs.filter(l => l.level === 'debug').length,
+                warning: logs.filter(l => l.level === 'warning').length,
+                error: logs.filter(l => l.level === 'error').length
+            };
+
+            document.getElementById('stat-total').textContent = stats.total;
+            document.getElementById('stat-info').textContent = stats.info;
+            document.getElementById('stat-debug').textContent = stats.debug;
+            document.getElementById('stat-warning').textContent = stats.warning;
+            document.getElementById('stat-error').textContent = stats.error;
+        }
+
+        function clearLogs() {
+            if (confirm('Clear all logs?')) {
+                logs = [];
+                updateStats();
+                renderLogs();
+            }
+        }
+
+        function exportLogs() {
+            const dataStr = JSON.stringify(logs, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `debug-logs-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+            link.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function toggleAutoScroll() {
+            autoScroll = !autoScroll;
+            const btn = document.getElementById('autoScrollBtn');
+            btn.textContent = `Auto-scroll: ${autoScroll ? 'ON' : 'OFF'}`;
+            btn.classList.toggle('off', !autoScroll);
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Auto-scroll when new logs arrive
+        const logContent = document.getElementById('logContent');
+        logContent.addEventListener('scroll', () => {
+            const isAtBottom = logContent.scrollHeight - logContent.scrollTop <= logContent.clientHeight + 10;
+            if (!isAtBottom && autoScroll) {
+                autoScroll = false;
+                toggleAutoScroll();
+            }
+        });
+    </script>
+</body>
+</html>

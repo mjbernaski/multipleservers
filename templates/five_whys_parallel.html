@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>5 Whys Analysis - Parallel</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1800px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
+
+        .controls {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .status {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            display: none;
+        }
+
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .server-status-container {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            border: 1px solid #dee2e6;
+        }
+
+        .server-status-title {
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #495057;
+        }
+
+        .server-status-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .server-status-item:last-child {
+            border-bottom: none;
+        }
+
+        .server-status-name {
+            font-weight: 500;
+            color: #495057;
+        }
+
+        .server-status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .status-dot.online {
+            background: #28a745;
+            box-shadow: 0 0 4px rgba(40, 167, 69, 0.5);
+        }
+
+        .status-dot.offline {
+            background: #dc3545;
+            box-shadow: 0 0 4px rgba(220, 53, 69, 0.5);
+        }
+
+        .status-dot.checking {
+            background: #ffc107;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .status-text {
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .status-text.online {
+            color: #28a745;
+        }
+
+        .status-text.offline {
+            color: #dc3545;
+        }
+
+        .status-text.checking {
+            color: #856404;
+        }
+
+        .results-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .server-panel {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .server-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 20px;
+            font-weight: 600;
+            font-size: 18px;
+        }
+
+        .server-header.server-1 {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .server-header.server-2 {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .server-info {
+            padding: 10px 20px;
+            background: #f8f9fa;
+            font-size: 12px;
+            color: #666;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .server-content {
+            padding: 20px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .round {
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .round:last-child {
+            border-bottom: none;
+        }
+
+        .round-header {
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        .question {
+            background: #e7f3ff;
+            padding: 12px;
+            border-left: 4px solid #007bff;
+            margin-bottom: 10px;
+            border-radius: 4px;
+        }
+
+        .question-label {
+            font-weight: 600;
+            color: #0056b3;
+            margin-bottom: 5px;
+        }
+
+        .answer {
+            background: #f8f9fa;
+            padding: 12px;
+            border-left: 4px solid #28a745;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            line-height: 1.6;
+        }
+
+        .answer.streaming {
+            background: #fff3cd;
+            border-left-color: #ffc107;
+        }
+
+        .tokens {
+            margin-top: 10px;
+            font-size: 12px;
+            color: #6c757d;
+            font-style: italic;
+        }
+
+        .summary {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+
+        .summary-title {
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #495057;
+        }
+
+        .summary-item {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #6c757d;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #007bff;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 1200px) {
+            .results-container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>5 Whys Analysis - Parallel Execution</h1>
+
+        <div class="controls">
+            <div class="server-status-container">
+                <div class="server-status-title">Server Status</div>
+                <div id="serverStatusList">
+                    <div class="server-status-item">
+                        <span class="server-status-name">Checking...</span>
+                        <div class="server-status-indicator">
+                            <span class="status-dot checking"></span>
+                            <span class="status-text checking">Checking</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="question">Initial Question:</label>
+                <input type="text" id="question" placeholder="Enter your initial question here..." value="">
+            </div>
+
+            <div class="form-group">
+                <label for="context">Context File (optional):</label>
+                <input type="text" id="context" placeholder="path/to/context.txt (optional)">
+                <div style="margin-top: 10px; color: #666; font-size: 14px;">OR</div>
+            </div>
+            <div class="form-group">
+                <label for="fileUpload">Upload Context File:</label>
+                <input type="file" id="fileUpload" accept=".txt,.md,.log,.json" onchange="updateFileInfo()">
+                <div id="fileInfo" style="margin-top: 5px; font-size: 12px; color: #666;"></div>
+            </div>
+
+            <div class="form-group">
+                <label style="display: flex; align-items: center; cursor: pointer;">
+                    <input type="checkbox" id="restartDialog" style="width: auto; margin-right: 8px; cursor: pointer;">
+                    <span>Restart Dialog (clears conversation history and starts fresh)</span>
+                </label>
+                <div style="margin-top: 5px; font-size: 12px; color: #666;">
+                    Unchecked: Continue from previous conversation. Checked: Start new conversation.
+                </div>
+            </div>
+
+            <button id="startBtn" onclick="startAnalysis()">Start Parallel Analysis</button>
+            <button id="createPdfBtn" onclick="createPdf()" style="display: none; background: #28a745; margin-left: 10px;">📄 Create PDF</button>
+            <div id="status" class="status"></div>
+        </div>
+
+        <div id="results" class="results-container"></div>
+    </div>
+
+    <script>
+        const socket = io();
+        let analysisActive = false;
+        const serverData = {};
+        let serverStatusInterval = null;
+        let currentAnalysisId = null;
+        const completedServers = new Set();
+
+        // Get server configuration
+        function getServerConfig() {
+            return [
+                {
+                    host: 'http://192.168.5.40:11434',
+                    model: 'gpt-oss:20b',
+                    name: 'Server 1 (gpt-oss:20b)'
+                },
+                {
+                    host: 'http://192.168.5.46:11434',
+                    model: 'gpt-oss:120b',
+                    name: 'Server 2 (gpt-oss:120b)'
+                }
+            ];
+        }
+
+        // Check server status
+        async function checkServerStatus() {
+            const servers = getServerConfig();
+            const statusList = document.getElementById('serverStatusList');
+            
+            // Show checking state
+            statusList.innerHTML = servers.map(server => `
+                <div class="server-status-item" id="status-${server.name}">
+                    <span class="server-status-name">${server.name}</span>
+                    <div class="server-status-indicator">
+                        <span class="status-dot checking"></span>
+                        <span class="status-text checking">Checking</span>
+                    </div>
+                </div>
+            `).join('');
+
+            try {
+                const response = await fetch('/check_servers', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ servers: servers })
+                });
+
+                const result = await response.json();
+                
+                // Update status display
+                result.servers.forEach(serverStatus => {
+                    const statusItem = document.getElementById(`status-${serverStatus.name}`);
+                    if (statusItem) {
+                        const isOnline = serverStatus.available;
+                        statusItem.innerHTML = `
+                            <span class="server-status-name">${serverStatus.name}</span>
+                            <div class="server-status-indicator">
+                                <span class="status-dot ${isOnline ? 'online' : 'offline'}"></span>
+                                <span class="status-text ${isOnline ? 'online' : 'offline'}">${isOnline ? 'Online' : 'Offline'}</span>
+                            </div>
+                        `;
+                    }
+                });
+            } catch (error) {
+                console.error('Error checking server status:', error);
+                // Show error state
+                statusList.innerHTML = servers.map(server => `
+                    <div class="server-status-item" id="status-${server.name}">
+                        <span class="server-status-name">${server.name}</span>
+                        <div class="server-status-indicator">
+                            <span class="status-dot offline"></span>
+                            <span class="status-text offline">Error</span>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        // Check server status on page load
+        checkServerStatus();
+
+        socket.on('connect', () => {
+            console.log('Connected to server');
+            showStatus('Connected to server', 'success');
+            // Check server status on connect
+            checkServerStatus();
+            // Check server status every 30 seconds
+            if (serverStatusInterval) {
+                clearInterval(serverStatusInterval);
+            }
+            serverStatusInterval = setInterval(checkServerStatus, 30000);
+        });
+
+        socket.on('analysis_started', (data) => {
+            analysisActive = true;
+            document.getElementById('startBtn').disabled = true;
+            currentAnalysisId = data.analysis_id;
+            completedServers.clear();
+            // Hide PDF button if it exists
+            const pdfBtn = document.getElementById('createPdfBtn');
+            if (pdfBtn) {
+                pdfBtn.style.display = 'none';
+            }
+            let statusMsg = `Analysis started on ${data.servers.length} server(s)`;
+            if (data.has_context_file && data.context_filename) {
+                statusMsg += ` | Context file "${data.context_filename}" will be sent to all servers`;
+            }
+            showStatus(statusMsg, 'info');
+            initializeServerPanels(data.servers, data.has_context_file, data.context_filename);
+        });
+
+        socket.on('analysis_update', (data) => {
+            handleAnalysisUpdate(data);
+        });
+
+        socket.on('error', (data) => {
+            showStatus(`Error: ${data.error}`, 'error');
+            if (data.server) {
+                showServerError(data.server, data.error);
+            }
+        });
+
+        async function startAnalysis() {
+            const question = document.getElementById('question').value.trim();
+            const contextFile = document.getElementById('context').value.trim() || null;
+            const fileInput = document.getElementById('fileUpload');
+            const restartDialog = document.getElementById('restartDialog').checked;
+            let sessionId = null;
+
+            if (!question) {
+                showStatus('Please enter a question', 'error');
+                return;
+            }
+
+            // If a file is selected, upload it first
+            if (fileInput.files && fileInput.files.length > 0) {
+                const file = fileInput.files[0];
+                showStatus('Uploading file...', 'info');
+                
+                try {
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    
+                    const response = await fetch('/upload', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (!response.ok) {
+                        showStatus(`Upload error: ${result.error}`, 'error');
+                        return;
+                    }
+                    
+                    sessionId = result.session_id;
+                    showStatus(`File "${result.filename}" uploaded successfully`, 'success');
+                } catch (error) {
+                    showStatus(`Upload failed: ${error.message}`, 'error');
+                    return;
+                }
+            }
+
+            // Configure servers
+            const servers = getServerConfig();
+
+            socket.emit('start_analysis', {
+                question: question,
+                context_file: contextFile,
+                session_id: sessionId,
+                servers: servers,
+                restart: restartDialog
+            });
+        }
+
+        function initializeServerPanels(serverNames, hasContextFile, contextFilename) {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '';
+
+            serverNames.forEach((name, index) => {
+                const panel = document.createElement('div');
+                panel.className = 'server-panel';
+                panel.id = `panel-${name}`;
+                
+                let contextStatus = '';
+                if (hasContextFile && contextFilename) {
+                    contextStatus = `<div style="padding: 8px; margin: 10px 0; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px; font-size: 12px;">
+                        <strong>Waiting for context file:</strong> ${contextFilename}
+                    </div>`;
+                }
+                
+                panel.innerHTML = `
+                    <div class="server-header server-${index + 1}">${name}</div>
+                    <div class="server-info" id="info-${name}">Initializing...</div>
+                    <div class="server-content" id="content-${name}">
+                        ${contextStatus}
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            <div>Waiting for analysis to start...</div>
+                        </div>
+                    </div>
+                `;
+                
+                resultsDiv.appendChild(panel);
+                serverData[name] = {
+                    rounds: {},
+                    currentRound: null,
+                    currentAnswer: '',
+                    contextFileReceived: false
+                };
+            });
+        }
+
+        function handleAnalysisUpdate(data) {
+            const { server, type } = data;
+
+            switch (type) {
+                case 'start':
+                    updateServerInfo(server, `Host: ${data.host} | Model: ${data.model}`);
+                    clearServerContent(server);
+                    break;
+
+                case 'context_file':
+                    showContextFile(server, data.filename, data.content, data.success, data.error);
+                    break;
+
+                case 'question':
+                    startNewRound(server, data.round, data.question);
+                    break;
+
+                case 'content':
+                    appendContent(server, data.round, data.content);
+                    break;
+
+                case 'round_complete':
+                    completeRound(server, data.round, data.answer, data.tokens);
+                    break;
+
+                case 'complete':
+                    showSummary(server, data);
+                    checkAllComplete();
+                    break;
+
+                case 'error':
+                    showServerError(server, data.error);
+                    break;
+            }
+        }
+
+        function updateServerInfo(server, info) {
+            const infoEl = document.getElementById(`info-${server}`);
+            if (infoEl) {
+                infoEl.textContent = info;
+            }
+        }
+
+        function clearServerContent(server) {
+            const contentEl = document.getElementById(`content-${server}`);
+            if (contentEl) {
+                contentEl.innerHTML = '';
+            }
+            serverData[server] = {
+                rounds: {},
+                currentRound: null,
+                currentAnswer: ''
+            };
+        }
+
+        function showContextFile(server, filename, content, success, error) {
+            const contentEl = document.getElementById(`content-${server}`);
+            if (!contentEl) return;
+
+            // Remove the "waiting for context file" message if it exists
+            const waitingMsg = contentEl.querySelector('div[style*="fff3cd"]');
+            if (waitingMsg) {
+                waitingMsg.remove();
+            }
+
+            // Mark that this server received the context file
+            if (serverData[server]) {
+                serverData[server].contextFileReceived = success !== false;
+            }
+
+            // Create context file display element
+            const contextDiv = document.createElement('div');
+            contextDiv.className = 'round';
+            contextDiv.id = `context-${server}`;
+            
+            if (success !== false) {
+                // Success - show the file content
+                contextDiv.innerHTML = `
+                    <div class="round-header" style="color: #28a745; display: flex; align-items: center; gap: 8px;">
+                        <span>✓</span>
+                        <span>CONTEXT FILE RECEIVED</span>
+                    </div>
+                    <div class="question">
+                        <div class="question-label">File: ${filename}</div>
+                    </div>
+                    <div class="answer" style="max-height: 300px; overflow-y: auto; white-space: pre-wrap; font-family: monospace; font-size: 12px;">${escapeHtml(content)}</div>
+                `;
+            } else {
+                // Error - show error message
+                contextDiv.innerHTML = `
+                    <div class="round-header" style="color: #dc3545; display: flex; align-items: center; gap: 8px;">
+                        <span>✗</span>
+                        <span>CONTEXT FILE ERROR</span>
+                    </div>
+                    <div class="question">
+                        <div class="question-label">File: ${filename}</div>
+                    </div>
+                    <div class="answer" style="background: #f8d7da; color: #721c24; border-left-color: #dc3545;">
+                        Error loading context file: ${escapeHtml(error || 'Unknown error')}
+                    </div>
+                `;
+            }
+
+            contentEl.appendChild(contextDiv);
+            
+            // Scroll to bottom
+            contentEl.scrollTop = contentEl.scrollHeight;
+
+            // Update status to show confirmation
+            const allServers = Object.keys(serverData);
+            const receivedCount = allServers.filter(s => serverData[s].contextFileReceived).length;
+            if (receivedCount === allServers.length && allServers.length > 0) {
+                showStatus(`✓ Context file received by all ${allServers.length} server(s)`, 'success');
+            } else {
+                showStatus(`Context file received by ${receivedCount} of ${allServers.length} server(s)`, 'info');
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function startNewRound(server, roundNum, question) {
+            const contentEl = document.getElementById(`content-${server}`);
+            if (!contentEl) return;
+
+            // Complete previous round if exists
+            if (serverData[server].currentRound !== null) {
+                // Round already completed
+            }
+
+            // Create new round element
+            const roundDiv = document.createElement('div');
+            roundDiv.className = 'round';
+            roundDiv.id = `round-${server}-${roundNum}`;
+
+            const roundLabel = roundNum === 0 ? 'INITIAL QUESTION' : `WHY #${roundNum}`;
+            roundDiv.innerHTML = `
+                <div class="round-header">${roundLabel}</div>
+                <div class="question">
+                    <div class="question-label">Q:</div>
+                    <div>${question}</div>
+                </div>
+                <div class="answer streaming" id="answer-${server}-${roundNum}"></div>
+                <div class="tokens" id="tokens-${server}-${roundNum}"></div>
+            `;
+
+            contentEl.appendChild(roundDiv);
+            serverData[server].currentRound = roundNum;
+            serverData[server].currentAnswer = '';
+
+            // Scroll to bottom
+            contentEl.scrollTop = contentEl.scrollHeight;
+        }
+
+        function appendContent(server, roundNum, content) {
+            const answerEl = document.getElementById(`answer-${server}-${roundNum}`);
+            if (answerEl) {
+                serverData[server].currentAnswer += content;
+                answerEl.textContent = serverData[server].currentAnswer;
+                
+                // Auto-scroll
+                const contentEl = document.getElementById(`content-${server}`);
+                if (contentEl) {
+                    contentEl.scrollTop = contentEl.scrollHeight;
+                }
+            }
+        }
+
+        function completeRound(server, roundNum, answer, tokens) {
+            const answerEl = document.getElementById(`answer-${server}-${roundNum}`);
+            const tokensEl = document.getElementById(`tokens-${server}-${roundNum}`);
+
+            if (answerEl) {
+                answerEl.textContent = answer;
+                answerEl.classList.remove('streaming');
+            }
+
+            if (tokensEl && tokens) {
+                tokensEl.textContent = `Tokens - Prompt: ${tokens.prompt_tokens}, Completion: ${tokens.completion_tokens}, Total: ${tokens.total}`;
+            }
+
+            serverData[server].rounds[roundNum] = {
+                answer: answer,
+                tokens: tokens
+            };
+            
+            // Check if all rounds are complete for this server
+            if (Object.keys(serverData[server].rounds).length >= 6) {
+                checkAllComplete();
+            }
+        }
+
+        function showSummary(server, data) {
+            const contentEl = document.getElementById(`content-${server}`);
+            if (!contentEl) return;
+
+            // Format runtime
+            let runtimeStr = 'N/A';
+            if (data.runtime_seconds !== undefined) {
+                const seconds = data.runtime_seconds;
+                if (seconds < 60) {
+                    runtimeStr = `${seconds.toFixed(1)} seconds`;
+                } else {
+                    const minutes = Math.floor(seconds / 60);
+                    const secs = (seconds % 60).toFixed(1);
+                    runtimeStr = `${minutes} minute${minutes !== 1 ? 's' : ''} ${secs} second${secs !== '1.0' ? 's' : ''}`;
+                }
+            }
+
+            const summaryDiv = document.createElement('div');
+            summaryDiv.className = 'summary';
+            summaryDiv.innerHTML = `
+                <div class="summary-title">Summary</div>
+                <div class="summary-item">Total Rounds: 6 (1 initial + 5 whys)</div>
+                <div class="summary-item">Total Prompt Tokens: ${data.total_prompt_tokens}</div>
+                <div class="summary-item">Total Completion Tokens: ${data.total_completion_tokens}</div>
+                <div class="summary-item">Total Tokens: ${data.total_tokens}</div>
+                <div class="summary-item">Runtime: ${runtimeStr}</div>
+            `;
+
+            contentEl.appendChild(summaryDiv);
+        }
+
+        function showServerError(server, error) {
+            const contentEl = document.getElementById(`content-${server}`);
+            if (contentEl) {
+                contentEl.innerHTML = `<div class="status error">Error: ${error}</div>`;
+            }
+        }
+
+        function updateFileInfo() {
+            const fileInput = document.getElementById('fileUpload');
+            const fileInfo = document.getElementById('fileInfo');
+            
+            if (fileInput.files && fileInput.files.length > 0) {
+                const file = fileInput.files[0];
+                const sizeKB = (file.size / 1024).toFixed(2);
+                fileInfo.textContent = `Selected: ${file.name} (${sizeKB} KB)`;
+                fileInfo.style.color = '#28a745';
+            } else {
+                fileInfo.textContent = '';
+            }
+        }
+
+        function showStatus(message, type) {
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = message;
+            statusEl.className = `status ${type}`;
+            statusEl.style.display = 'block';
+            
+            if (type === 'success' || type === 'info') {
+                setTimeout(() => {
+                    statusEl.style.display = 'none';
+                }, 3000);
+            }
+        }
+
+        function checkAllComplete() {
+            // Check if all servers have completed
+            const allServers = Object.keys(serverData);
+            const allComplete = allServers.every(server => {
+                const data = serverData[server];
+                return data && data.rounds && Object.keys(data.rounds).length >= 6;
+            });
+
+            if (allComplete && allServers.length > 0) {
+                analysisActive = false;
+                document.getElementById('startBtn').disabled = false;
+                // Show PDF button
+                const pdfBtn = document.getElementById('createPdfBtn');
+                if (pdfBtn) {
+                    pdfBtn.style.display = 'inline-block';
+                }
+            }
+        }
+
+        function createPdf() {
+            if (!currentAnalysisId) {
+                showStatus('No analysis data available', 'error');
+                return;
+            }
+
+            showStatus('Generating PDF...', 'info');
+            const pdfUrl = `/generate_pdf/${currentAnalysisId}`;
+            
+            // Open PDF in new tab - browser will display it
+            window.open(pdfUrl, '_blank');
+            
+            showStatus('PDF generated and opened', 'success');
+        }
+    </script>
+</body>
+</html>
