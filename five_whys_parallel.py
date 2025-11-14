@@ -27,6 +27,7 @@ from reportlab.lib import colors
 from reportlab.pdfgen import canvas
 from reportlab.lib.utils import simpleSplit
 import io
+import html
 
 
 class FiveWhysOllama:
@@ -755,11 +756,11 @@ def generate_pdf(analysis_id):
     elements.append(Paragraph("5 Whys Analysis - Side by Side Comparison", title_style))
     elements.append(Spacer(1, 0.15*inch))
     
-    # Analysis metadata in a subtle box - escape HTML
-    question_escaped = metadata['question'].replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+    # Analysis metadata in a subtle box - escape HTML properly
+    question_escaped = html.escape(metadata['question'])
     metadata_text = f"<b>Initial Question:</b> {question_escaped}<br/>"
     if metadata['context_filename']:
-        filename_escaped = metadata['context_filename'].replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+        filename_escaped = html.escape(metadata['context_filename'])
         metadata_text += f"<b>Context File:</b> {filename_escaped}<br/>"
     metadata_text += f"<b>Date:</b> {metadata['timestamp'][:19].replace('T', ' ')}"
     
@@ -817,10 +818,24 @@ def generate_pdf(analysis_id):
                 answer = round_data.get('answer', '')
                 tokens = round_data.get('tokens', {})
                 
-                # Format question and answer with better styling - escape HTML in content
-                # Escape special characters for XML/HTML
-                question_escaped = question.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
-                answer_escaped = answer.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+                # Format question and answer with better styling - escape HTML properly
+                # Use html.escape for proper HTML entity encoding
+                question_escaped = html.escape(question)
+                answer_escaped = html.escape(answer)
+                
+                # Replace common Unicode characters that ReportLab might not handle well
+                # Convert superscripts and other special characters to plain text equivalents
+                # This prevents square characters (■) from appearing when Unicode isn't supported
+                replacements = {
+                    '²': '^2', '³': '^3', '¹': '^1', '⁰': '^0', '⁴': '^4', '⁵': '^5', '⁶': '^6', '⁷': '^7', '⁸': '^8', '⁹': '^9',
+                    '×': 'x', '÷': '/', '±': '+/-', '≈': '~', '≠': '!=', '≤': '<=', '≥': '>=',
+                    '°': ' degrees', '∞': 'infinity', 'α': 'alpha', 'β': 'beta', 'γ': 'gamma',
+                    'Δ': 'Delta', 'π': 'pi', '∑': 'sum', '√': 'sqrt', '∫': 'integral',
+                    '■': '', '□': '', '▪': '', '▫': ''  # Remove square/box characters
+                }
+                for unicode_char, replacement in replacements.items():
+                    answer_escaped = answer_escaped.replace(unicode_char, replacement)
+                    question_escaped = question_escaped.replace(unicode_char, replacement)
                 
                 round_content = f"<b>Q:</b> {question_escaped}<br/><br/>{answer_escaped}"
                 if tokens:
