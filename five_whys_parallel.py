@@ -28,6 +28,7 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.utils import simpleSplit
 import io
 import html
+import unicodedata
 
 
 class FiveWhysOllama:
@@ -280,7 +281,7 @@ class FiveWhysOllama:
         self.total_completion_tokens = 0
         self.total_tokens = 0
 
-    def run_five_whys(self, initial_question: str, context_file: str = None, restart: bool = False, continue_from_round: int = None, be_brief: bool = None):
+    def run_five_whys(self, initial_question: str, context_file: str = None, restart: bool = False, continue_from_round: int = None, be_brief: bool = None, num_whys: int = 3):
         """Execute the 5 Whys technique.
         
         Args:
@@ -392,8 +393,8 @@ The context will be explicitly provided in the user's message. Pay close attenti
             start_round = continue_from_round + 1
         elif not restart and len(self.conversation_history) > 0 and not context_file:
             # Continue from where we left off ONLY if no context file is provided
-            # If we've completed all 6 rounds, start a new round 0 with the new question
-            if len(self.conversation_history) >= 6:
+            # If we've completed all rounds, start a new round 0 with the new question
+            if len(self.conversation_history) >= (num_whys + 1):
                 start_round = 0
             else:
                 start_round = len(self.conversation_history)
@@ -438,8 +439,8 @@ Remember: The content above IS the writing/content being referenced. Use it to a
             })
             start_round = 1
 
-        # Ask "Why?" for remaining rounds (up to 5 total whys)
-        total_rounds = 6  # 1 initial + 5 whys
+        # Ask "Why?" for remaining rounds
+        total_rounds = num_whys + 1  # 1 initial + num_whys whys
         for i in range(start_round, total_rounds):
             if self.stream_callback:
                 self.stream_callback({
@@ -519,14 +520,14 @@ analysis_metadata = {}  # analysis_id -> {question, context_filename, timestamp,
 server_runtimes = {}  # analysis_id -> {server_name: runtime_seconds}
 
 
-def run_analysis_thread(analyzer: FiveWhysOllama, question: str, context_file: str, name: str, session_id: str = None, restart: bool = False, be_brief: bool = False):
+def run_analysis_thread(analyzer: FiveWhysOllama, question: str, context_file: str, name: str, session_id: str = None, restart: bool = False, be_brief: bool = False, num_whys: int = 3):
     """Run analysis in a separate thread."""
     try:
-        debug_log('info', f"run_analysis_thread for {name}: context_file={context_file}, exists={os.path.exists(context_file) if context_file else False}, session_id={session_id}, be_brief={be_brief}", server=name, data={'context_file': context_file, 'session_id': session_id, 'be_brief': be_brief})
+        debug_log('info', f"run_analysis_thread for {name}: context_file={context_file}, exists={os.path.exists(context_file) if context_file else False}, session_id={session_id}, be_brief={be_brief}, num_whys={num_whys}", server=name, data={'context_file': context_file, 'session_id': session_id, 'be_brief': be_brief, 'num_whys': num_whys})
         if context_file:
             file_size = os.path.getsize(context_file) if os.path.exists(context_file) else 0
             debug_log('info', f"Context file path for {name}: '{context_file}', file size: {file_size} bytes", server=name, data={'path': context_file, 'file_size': file_size})
-        analyzer.run_five_whys(question, context_file, restart=restart, be_brief=be_brief)
+        analyzer.run_five_whys(question, context_file, restart=restart, be_brief=be_brief, num_whys=num_whys)
     except Exception as e:
         socketio.emit('error', {
             'server': name,
@@ -691,44 +692,44 @@ def generate_pdf(analysis_id):
     title_style = ParagraphStyle(
         'CustomTitle',
         parent=styles['Heading1'],
-        fontSize=20,
+        fontSize=16,
         textColor=colors.HexColor('#1f4e78'),
-        spaceAfter=16,
+        spaceAfter=12,
         alignment=TA_LEFT,
         fontName='Helvetica-Bold',
-        leading=24
+        leading=20
     )
     
     heading_style = ParagraphStyle(
         'CustomHeading',
         parent=styles['Heading2'],
-        fontSize=14,
+        fontSize=11,
         textColor=colors.HexColor('#1f4e78'),
-        spaceAfter=10,
-        spaceBefore=16,
+        spaceAfter=6,
+        spaceBefore=10,
         alignment=TA_LEFT,
         fontName='Helvetica-Bold',
-        leading=18
+        leading=14
     )
     
     question_style = ParagraphStyle(
         'QuestionStyle',
         parent=styles['Normal'],
-        fontSize=10,
+        fontSize=8.5,
         textColor=colors.HexColor('#1f4e78'),
-        spaceAfter=4,
+        spaceAfter=3,
         fontName='Helvetica-Bold',
-        leading=12
+        leading=10
     )
     
     answer_style = ParagraphStyle(
         'AnswerStyle',
         parent=styles['Normal'],
-        fontSize=9.5,
+        fontSize=8,
         textColor=colors.HexColor('#000000'),
-        spaceAfter=10,
+        spaceAfter=8,
         alignment=TA_JUSTIFY,
-        leading=13.5,
+        leading=11,
         leftIndent=0,
         rightIndent=0
     )
@@ -736,10 +737,10 @@ def generate_pdf(analysis_id):
     info_style = ParagraphStyle(
         'InfoStyle',
         parent=styles['Normal'],
-        fontSize=9,
+        fontSize=8,
         textColor=colors.HexColor('#808080'),
-        spaceAfter=3,
-        leading=11
+        spaceAfter=2,
+        leading=10
     )
     
     token_style = ParagraphStyle(
@@ -784,8 +785,7 @@ def generate_pdf(analysis_id):
     # Create side-by-side content for each round
     for round_num in range(max_rounds):
         round_label = "Initial Question" if round_num == 0 else f"Why #{round_num}"
-        elements.append(Paragraph(f"<b>{round_label}</b>", heading_style))
-        elements.append(Spacer(1, 0.1*inch))
+        round_header = Paragraph(f"<b>{round_label}</b>", heading_style)
         
         # Create table for side-by-side comparison
         table_data = []
@@ -796,14 +796,14 @@ def generate_pdf(analysis_id):
             header_para_style = ParagraphStyle(
                 'HeaderStyle',
                 parent=styles['Normal'],
-                fontSize=10,
+                fontSize=8.5,
                 textColor=colors.HexColor('#ffffff'),
                 alignment=TA_LEFT,
                 fontName='Helvetica-Bold',
-                leading=12
+                leading=10
             )
             header_row.append(Paragraph(
-                f"<b>{analyzer_data['name']}</b><br/><font size=7>{analyzer_data['model']}</font>",
+                f"<b>{analyzer_data['name']}</b><br/><font size=6>{analyzer_data['model']}</font>",
                 header_para_style
             ))
         table_data.append(header_row)
@@ -827,15 +827,68 @@ def generate_pdf(analysis_id):
                 # Convert superscripts and other special characters to plain text equivalents
                 # This prevents square characters (■) from appearing when Unicode isn't supported
                 replacements = {
+                    # Superscripts
                     '²': '^2', '³': '^3', '¹': '^1', '⁰': '^0', '⁴': '^4', '⁵': '^5', '⁶': '^6', '⁷': '^7', '⁸': '^8', '⁹': '^9',
+                    # Subscripts
+                    '₂': '_2', '₃': '_3', '₁': '_1', '₀': '_0', '₄': '_4', '₅': '_5', '₆': '_6', '₇': '_7', '₈': '_8', '₉': '_9',
+                    # Math symbols
                     '×': 'x', '÷': '/', '±': '+/-', '≈': '~', '≠': '!=', '≤': '<=', '≥': '>=',
                     '°': ' degrees', '∞': 'infinity', 'α': 'alpha', 'β': 'beta', 'γ': 'gamma',
                     'Δ': 'Delta', 'π': 'pi', '∑': 'sum', '√': 'sqrt', '∫': 'integral',
-                    '■': '', '□': '', '▪': '', '▫': ''  # Remove square/box characters
+                    # Dashes and hyphens (common source of square characters)
+                    '–': '-',  # En-dash
+                    '—': '-',  # Em-dash
+                    '−': '-',  # Minus sign
+                    '‑': '-',  # Non-breaking hyphen
+                    '‒': '-',  # Figure dash
+                    '―': '-',  # Horizontal bar
+                    # Quotes
+                    ''': "'",  # Left single quotation mark
+                    ''': "'",  # Right single quotation mark
+                    '"': '"',  # Left double quotation mark
+                    '"': '"',  # Right double quotation mark
+                    '‚': ',',  # Single low-9 quotation mark
+                    '„': '"',  # Double low-9 quotation mark
+                    # Other common problematic characters
+                    '…': '...',  # Horizontal ellipsis
+                    '•': '*',   # Bullet
+                    '·': '*',   # Middle dot
+                    '–': '-',   # En dash (duplicate but ensures coverage)
+                    # Remove square/box characters that appear as fallbacks
+                    '■': '', '□': '', '▪': '', '▫': '', '▬': '', '▭': '', '▮': '', '▯': '',
+                    '▰': '', '▱': '', '▲': '', '△': '', '▼': '', '▽': '', '◆': '', '◇': '',
+                    # Zero-width and invisible characters
+                    '\u200b': '',  # Zero-width space
+                    '\u200c': '',  # Zero-width non-joiner
+                    '\u200d': '',  # Zero-width joiner
+                    '\ufeff': '',  # Zero-width no-break space
                 }
                 for unicode_char, replacement in replacements.items():
                     answer_escaped = answer_escaped.replace(unicode_char, replacement)
                     question_escaped = question_escaped.replace(unicode_char, replacement)
+                
+                # Additional fallback: remove any remaining box/square characters that might appear
+                # This catches any Unicode characters that ReportLab can't render
+                def clean_text(text):
+                    """Remove or replace problematic Unicode characters."""
+                    result = []
+                    for char in text:
+                        # Check if character is a box/square character (common fallback for unsupported Unicode)
+                        if char in ['■', '□', '▪', '▫', '▬', '▭', '▮', '▯', '▰', '▱', '▲', '△', '▼', '▽', '◆', '◇']:
+                            result.append('-')  # Replace with hyphen
+                        # Check for other problematic categories
+                        elif unicodedata.category(char) in ['So', 'Sm'] and ord(char) > 127:
+                            # Symbols and other characters - try to keep ASCII-safe ones
+                            if char.isprintable() and ord(char) < 256:
+                                result.append(char)
+                            else:
+                                result.append('-')  # Replace with hyphen if problematic
+                        else:
+                            result.append(char)
+                    return ''.join(result)
+                
+                answer_escaped = clean_text(answer_escaped)
+                question_escaped = clean_text(question_escaped)
                 
                 round_content = f"<b>Q:</b> {question_escaped}<br/><br/>{answer_escaped}"
                 if tokens:
@@ -848,9 +901,9 @@ def generate_pdf(analysis_id):
             content_para_style = ParagraphStyle(
                 'ContentStyle',
                 parent=answer_style,
-                fontSize=9.5,
+                fontSize=8,
                 textColor=colors.HexColor('#000000'),
-                leading=13.5
+                leading=11
             )
             content_row.append(Paragraph(round_content, content_para_style))
         
@@ -865,28 +918,38 @@ def generate_pdf(analysis_id):
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#ffffff')),
             ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 10),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 14),
-            ('TOPPADDING', (0, 0), (-1, 0), 14),
+            ('FONTSIZE', (0, 0), (-1, 0), 8.5),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
+            ('TOPPADDING', (0, 0), (-1, 0), 10),
             # Content row styling
             ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#ffffff')),
             ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#d0d0d0')),
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ('LEFTPADDING', (0, 0), (-1, -1), 12),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 12),
-            ('TOPPADDING', (0, 1), (-1, -1), 12),
-            ('BOTTOMPADDING', (0, 1), (-1, -1), 12),
+            ('LEFTPADDING', (0, 0), (-1, -1), 10),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 10),
+            ('TOPPADDING', (0, 1), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 1), (-1, -1), 10),
             # Inner borders for better separation
             ('LINEBELOW', (0, 0), (-1, 0), 1.5, colors.HexColor('#1f4e78')),
         ]))
         
-        elements.append(table)
-        elements.append(Spacer(1, 0.2*inch))
+        # Use KeepTogether to attach header to content (prevent page breaks)
+        round_section = KeepTogether([
+            round_header,
+            Spacer(1, 0.05*inch),
+            table
+        ])
+        elements.append(round_section)
+        elements.append(Spacer(1, 0.15*inch))
     
     # Summary section
     elements.append(PageBreak())
-    elements.append(Paragraph("Summary", heading_style))
-    elements.append(Spacer(1, 0.15*inch))
+    summary_heading = Paragraph("Summary", heading_style)
+    elements.append(summary_heading)
+    elements.append(Spacer(1, 0.1*inch))
+    
+    # Get num_whys from metadata
+    num_whys = metadata.get('num_whys', 3)
     
     summary_data = [['Server', 'Model', 'Total Prompt Tokens', 'Total Completion Tokens', 'Total Tokens', 'Runtime']]
     for analyzer_data in analyzers_data:
@@ -907,23 +970,30 @@ def generate_pdf(analysis_id):
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#ffffff')),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 10),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('TOPPADDING', (0, 0), (-1, 0), 12),
+        ('FONTSIZE', (0, 0), (-1, 0), 8.5),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+        ('TOPPADDING', (0, 0), (-1, 0), 8),
         # Row styling - alternating for better readability
         ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#ffffff')),
         ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.HexColor('#ffffff'), colors.HexColor('#f2f2f2')]),
         ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#d0d0d0')),
         ('LINEBELOW', (0, 0), (-1, 0), 1.5, colors.HexColor('#1f4e78')),
-        ('FONTSIZE', (0, 1), (-1, -1), 9),
+        ('FONTSIZE', (0, 1), (-1, -1), 8),
         ('TEXTCOLOR', (0, 1), (-1, -1), colors.HexColor('#000000')),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('LEFTPADDING', (0, 0), (-1, -1), 8),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 8),
-        ('TOPPADDING', (0, 1), (-1, -1), 8),
-        ('BOTTOMPADDING', (0, 1), (-1, -1), 8),
+        ('LEFTPADDING', (0, 0), (-1, -1), 6),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+        ('TOPPADDING', (0, 1), (-1, -1), 6),
+        ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
     ]))
-    elements.append(summary_table)
+    
+    # Keep summary header with table
+    summary_section = KeepTogether([
+        summary_heading,
+        Spacer(1, 0.1*inch),
+        summary_table
+    ])
+    elements.append(summary_section)
     
     # Build PDF
     doc.build(elements)
@@ -944,6 +1014,30 @@ def generate_pdf(analysis_id):
     )
 
 
+@app.route('/get_models', methods=['POST'])
+def get_models():
+    """Get available models from a server."""
+    data = request.get_json()
+    host = data.get('host')
+    
+    if not host:
+        return jsonify({'error': 'No host provided'}), 400
+    
+    try:
+        # Query Ollama API for available models
+        url = f"{host.rstrip('/')}/api/tags"
+        response = requests.get(url, timeout=5)
+        
+        if response.status_code == 200:
+            models_data = response.json()
+            models = [model.get('name', '') for model in models_data.get('models', [])]
+            return jsonify({'models': models, 'host': host})
+        else:
+            return jsonify({'error': f'Server returned status {response.status_code}', 'models': []}), response.status_code
+    except requests.exceptions.RequestException as e:
+        return jsonify({'error': str(e), 'models': []}), 500
+
+
 @app.route('/check_servers', methods=['POST'])
 def check_servers():
     """Check the status of configured servers."""
@@ -959,11 +1053,24 @@ def check_servers():
         analyzer = FiveWhysOllama(host, model, name)
         is_available = analyzer.check_server_available()
         
+        # Get available models for this server
+        available_models = []
+        if is_available:
+            try:
+                url = f"{host.rstrip('/')}/api/tags"
+                response = requests.get(url, timeout=5)
+                if response.status_code == 200:
+                    models_data = response.json()
+                    available_models = [model.get('name', '') for model in models_data.get('models', [])]
+            except:
+                pass  # If we can't get models, just leave it empty
+        
         server_statuses.append({
             'name': name,
             'host': host,
             'model': model,
-            'available': is_available
+            'available': is_available,
+            'available_models': available_models
         })
     
     return jsonify({'servers': server_statuses})
@@ -1018,8 +1125,9 @@ def handle_start_analysis(data):
     servers = data.get('servers', [])
     restart = data.get('restart', False)  # Whether to restart the dialog
     be_brief = data.get('be_brief', False)  # Whether to include "Be Brief." in questions
+    num_whys = data.get('num_whys', 3)  # Number of "Why?" questions to ask
     
-    debug_log('info', f"handle_start_analysis received: question='{question}', context_file='{context_file}', session_id='{session_id}', restart={restart}, be_brief={be_brief}")
+    debug_log('info', f"handle_start_analysis received: question='{question}', context_file='{context_file}', session_id='{session_id}', restart={restart}, be_brief={be_brief}, num_whys={num_whys}")
     debug_log('debug', f"Current uploaded_files keys: {list(uploaded_files.keys())}")
     
     # If session_id is provided, get the uploaded file path
@@ -1059,7 +1167,8 @@ def handle_start_analysis(data):
         'context_filename': os.path.basename(context_file) if context_file else None,
         'context_file': context_file,
         'timestamp': datetime.datetime.now().isoformat(),
-        'servers': []  # Will be populated below
+        'servers': [],  # Will be populated below
+        'num_whys': num_whys  # Store number of whys for PDF generation
     }
     server_runtimes[analysis_id] = {}
 
@@ -1157,7 +1266,8 @@ def handle_start_analysis(data):
         'servers': [name for _, name in analyzers],
         'has_context_file': bool(context_file),
         'context_filename': os.path.basename(context_file) if context_file else None,
-        'analysis_id': analysis_id
+        'analysis_id': analysis_id,
+        'num_whys': num_whys
     }
     emit('analysis_started', analysis_started_data)
 
@@ -1166,7 +1276,7 @@ def handle_start_analysis(data):
     for analyzer, name in analyzers:
         thread = threading.Thread(
             target=run_analysis_thread,
-            args=(analyzer, question, context_file, name, session_id if session_id else None, restart, be_brief),
+            args=(analyzer, question, context_file, name, session_id if session_id else None, restart, be_brief, num_whys),
             daemon=True
         )
         thread.start()
@@ -1184,7 +1294,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='5 Whys Analysis - Parallel Web Interface')
     parser.add_argument('--port', type=int, default=5005, help='Port to run web server on')
-    parser.add_argument('--host', type=str, default='127.0.0.1', help='Host to bind to')
+    parser.add_argument('--host', type=str, default='0.0.0.0', help='Host to bind to')
     args = parser.parse_args()
 
     print(f"Starting web server on http://{args.host}:{args.port}")

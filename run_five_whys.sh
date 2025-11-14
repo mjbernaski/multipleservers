@@ -10,7 +10,7 @@ cd "$SCRIPT_DIR"
 source venv/bin/activate
 
 # Default host and port (can be overridden with command line args)
-HOST="${1:-127.0.0.1}"
+HOST="${1:-0.0.0.0}"
 PORT="${2:-5005}"
 
 # URL for the web interface

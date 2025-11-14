@@ -130,25 +130,29 @@
 
         .server-status-container {
             background: #f2f2f2;
-            padding: 16px;
+            padding: 10px;
             border-radius: 6px;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             border: 1px solid #d0d0d0;
         }
 
         .server-status-title {
             font-weight: 600;
-            margin-bottom: 12px;
+            margin-bottom: 8px;
             color: #1f4e78;
-            font-size: 15px;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
         }
 
         .server-status-item {
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             justify-content: space-between;
-            padding: 10px 0;
-            border-bottom: 1px solid #e8e4d8;
+            padding: 6px 0;
+            border-bottom: 1px solid #d0d0d0;
+            flex-wrap: wrap;
         }
 
         .server-status-item:last-child {
@@ -174,8 +178,8 @@
         }
 
         .status-dot.online {
-            background: #00ff00;
-            box-shadow: 0 0 8px rgba(0, 255, 0, 0.6);
+            background: #70ad47;
+            box-shadow: 0 0 6px rgba(112, 173, 71, 0.5);
         }
 
         .status-dot.offline {
@@ -199,7 +203,7 @@
         }
 
         .status-text.online {
-            color: #00ff00;
+            color: #70ad47;
         }
 
         .status-text.offline {
@@ -367,8 +371,11 @@
 
         <div class="controls">
             <div class="server-status-container">
-                <div class="server-status-title">Server Status</div>
-                <div id="serverStatusList">
+                <div class="server-status-title" onclick="toggleServerStatus()">
+                    <span id="serverStatusToggle" style="margin-right: 6px; font-size: 12px;">▼</span>
+                    <span>Server Status</span>
+                </div>
+                <div id="serverStatusList" style="display: block;">
                     <div class="server-status-item">
                         <span class="server-status-name">Checking...</span>
                         <div class="server-status-indicator">
@@ -395,19 +402,33 @@
             </div>
 
             <div class="form-group">
-                <label for="context">Context File (optional):</label>
-                <input type="text" id="context" placeholder="path/to/context.txt (optional)">
-                <div style="margin-top: 10px; color: #808080; font-size: 14px;">OR</div>
+                <label for="numWhys">Number of "Why?" Questions:</label>
+                <select id="numWhys" style="width: 120px; padding: 6px; border: 1px solid #d0d0d0; border-radius: 4px; font-size: 14px; background: #ffffff; color: #000000;">
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3" selected>3</option>
+                    <option value="4">4</option>
+                    <option value="5">5</option>
+                    <option value="6">6</option>
+                    <option value="7">7</option>
+                    <option value="8">8</option>
+                    <option value="9">9</option>
+                    <option value="10">10</option>
+                </select>
+                <div style="margin-top: 5px; font-size: 12px; color: #808080;">
+                    Number of follow-up "Why?" questions to ask
+                </div>
             </div>
+
             <div class="form-group">
-                <label for="fileUpload">Upload Context File:</label>
+                <label for="fileUpload">Upload Context File (optional):</label>
                 <input type="file" id="fileUpload" accept=".txt,.md,.log,.json" onchange="updateFileInfo()">
                 <div id="fileInfo" style="margin-top: 5px; font-size: 12px; color: #808080;"></div>
             </div>
 
             <div class="form-group">
                 <label style="display: flex; align-items: center; cursor: pointer;">
-                    <input type="checkbox" id="restartDialog" style="width: auto; margin-right: 8px; cursor: pointer; accent-color: #4472c4;">
+                    <input type="checkbox" id="restartDialog" checked style="width: auto; margin-right: 8px; cursor: pointer; accent-color: #4472c4;">
                     <span>Restart Dialog (clears conversation history and starts fresh)</span>
                 </label>
                 <div style="margin-top: 5px; font-size: 12px; color: #808080;">
@@ -416,51 +437,59 @@
             </div>
 
             <div class="form-group" style="border-top: 1px solid #d0d0d0; padding-top: 18px; margin-top: 18px;">
-                <label style="font-weight: 600; margin-bottom: 12px; display: block; color: #1f4e78;">Model Parameters (Optional)</label>
+                <label style="display: flex; align-items: center; cursor: pointer; font-weight: 600; color: #1f4e78; margin-bottom: 12px;" onclick="toggleModelParams()">
+                    <span id="modelParamsToggle" style="margin-right: 8px; font-size: 14px;">▶</span>
+                    <span>Model Parameters (Optional)</span>
+                </label>
                 
-                <div style="margin-bottom: 16px; padding: 14px; background: #dae3f3; border-radius: 6px; border-left: 4px solid #4472c4; border: 1px solid #d0d0d0; border-left-width: 4px;">
-                    <label style="display: flex; align-items: center; cursor: pointer; font-weight: 600; color: #1f4e78;">
-                        <input type="checkbox" id="thinkingMode" style="width: auto; margin-right: 10px; cursor: pointer; accent-color: #4472c4;">
-                        <span>Enable Thinking/Reasoning Mode</span>
-                    </label>
-                    <div style="margin-top: 6px; font-size: 12px; color: #808080; margin-left: 26px;">
-                        Enables chain-of-thought reasoning (if supported by model)
+                <div id="modelParamsSection" style="display: none;">
+                    <div style="margin-bottom: 16px; padding: 14px; background: #dae3f3; border-radius: 6px; border-left: 4px solid #4472c4; border: 1px solid #d0d0d0; border-left-width: 4px;">
+                        <label style="display: flex; align-items: center; cursor: pointer; font-weight: 600; color: #1f4e78;">
+                            <input type="checkbox" id="thinkingMode" style="width: auto; margin-right: 10px; cursor: pointer; accent-color: #4472c4;">
+                            <span>Enable Thinking/Reasoning Mode</span>
+                        </label>
+                        <div style="margin-top: 6px; font-size: 12px; color: #808080; margin-left: 26px;">
+                            Enables chain-of-thought reasoning (if supported by model)
+                        </div>
                     </div>
-                </div>
-                
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-                    <div>
-                        <label for="temperature" style="font-size: 13px; color: #1f4e78;">Temperature (0.0-2.0):</label>
-                        <input type="number" id="temperature" step="0.1" min="0" max="2" placeholder="Default: model default" style="width: 100%;">
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                        <div>
+                            <label for="temperature" style="font-size: 13px; color: #1f4e78;">Temperature (0.0-2.0):</label>
+                            <input type="number" id="temperature" step="0.1" min="0" max="2" placeholder="Default: model default" style="width: 100%;">
+                        </div>
+                        <div>
+                            <label for="top_p" style="font-size: 13px; color: #1f4e78;">Top P (0.0-1.0):</label>
+                            <input type="number" id="top_p" step="0.01" min="0" max="1" placeholder="Default: model default" style="width: 100%;">
+                        </div>
+                        <div>
+                            <label for="top_k" style="font-size: 13px; color: #1f4e78;">Top K (1-100):</label>
+                            <input type="number" id="top_k" step="1" min="1" max="100" placeholder="Default: model default" style="width: 100%;">
+                        </div>
+                        <div>
+                            <label for="num_ctx" style="font-size: 13px; color: #1f4e78;">Context Window:</label>
+                            <input type="number" id="num_ctx" step="1024" min="1024" placeholder="Default: 8192" style="width: 100%;">
+                        </div>
+                        <div>
+                            <label for="repeat_penalty" style="font-size: 13px; color: #1f4e78;">Repeat Penalty (0.0-2.0):</label>
+                            <input type="number" id="repeat_penalty" step="0.1" min="0" max="2" placeholder="Default: model default" style="width: 100%;">
+                        </div>
+                        <div>
+                            <label for="num_predict" style="font-size: 13px; color: #1f4e78;">Max Tokens to Generate:</label>
+                            <input type="number" id="num_predict" step="100" min="1" placeholder="Default: unlimited" style="width: 100%;">
+                        </div>
                     </div>
-                    <div>
-                        <label for="top_p" style="font-size: 13px; color: #1f4e78;">Top P (0.0-1.0):</label>
-                        <input type="number" id="top_p" step="0.01" min="0" max="1" placeholder="Default: model default" style="width: 100%;">
+                    <div style="margin-top: 12px; font-size: 12px; color: #808080;">
+                        Leave blank to use model defaults. These apply to all servers.
                     </div>
-                    <div>
-                        <label for="top_k" style="font-size: 13px; color: #1f4e78;">Top K (1-100):</label>
-                        <input type="number" id="top_k" step="1" min="1" max="100" placeholder="Default: model default" style="width: 100%;">
-                    </div>
-                    <div>
-                        <label for="num_ctx" style="font-size: 13px; color: #1f4e78;">Context Window:</label>
-                        <input type="number" id="num_ctx" step="1024" min="1024" placeholder="Default: 8192" style="width: 100%;">
-                    </div>
-                    <div>
-                        <label for="repeat_penalty" style="font-size: 13px; color: #1f4e78;">Repeat Penalty (0.0-2.0):</label>
-                        <input type="number" id="repeat_penalty" step="0.1" min="0" max="2" placeholder="Default: model default" style="width: 100%;">
-                    </div>
-                    <div>
-                        <label for="num_predict" style="font-size: 13px; color: #1f4e78;">Max Tokens to Generate:</label>
-                        <input type="number" id="num_predict" step="100" min="1" placeholder="Default: unlimited" style="width: 100%;">
-                    </div>
-                </div>
-                <div style="margin-top: 12px; font-size: 12px; color: #808080;">
-                    Leave blank to use model defaults. These apply to all servers.
                 </div>
             </div>
 
-            <button id="startBtn" onclick="startAnalysis()">Start Parallel Analysis</button>
-            <button id="createPdfBtn" onclick="createPdf()" style="display: none; background: #70ad47; margin-left: 10px;">📄 Create PDF</button>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <button id="startBtn" onclick="startAnalysis()">Start Parallel Analysis</button>
+                <button id="createPdfBtn" onclick="createPdf()" style="display: none; background: #70ad47;">📄 Create PDF</button>
+                <button onclick="clearAll()" style="background: #c55a11; margin-left: auto;">Clear All</button>
+            </div>
             <div id="status" class="status"></div>
         </div>
 
@@ -473,22 +502,33 @@
         const serverData = {};
         let serverStatusInterval = null;
         let currentAnalysisId = null;
+        let currentNumWhys = 3;  // Default number of whys
         const completedServers = new Set();
 
         // Get server configuration
         function getServerConfig() {
-            return [
+            const servers = [
                 {
                     host: 'http://192.168.5.40:11434',
                     model: 'gpt-oss:20b',
-                    name: 'Server 1 (gpt-oss:20b)'
+                    name: 'Server 1'
                 },
                 {
                     host: 'http://192.168.5.46:11434',
                     model: 'gpt-oss:120b',
-                    name: 'Server 2 (gpt-oss:120b)'
+                    name: 'Server 2'
                 }
             ];
+            
+            // Update models from selected dropdowns if they exist
+            servers.forEach(server => {
+                const modelSelect = document.getElementById(`model-select-${server.name}`);
+                if (modelSelect) {
+                    server.model = modelSelect.value;
+                }
+            });
+            
+            return servers;
         }
 
         // Check server status
@@ -499,10 +539,15 @@
             // Show checking state
             statusList.innerHTML = servers.map(server => `
                 <div class="server-status-item" id="status-${server.name}">
-                    <span class="server-status-name">${server.name}</span>
-                    <div class="server-status-indicator">
+                    <div style="flex: 1; min-width: 100px;">
+                        <span class="server-status-name" style="font-size: 12px;">${server.name}</span>
+                        <div style="width: 100%; margin-top: 6px; font-size: 10px; color: #808080;">
+                            <span>Loading models...</span>
+                        </div>
+                    </div>
+                    <div class="server-status-indicator" style="flex-shrink: 0;">
                         <span class="status-dot checking"></span>
-                        <span class="status-text checking">Checking</span>
+                        <span class="status-text checking" style="font-size: 11px;">Checking</span>
                     </div>
                 </div>
             `).join('');
@@ -523,11 +568,34 @@
                     const statusItem = document.getElementById(`status-${serverStatus.name}`);
                     if (statusItem) {
                         const isOnline = serverStatus.available;
+                        
+                        // Display model selector if we have available models - more compact layout
+                        let modelSelector = '';
+                        if (serverStatus.available_models && serverStatus.available_models.length > 0) {
+                            const currentModel = serverStatus.model || serverStatus.available_models[0];
+                            modelSelector = `<div style="width: 100%; margin-top: 6px; font-size: 10px; color: #1f4e78;">
+                                <label style="display: inline-block; margin-right: 6px; font-weight: 600;">Model:</label>
+                                <select id="model-select-${serverStatus.name}" style="width: auto; min-width: 180px; padding: 4px 6px; border: 1px solid #d0d0d0; border-radius: 4px; font-size: 10px; background: #ffffff; color: #000000;">
+                                    ${serverStatus.available_models.map(m => 
+                                        `<option value="${m}" ${m === currentModel ? 'selected' : ''}>${m}</option>`
+                                    ).join('')}
+                                </select>
+                            </div>`;
+                        } else if (isOnline) {
+                            // Server is online but we couldn't get models - show current model
+                            modelSelector = `<div style="width: 100%; margin-top: 6px; font-size: 10px; color: #808080;">
+                                <span>Model: ${serverStatus.model || 'Unknown'}</span>
+                            </div>`;
+                        }
+                        
                         statusItem.innerHTML = `
-                            <span class="server-status-name">${serverStatus.name}</span>
-                            <div class="server-status-indicator">
+                            <div style="flex: 1; min-width: 100px;">
+                                <span class="server-status-name" style="font-size: 12px;">${serverStatus.name}</span>
+                                ${modelSelector}
+                            </div>
+                            <div class="server-status-indicator" style="flex-shrink: 0;">
                                 <span class="status-dot ${isOnline ? 'online' : 'offline'}"></span>
-                                <span class="status-text ${isOnline ? 'online' : 'offline'}">${isOnline ? 'Online' : 'Offline'}</span>
+                                <span class="status-text ${isOnline ? 'online' : 'offline'}" style="font-size: 11px;">${isOnline ? 'Online' : 'Offline'}</span>
                             </div>
                         `;
                     }
@@ -566,6 +634,7 @@
             analysisActive = true;
             document.getElementById('startBtn').disabled = true;
             currentAnalysisId = data.analysis_id;
+            currentNumWhys = data.num_whys || 3;  // Store number of whys for completion checking
             completedServers.clear();
             // Hide PDF button if it exists
             const pdfBtn = document.getElementById('createPdfBtn');
@@ -594,10 +663,10 @@
         async function startAnalysis() {
             try {
                 const question = document.getElementById('question').value.trim();
-                const contextFile = document.getElementById('context').value.trim() || null;
                 const fileInput = document.getElementById('fileUpload');
                 const restartDialog = document.getElementById('restartDialog').checked;
                 let sessionId = null;
+                let contextFile = null;
 
                 if (!question) {
                     showStatus('Please enter a question', 'error');
@@ -659,6 +728,10 @@
                 const beBriefEl = document.getElementById('beBrief');
                 const beBrief = beBriefEl ? beBriefEl.checked : false;
 
+                // Get number of whys
+                const numWhysEl = document.getElementById('numWhys');
+                const numWhys = numWhysEl ? parseInt(numWhysEl.value) || 3 : 3;
+
                 socket.emit('start_analysis', {
                     question: question,
                     context_file: contextFile,
@@ -666,7 +739,8 @@
                     servers: servers,
                     restart: restartDialog,
                     thinking_params: thinkingParams,
-                    be_brief: beBrief
+                    be_brief: beBrief,
+                    num_whys: numWhys
                 });
             } catch (error) {
                 console.error('Error in startAnalysis:', error);
@@ -902,9 +976,8 @@
             };
             
             // Check if all rounds are complete for this server
-            if (Object.keys(serverData[server].rounds).length >= 6) {
-                checkAllComplete();
-            }
+            // Note: We'll check completion based on the expected number from the server
+            // The actual check happens in checkAllComplete() which compares against all servers
         }
 
         // Function to play mellow sound for server completion
@@ -973,9 +1046,11 @@
 
             const summaryDiv = document.createElement('div');
             summaryDiv.className = 'summary';
+            const totalRounds = Object.keys(serverData[server].rounds || {}).length;
+            const numWhys = totalRounds > 0 ? totalRounds - 1 : currentNumWhys;
             summaryDiv.innerHTML = `
                 <div class="summary-title">Summary</div>
-                <div class="summary-item">Total Rounds: 6 (1 initial + 5 whys)</div>
+                <div class="summary-item">Total Rounds: ${totalRounds} (1 initial + ${numWhys} whys)</div>
                 <div class="summary-item">Total Prompt Tokens: ${data.total_prompt_tokens}</div>
                 <div class="summary-item">Total Completion Tokens: ${data.total_completion_tokens}</div>
                 <div class="summary-item">Total Tokens: ${data.total_tokens}</div>
@@ -1022,9 +1097,10 @@
         function checkAllComplete() {
             // Check if all servers have completed
             const allServers = Object.keys(serverData);
+            const expectedRounds = currentNumWhys + 1;  // 1 initial + num_whys whys
             const allComplete = allServers.every(server => {
                 const data = serverData[server];
-                return data && data.rounds && Object.keys(data.rounds).length >= 6;
+                return data && data.rounds && Object.keys(data.rounds).length >= expectedRounds;
             });
 
             if (allComplete && allServers.length > 0) {
@@ -1036,6 +1112,116 @@
                     pdfBtn.style.display = 'inline-block';
                 }
             }
+        }
+
+        function toggleModelParams() {
+            const section = document.getElementById('modelParamsSection');
+            const toggle = document.getElementById('modelParamsToggle');
+            if (section.style.display === 'none') {
+                section.style.display = 'block';
+                toggle.textContent = '▼';
+            } else {
+                section.style.display = 'none';
+                toggle.textContent = '▶';
+            }
+        }
+
+        function toggleServerStatus() {
+            const list = document.getElementById('serverStatusList');
+            const toggle = document.getElementById('serverStatusToggle');
+            if (list.style.display === 'none') {
+                list.style.display = 'block';
+                toggle.textContent = '▼';
+            } else {
+                list.style.display = 'none';
+                toggle.textContent = '▶';
+            }
+        }
+
+        function clearAll() {
+            // Clear question input
+            document.getElementById('question').value = '';
+            
+            // Clear file upload
+            const fileInput = document.getElementById('fileUpload');
+            if (fileInput) {
+                fileInput.value = '';
+                const fileInfo = document.getElementById('fileInfo');
+                if (fileInfo) {
+                    fileInfo.textContent = '';
+                }
+            }
+            
+            // Reset number of whys to 3
+            const numWhys = document.getElementById('numWhys');
+            if (numWhys) {
+                numWhys.value = '3';
+            }
+            
+            // Reset "Be Brief" toggle
+            const beBrief = document.getElementById('beBrief');
+            if (beBrief) {
+                beBrief.checked = false;
+            }
+            
+            // Reset "Restart Dialog" toggle to checked (default)
+            const restartDialog = document.getElementById('restartDialog');
+            if (restartDialog) {
+                restartDialog.checked = true;
+            }
+            
+            // Clear model parameters
+            document.getElementById('thinkingMode').checked = false;
+            document.getElementById('temperature').value = '';
+            document.getElementById('top_p').value = '';
+            document.getElementById('top_k').value = '';
+            document.getElementById('num_ctx').value = '';
+            document.getElementById('repeat_penalty').value = '';
+            document.getElementById('num_predict').value = '';
+            
+            // Collapse model parameters section
+            const modelParamsSection = document.getElementById('modelParamsSection');
+            const modelParamsToggle = document.getElementById('modelParamsToggle');
+            if (modelParamsSection) {
+                modelParamsSection.style.display = 'none';
+            }
+            if (modelParamsToggle) {
+                modelParamsToggle.textContent = '▶';
+            }
+            
+            // Clear results
+            const resultsDiv = document.getElementById('results');
+            if (resultsDiv) {
+                resultsDiv.innerHTML = '';
+            }
+            
+            // Reset analysis state
+            analysisActive = false;
+            currentAnalysisId = null;
+            currentNumWhys = 3;
+            completedServers.clear();
+            Object.keys(serverData).forEach(key => delete serverData[key]);
+            
+            // Hide PDF button
+            const pdfBtn = document.getElementById('createPdfBtn');
+            if (pdfBtn) {
+                pdfBtn.style.display = 'none';
+            }
+            
+            // Clear status message
+            const statusEl = document.getElementById('status');
+            if (statusEl) {
+                statusEl.style.display = 'none';
+                statusEl.textContent = '';
+            }
+            
+            // Re-enable start button
+            const startBtn = document.getElementById('startBtn');
+            if (startBtn) {
+                startBtn.disabled = false;
+            }
+            
+            showStatus('All fields cleared', 'success');
         }
 
         function createPdf() {
