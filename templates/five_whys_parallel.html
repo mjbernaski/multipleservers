@@ -408,41 +408,44 @@
                         <input type="text" id="question" placeholder="Enter your initial question here..." value="" style="font-size: 11px;">
                     </div>
 
-                    <div class="form-group">
-                        <label for="fileUpload" style="font-size: 11px;">Upload Context File (optional):</label>
-                        <input type="file" id="fileUpload" accept=".txt,.md,.log,.json" onchange="updateFileInfo()" style="font-size: 11px;">
-                        <div id="fileInfo" style="margin-top: 5px; font-size: 10px; color: #808080;"></div>
-                    </div>
                 </div>
 
                 <!-- Right Column -->
                 <div>
-                    <div class="form-group" style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap;">
-                        <label style="display: flex; align-items: center; cursor: pointer; margin: 0; font-weight: 600; color: #1f4e78; font-size: 11px;">
-                            <input type="checkbox" id="beBrief" style="width: auto; margin-right: 6px; cursor: pointer; accent-color: #4472c4; transform: scale(1.1);">
-                            <span>Be Brief.</span>
-                        </label>
-                        
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <label for="numWhys" style="margin: 0; font-size: 11px; color: #1f4e78; font-weight: 500;">Number of "Why?" Questions:</label>
-                            <select id="numWhys" style="padding: 4px 6px; border: 1px solid #d0d0d0; border-radius: 4px; font-size: 11px; background: #ffffff; color: #000000;">
-                                <option value="1">1</option>
-                                <option value="2">2</option>
-                                <option value="3" selected>3</option>
-                                <option value="4">4</option>
-                                <option value="5">5</option>
-                                <option value="6">6</option>
-                                <option value="7">7</option>
-                                <option value="8">8</option>
-                                <option value="9">9</option>
-                                <option value="10">10</option>
-                            </select>
+                    <div class="form-group">
+                        <div style="display: flex; align-items: center; gap: 24px; flex-wrap: wrap;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <label for="fileUpload" style="margin: 0; font-size: 11px; color: #1f4e78; font-weight: 500;">Upload Context File (optional):</label>
+                                <input type="file" id="fileUpload" accept=".txt,.md,.log,.json" onchange="updateFileInfo()" style="font-size: 11px;">
+                            </div>
+                            
+                            <label style="display: flex; align-items: center; cursor: pointer; margin: 0; font-weight: 600; color: #1f4e78; font-size: 11px;">
+                                <input type="checkbox" id="beBrief" style="width: auto; margin-right: 6px; cursor: pointer; accent-color: #4472c4; transform: scale(1.1);">
+                                <span>Be Brief.</span>
+                            </label>
+                            
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <label for="numWhys" style="margin: 0; font-size: 11px; color: #1f4e78; font-weight: 500;">Number of "Why?" Questions:</label>
+                                <select id="numWhys" style="padding: 4px 6px; border: 1px solid #d0d0d0; border-radius: 4px; font-size: 11px; background: #ffffff; color: #000000;">
+                                    <option value="1">1</option>
+                                    <option value="2">2</option>
+                                    <option value="3" selected>3</option>
+                                    <option value="4">4</option>
+                                    <option value="5">5</option>
+                                    <option value="6">6</option>
+                                    <option value="7">7</option>
+                                    <option value="8">8</option>
+                                    <option value="9">9</option>
+                                    <option value="10">10</option>
+                                </select>
+                            </div>
+                            
+                            <label style="display: flex; align-items: center; cursor: pointer; margin: 0; font-size: 11px;">
+                                <input type="checkbox" id="restartDialog" checked style="width: auto; margin-right: 6px; cursor: pointer; accent-color: #4472c4; transform: scale(1.1);">
+                                <span>Restart Dialog</span>
+                            </label>
                         </div>
-                        
-                        <label style="display: flex; align-items: center; cursor: pointer; margin: 0; font-size: 11px;">
-                            <input type="checkbox" id="restartDialog" checked style="width: auto; margin-right: 6px; cursor: pointer; accent-color: #4472c4; transform: scale(1.1);">
-                            <span>Restart Dialog</span>
-                        </label>
+                        <div id="fileInfo" style="margin-top: 5px; font-size: 10px; color: #808080;"></div>
                     </div>
                 </div>
             </div>
