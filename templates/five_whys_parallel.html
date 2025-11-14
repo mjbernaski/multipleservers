@@ -14,8 +14,9 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: #f5f5f5;
+            background: #ffffff;
             padding: 20px;
+            color: #000000;
         }
 
         .container {
@@ -25,35 +26,48 @@
 
         h1 {
             text-align: center;
-            color: #333;
+            color: #1f4e78;
             margin-bottom: 30px;
+            font-weight: 600;
+            letter-spacing: -0.5px;
         }
 
         .controls {
-            background: white;
-            padding: 20px;
+            background: #ffffff;
+            padding: 24px;
             border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
             margin-bottom: 20px;
+            border: 1px solid #d0d0d0;
         }
 
         .form-group {
-            margin-bottom: 15px;
+            margin-bottom: 18px;
         }
 
         label {
             display: block;
-            margin-bottom: 5px;
-            font-weight: 600;
-            color: #555;
+            margin-bottom: 6px;
+            font-weight: 500;
+            color: #1f4e78;
+            font-size: 14px;
         }
 
         input[type="text"], textarea {
             width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
+            padding: 10px 12px;
+            border: 1px solid #d0d0d0;
             border-radius: 4px;
             font-size: 14px;
+            background: #ffffff;
+            color: #000000;
+            transition: border-color 0.2s;
+        }
+
+        input[type="text"]:focus, textarea:focus {
+            outline: none;
+            border-color: #4472c4;
+            box-shadow: 0 0 0 2px rgba(68, 114, 196, 0.1);
         }
 
         textarea {
@@ -62,71 +76,79 @@
         }
 
         button {
-            background: #007bff;
-            color: white;
+            background: #4472c4;
+            color: #ffffff;
             border: none;
             padding: 12px 24px;
             border-radius: 4px;
             cursor: pointer;
-            font-size: 16px;
-            font-weight: 600;
-            transition: background 0.2s;
+            font-size: 15px;
+            font-weight: 500;
+            transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(68, 114, 196, 0.2);
         }
 
         button:hover {
-            background: #0056b3;
+            background: #365899;
+            box-shadow: 0 3px 6px rgba(68, 114, 196, 0.3);
+            transform: translateY(-1px);
         }
 
         button:disabled {
-            background: #ccc;
+            background: #d0d0d0;
+            color: #808080;
             cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
         }
 
         .status {
             margin-top: 10px;
-            padding: 10px;
+            padding: 12px 16px;
             border-radius: 4px;
             display: none;
+            font-size: 14px;
         }
 
         .status.info {
-            background: #d1ecf1;
-            color: #0c5460;
-            border: 1px solid #bee5eb;
+            background: #dae3f3;
+            color: #1f4e78;
+            border: 1px solid #8db4e2;
         }
 
         .status.error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
+            background: #fce4d6;
+            color: #c55a11;
+            border: 1px solid #f4b084;
         }
 
         .status.success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
+            background: #e2efda;
+            color: #70ad47;
+            border: 1px solid #a9d08e;
         }
 
         .server-status-container {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 4px;
+            background: #f2f2f2;
+            padding: 16px;
+            border-radius: 6px;
             margin-bottom: 20px;
-            border: 1px solid #dee2e6;
+            border: 1px solid #d0d0d0;
         }
 
         .server-status-title {
             font-weight: 600;
-            margin-bottom: 10px;
-            color: #495057;
+            margin-bottom: 12px;
+            color: #1f4e78;
+            font-size: 15px;
         }
 
         .server-status-item {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid #e9ecef;
+            padding: 10px 0;
+            border-bottom: 1px solid #e8e4d8;
         }
 
         .server-status-item:last-child {
@@ -135,7 +157,7 @@
 
         .server-status-name {
             font-weight: 500;
-            color: #495057;
+            color: #5a5240;
         }
 
         .server-status-indicator {
@@ -152,17 +174,17 @@
         }
 
         .status-dot.online {
-            background: #28a745;
-            box-shadow: 0 0 4px rgba(40, 167, 69, 0.5);
+            background: #00ff00;
+            box-shadow: 0 0 8px rgba(0, 255, 0, 0.6);
         }
 
         .status-dot.offline {
-            background: #dc3545;
-            box-shadow: 0 0 4px rgba(220, 53, 69, 0.5);
+            background: #a67c52;
+            box-shadow: 0 0 4px rgba(166, 124, 82, 0.4);
         }
 
         .status-dot.checking {
-            background: #ffc107;
+            background: #b89f7a;
             animation: pulse 1.5s ease-in-out infinite;
         }
 
@@ -177,15 +199,15 @@
         }
 
         .status-text.online {
-            color: #28a745;
+            color: #00ff00;
         }
 
         .status-text.offline {
-            color: #dc3545;
+            color: #c55a11;
         }
 
         .status-text.checking {
-            color: #856404;
+            color: #ffc000;
         }
 
         .results-container {
@@ -196,34 +218,36 @@
         }
 
         .server-panel {
-            background: white;
+            background: #ffffff;
             border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
             overflow: hidden;
+            border: 1px solid #d0d0d0;
         }
 
         .server-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 15px 20px;
+            background: linear-gradient(135deg, #4472c4 0%, #1f4e78 100%);
+            color: #ffffff;
+            padding: 16px 20px;
             font-weight: 600;
-            font-size: 18px;
+            font-size: 17px;
+            letter-spacing: 0.3px;
         }
 
         .server-header.server-1 {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #4472c4 0%, #1f4e78 100%);
         }
 
         .server-header.server-2 {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            background: linear-gradient(135deg, #70ad47 0%, #548235 100%);
         }
 
         .server-info {
-            padding: 10px 20px;
-            background: #f8f9fa;
+            padding: 12px 20px;
+            background: #f2f2f2;
             font-size: 12px;
-            color: #666;
-            border-bottom: 1px solid #dee2e6;
+            color: #1f4e78;
+            border-bottom: 1px solid #d0d0d0;
         }
 
         .server-content {
@@ -235,7 +259,7 @@
         .round {
             margin-bottom: 30px;
             padding-bottom: 20px;
-            border-bottom: 2px solid #e9ecef;
+            border-bottom: 2px solid #d0d0d0;
         }
 
         .round:last-child {
@@ -244,73 +268,80 @@
 
         .round-header {
             font-weight: 600;
-            color: #495057;
-            margin-bottom: 10px;
+            color: #1f4e78;
+            margin-bottom: 12px;
             font-size: 16px;
+            letter-spacing: 0.3px;
         }
 
         .question {
-            background: #e7f3ff;
-            padding: 12px;
-            border-left: 4px solid #007bff;
-            margin-bottom: 10px;
+            background: #dae3f3;
+            padding: 14px 16px;
+            border-left: 4px solid #4472c4;
+            margin-bottom: 12px;
             border-radius: 4px;
         }
 
         .question-label {
             font-weight: 600;
-            color: #0056b3;
-            margin-bottom: 5px;
+            color: #1f4e78;
+            margin-bottom: 6px;
+            font-size: 13px;
         }
 
         .answer {
-            background: #f8f9fa;
-            padding: 12px;
-            border-left: 4px solid #28a745;
+            background: #ffffff;
+            padding: 14px 16px;
+            border-left: 4px solid #70ad47;
             border-radius: 4px;
             white-space: pre-wrap;
-            line-height: 1.6;
+            line-height: 1.7;
+            color: #000000;
+            border: 1px solid #d0d0d0;
         }
 
         .answer.streaming {
-            background: #fff3cd;
-            border-left-color: #ffc107;
+            background: #fff2cc;
+            border-left-color: #ffc000;
         }
 
         .tokens {
             margin-top: 10px;
             font-size: 12px;
-            color: #6c757d;
+            color: #808080;
             font-style: italic;
         }
 
         .summary {
             margin-top: 20px;
-            padding: 15px;
-            background: #f8f9fa;
-            border-radius: 4px;
+            padding: 18px;
+            background: #f2f2f2;
+            border-radius: 6px;
+            border: 1px solid #d0d0d0;
         }
 
         .summary-title {
             font-weight: 600;
-            margin-bottom: 10px;
-            color: #495057;
+            margin-bottom: 12px;
+            color: #1f4e78;
+            font-size: 15px;
         }
 
         .summary-item {
-            margin: 5px 0;
+            margin: 6px 0;
             font-size: 14px;
+            color: #000000;
         }
 
         .loading {
             text-align: center;
             padding: 20px;
-            color: #6c757d;
+            color: #808080;
         }
 
         .spinner {
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #007bff;
+            border: 3px solid #d0d0d0;
+            border-top: 3px solid #4472c4;
             border-radius: 50%;
             width: 30px;
             height: 30px;
@@ -348,6 +379,16 @@
                 </div>
             </div>
 
+            <div class="form-group" style="display: flex; align-items: center; gap: 12px; margin-bottom: 18px;">
+                <label style="display: flex; align-items: center; cursor: pointer; margin: 0; font-weight: 600; color: #1f4e78;">
+                    <input type="checkbox" id="beBrief" style="width: auto; margin-right: 8px; cursor: pointer; accent-color: #4472c4; transform: scale(1.2);">
+                    <span>Be Brief.</span>
+                </label>
+                <div style="font-size: 12px; color: #808080; font-style: italic;">
+                    When enabled, "Be Brief." will be included in each question sent to the models
+                </div>
+            </div>
+
             <div class="form-group">
                 <label for="question">Initial Question:</label>
                 <input type="text" id="question" placeholder="Enter your initial question here..." value="">
@@ -356,26 +397,70 @@
             <div class="form-group">
                 <label for="context">Context File (optional):</label>
                 <input type="text" id="context" placeholder="path/to/context.txt (optional)">
-                <div style="margin-top: 10px; color: #666; font-size: 14px;">OR</div>
+                <div style="margin-top: 10px; color: #808080; font-size: 14px;">OR</div>
             </div>
             <div class="form-group">
                 <label for="fileUpload">Upload Context File:</label>
                 <input type="file" id="fileUpload" accept=".txt,.md,.log,.json" onchange="updateFileInfo()">
-                <div id="fileInfo" style="margin-top: 5px; font-size: 12px; color: #666;"></div>
+                <div id="fileInfo" style="margin-top: 5px; font-size: 12px; color: #808080;"></div>
             </div>
 
             <div class="form-group">
                 <label style="display: flex; align-items: center; cursor: pointer;">
-                    <input type="checkbox" id="restartDialog" style="width: auto; margin-right: 8px; cursor: pointer;">
+                    <input type="checkbox" id="restartDialog" style="width: auto; margin-right: 8px; cursor: pointer; accent-color: #4472c4;">
                     <span>Restart Dialog (clears conversation history and starts fresh)</span>
                 </label>
-                <div style="margin-top: 5px; font-size: 12px; color: #666;">
+                <div style="margin-top: 5px; font-size: 12px; color: #808080;">
                     Unchecked: Continue from previous conversation. Checked: Start new conversation.
                 </div>
             </div>
 
+            <div class="form-group" style="border-top: 1px solid #d0d0d0; padding-top: 18px; margin-top: 18px;">
+                <label style="font-weight: 600; margin-bottom: 12px; display: block; color: #1f4e78;">Model Parameters (Optional)</label>
+                
+                <div style="margin-bottom: 16px; padding: 14px; background: #dae3f3; border-radius: 6px; border-left: 4px solid #4472c4; border: 1px solid #d0d0d0; border-left-width: 4px;">
+                    <label style="display: flex; align-items: center; cursor: pointer; font-weight: 600; color: #1f4e78;">
+                        <input type="checkbox" id="thinkingMode" style="width: auto; margin-right: 10px; cursor: pointer; accent-color: #4472c4;">
+                        <span>Enable Thinking/Reasoning Mode</span>
+                    </label>
+                    <div style="margin-top: 6px; font-size: 12px; color: #808080; margin-left: 26px;">
+                        Enables chain-of-thought reasoning (if supported by model)
+                    </div>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div>
+                        <label for="temperature" style="font-size: 13px; color: #1f4e78;">Temperature (0.0-2.0):</label>
+                        <input type="number" id="temperature" step="0.1" min="0" max="2" placeholder="Default: model default" style="width: 100%;">
+                    </div>
+                    <div>
+                        <label for="top_p" style="font-size: 13px; color: #1f4e78;">Top P (0.0-1.0):</label>
+                        <input type="number" id="top_p" step="0.01" min="0" max="1" placeholder="Default: model default" style="width: 100%;">
+                    </div>
+                    <div>
+                        <label for="top_k" style="font-size: 13px; color: #1f4e78;">Top K (1-100):</label>
+                        <input type="number" id="top_k" step="1" min="1" max="100" placeholder="Default: model default" style="width: 100%;">
+                    </div>
+                    <div>
+                        <label for="num_ctx" style="font-size: 13px; color: #1f4e78;">Context Window:</label>
+                        <input type="number" id="num_ctx" step="1024" min="1024" placeholder="Default: 8192" style="width: 100%;">
+                    </div>
+                    <div>
+                        <label for="repeat_penalty" style="font-size: 13px; color: #1f4e78;">Repeat Penalty (0.0-2.0):</label>
+                        <input type="number" id="repeat_penalty" step="0.1" min="0" max="2" placeholder="Default: model default" style="width: 100%;">
+                    </div>
+                    <div>
+                        <label for="num_predict" style="font-size: 13px; color: #1f4e78;">Max Tokens to Generate:</label>
+                        <input type="number" id="num_predict" step="100" min="1" placeholder="Default: unlimited" style="width: 100%;">
+                    </div>
+                </div>
+                <div style="margin-top: 12px; font-size: 12px; color: #808080;">
+                    Leave blank to use model defaults. These apply to all servers.
+                </div>
+            </div>
+
             <button id="startBtn" onclick="startAnalysis()">Start Parallel Analysis</button>
-            <button id="createPdfBtn" onclick="createPdf()" style="display: none; background: #28a745; margin-left: 10px;">📄 Create PDF</button>
+            <button id="createPdfBtn" onclick="createPdf()" style="display: none; background: #70ad47; margin-left: 10px;">📄 Create PDF</button>
             <div id="status" class="status"></div>
         </div>
 
@@ -507,56 +592,86 @@
         });
 
         async function startAnalysis() {
-            const question = document.getElementById('question').value.trim();
-            const contextFile = document.getElementById('context').value.trim() || null;
-            const fileInput = document.getElementById('fileUpload');
-            const restartDialog = document.getElementById('restartDialog').checked;
-            let sessionId = null;
+            try {
+                const question = document.getElementById('question').value.trim();
+                const contextFile = document.getElementById('context').value.trim() || null;
+                const fileInput = document.getElementById('fileUpload');
+                const restartDialog = document.getElementById('restartDialog').checked;
+                let sessionId = null;
 
-            if (!question) {
-                showStatus('Please enter a question', 'error');
-                return;
-            }
-
-            // If a file is selected, upload it first
-            if (fileInput.files && fileInput.files.length > 0) {
-                const file = fileInput.files[0];
-                showStatus('Uploading file...', 'info');
-                
-                try {
-                    const formData = new FormData();
-                    formData.append('file', file);
-                    
-                    const response = await fetch('/upload', {
-                        method: 'POST',
-                        body: formData
-                    });
-                    
-                    const result = await response.json();
-                    
-                    if (!response.ok) {
-                        showStatus(`Upload error: ${result.error}`, 'error');
-                        return;
-                    }
-                    
-                    sessionId = result.session_id;
-                    showStatus(`File "${result.filename}" uploaded successfully`, 'success');
-                } catch (error) {
-                    showStatus(`Upload failed: ${error.message}`, 'error');
+                if (!question) {
+                    showStatus('Please enter a question', 'error');
                     return;
                 }
+
+                // If a file is selected, upload it first
+                if (fileInput.files && fileInput.files.length > 0) {
+                    const file = fileInput.files[0];
+                    showStatus('Uploading file...', 'info');
+                    
+                    try {
+                        const formData = new FormData();
+                        formData.append('file', file);
+                        
+                        const response = await fetch('/upload', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        
+                        const result = await response.json();
+                        
+                        if (!response.ok) {
+                            showStatus(`Upload error: ${result.error}`, 'error');
+                            return;
+                        }
+                        
+                        sessionId = result.session_id;
+                        showStatus(`File "${result.filename}" uploaded successfully`, 'success');
+                    } catch (error) {
+                        showStatus(`Upload failed: ${error.message}`, 'error');
+                        return;
+                    }
+                }
+
+                // Configure servers
+                const servers = getServerConfig();
+
+                // Collect thinking mode and generation parameters (only include if they have values)
+                const thinkingParams = {};
+                const thinkingModeEl = document.getElementById('thinkingMode');
+                const thinkingMode = thinkingModeEl ? thinkingModeEl.checked : false;
+                const temperature = document.getElementById('temperature').value;
+                const top_p = document.getElementById('top_p').value;
+                const top_k = document.getElementById('top_k').value;
+                const num_ctx = document.getElementById('num_ctx').value;
+                const repeat_penalty = document.getElementById('repeat_penalty').value;
+                const num_predict = document.getElementById('num_predict').value;
+
+                if (thinkingMode) thinkingParams.thinking = true;
+                if (temperature) thinkingParams.temperature = parseFloat(temperature);
+                if (top_p) thinkingParams.top_p = parseFloat(top_p);
+                if (top_k) thinkingParams.top_k = parseInt(top_k);
+                if (num_ctx) thinkingParams.num_ctx = parseInt(num_ctx);
+                if (repeat_penalty) thinkingParams.repeat_penalty = parseFloat(repeat_penalty);
+                if (num_predict) thinkingParams.num_predict = parseInt(num_predict);
+
+                // Get be_brief toggle value
+                const beBriefEl = document.getElementById('beBrief');
+                const beBrief = beBriefEl ? beBriefEl.checked : false;
+
+                socket.emit('start_analysis', {
+                    question: question,
+                    context_file: contextFile,
+                    session_id: sessionId,
+                    servers: servers,
+                    restart: restartDialog,
+                    thinking_params: thinkingParams,
+                    be_brief: beBrief
+                });
+            } catch (error) {
+                console.error('Error in startAnalysis:', error);
+                showStatus(`Error: ${error.message}`, 'error');
             }
-
-            // Configure servers
-            const servers = getServerConfig();
-
-            socket.emit('start_analysis', {
-                question: question,
-                context_file: contextFile,
-                session_id: sessionId,
-                servers: servers,
-                restart: restartDialog
-            });
         }
 
         function initializeServerPanels(serverNames, hasContextFile, contextFilename) {
@@ -570,7 +685,7 @@
                 
                 let contextStatus = '';
                 if (hasContextFile && contextFilename) {
-                    contextStatus = `<div style="padding: 8px; margin: 10px 0; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px; font-size: 12px;">
+                    contextStatus = `<div style="padding: 10px 12px; margin: 10px 0; background: #fff2cc; border-left: 4px solid #ffc000; border-radius: 4px; font-size: 12px; color: #1f4e78;">
                         <strong>Waiting for context file:</strong> ${contextFilename}
                     </div>`;
                 }
@@ -657,7 +772,7 @@
             if (!contentEl) return;
 
             // Remove the "waiting for context file" message if it exists
-            const waitingMsg = contentEl.querySelector('div[style*="fff3cd"]');
+            const waitingMsg = contentEl.querySelector('div[style*="f5f2eb"]');
             if (waitingMsg) {
                 waitingMsg.remove();
             }
@@ -675,26 +790,26 @@
             if (success !== false) {
                 // Success - show the file content
                 contextDiv.innerHTML = `
-                    <div class="round-header" style="color: #28a745; display: flex; align-items: center; gap: 8px;">
+                    <div class="round-header" style="color: #70ad47; display: flex; align-items: center; gap: 8px;">
                         <span>✓</span>
                         <span>CONTEXT FILE RECEIVED</span>
                     </div>
                     <div class="question">
                         <div class="question-label">File: ${filename}</div>
                     </div>
-                    <div class="answer" style="max-height: 300px; overflow-y: auto; white-space: pre-wrap; font-family: monospace; font-size: 12px;">${escapeHtml(content)}</div>
+                    <div class="answer" style="max-height: 300px; overflow-y: auto; white-space: pre-wrap; font-family: monospace; font-size: 12px; background: #ffffff;">${escapeHtml(content)}</div>
                 `;
             } else {
                 // Error - show error message
                 contextDiv.innerHTML = `
-                    <div class="round-header" style="color: #dc3545; display: flex; align-items: center; gap: 8px;">
+                    <div class="round-header" style="color: #c55a11; display: flex; align-items: center; gap: 8px;">
                         <span>✗</span>
                         <span>CONTEXT FILE ERROR</span>
                     </div>
                     <div class="question">
                         <div class="question-label">File: ${filename}</div>
                     </div>
-                    <div class="answer" style="background: #f8d7da; color: #721c24; border-left-color: #dc3545;">
+                    <div class="answer" style="background: #fce4d6; color: #c55a11; border-left-color: #c55a11;">
                         Error loading context file: ${escapeHtml(error || 'Unknown error')}
                     </div>
                 `;
@@ -792,9 +907,56 @@
             }
         }
 
+        // Function to play mellow sound for server completion
+        function playMellowSound(server) {
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                
+                // Map each server to a different mellow frequency (musical notes)
+                // Using pleasant frequencies in a minor pentatonic scale
+                const serverFrequencies = {
+                    'Server 1': 220.00,  // A3
+                    'Server 2': 261.63,  // C4
+                    'Server 3': 293.66,  // D4
+                    'Server 4': 329.63,  // E4
+                    'Server 5': 392.00,  // G4
+                };
+                
+                // Default to a pleasant frequency if server not in map
+                const frequency = serverFrequencies[server] || 220.00;
+                
+                // Create oscillator
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                // Set waveform to sine for mellow sound
+                oscillator.type = 'sine';
+                oscillator.frequency.value = frequency;
+                
+                // Create a gentle attack and release envelope
+                const now = audioContext.currentTime;
+                gainNode.gain.setValueAtTime(0, now);
+                gainNode.gain.linearRampToValueAtTime(0.3, now + 0.1); // Gentle attack
+                gainNode.gain.linearRampToValueAtTime(0.3, now + 0.3); // Sustain
+                gainNode.gain.linearRampToValueAtTime(0, now + 0.8);    // Gentle release
+                
+                // Play the sound
+                oscillator.start(now);
+                oscillator.stop(now + 0.8);
+            } catch (error) {
+                console.log('Could not play sound:', error);
+            }
+        }
+
         function showSummary(server, data) {
             const contentEl = document.getElementById(`content-${server}`);
             if (!contentEl) return;
+
+            // Play mellow sound when server completes
+            playMellowSound(server);
 
             // Format runtime
             let runtimeStr = 'N/A';
@@ -826,7 +988,7 @@
         function showServerError(server, error) {
             const contentEl = document.getElementById(`content-${server}`);
             if (contentEl) {
-                contentEl.innerHTML = `<div class="status error">Error: ${error}</div>`;
+                contentEl.innerHTML = `<div class="status error" style="display: block;">Error: ${error}</div>`;
             }
         }
 
@@ -838,7 +1000,7 @@
                 const file = fileInput.files[0];
                 const sizeKB = (file.size / 1024).toFixed(2);
                 fileInfo.textContent = `Selected: ${file.name} (${sizeKB} KB)`;
-                fileInfo.style.color = '#28a745';
+                fileInfo.style.color = '#70ad47';
             } else {
                 fileInfo.textContent = '';
             }

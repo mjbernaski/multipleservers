@@ -179,7 +179,9 @@ class FiveWhysOllama:
 2. Then, explain why the situation occurred by going one level deeper in the analysis
 3. Be thorough but concise in your explanations
 
-This approach ensures we clarify uncertainties before diving deeper into root causes."""
+This approach ensures we clarify uncertainties before diving deeper into root causes.
+
+IMPORTANT: Provide your responses in plain text only. Do NOT use markdown formatting such as headers (##), bold (**), italics (*), bullet points, or any other markdown syntax. Use simple, clear prose."""
 
         self.messages.append({
             "role": "system",

@@ -21,19 +21,30 @@ from werkzeug.utils import secure_filename
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.lib.units import inch
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.enums import TA_LEFT, TA_JUSTIFY
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, Table, TableStyle
+from reportlab.lib.enums import TA_LEFT, TA_JUSTIFY, TA_CENTER
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, Table, TableStyle, KeepTogether
 from reportlab.lib import colors
 from reportlab.pdfgen import canvas
+from reportlab.lib.utils import simpleSplit
 import io
 
 
 class FiveWhysOllama:
-    def __init__(self, host: str, model: str, name: str = None, num_ctx: int = 8192):
+    def __init__(self, host: str, model: str, name: str = None, num_ctx: int = 8192, 
+                 temperature: float = None, top_p: float = None, top_k: int = None,
+                 repeat_penalty: float = None, num_predict: int = None, thinking: bool = False,
+                 be_brief: bool = False):
         self.host = host.rstrip('/')
         self.model = model
         self.name = name or f"{host} ({model})"
         self.num_ctx = num_ctx
+        self.temperature = temperature
+        self.top_p = top_p
+        self.top_k = top_k
+        self.repeat_penalty = repeat_penalty
+        self.num_predict = num_predict
+        self.thinking = thinking
+        self.be_brief = be_brief
         self.conversation_history: List[Dict] = []
         self.messages: List[Dict] = []  # Full conversation for Ollama context
         self.total_prompt_tokens = 0
@@ -87,6 +98,10 @@ class FiveWhysOllama:
         """Send a question to Ollama and get response with token counts."""
         url = f"{self.host}/api/chat"
 
+        # Prepend "Be Brief." if enabled (always add it, even if already present)
+        if self.be_brief:
+            question = "Be Brief. " + question
+
         # Add user message to conversation history
         self.messages.append({"role": "user", "content": question})
         
@@ -100,8 +115,41 @@ class FiveWhysOllama:
             "stream": True
         }
         
-        # Debug: Log message count being sent
-        debug_log('debug', f"Sending {len(self.messages)} messages to Ollama", server=self.name, data={'message_count': len(self.messages), 'payload': {'model': self.model, 'stream': True}})
+        # Add thinking/reasoning mode if enabled
+        if self.thinking:
+            payload["thinking"] = True
+        
+        # Add generation parameters if they are set
+        if self.num_ctx is not None:
+            payload["num_ctx"] = self.num_ctx
+        if self.temperature is not None:
+            payload["temperature"] = self.temperature
+        if self.top_p is not None:
+            payload["top_p"] = self.top_p
+        if self.top_k is not None:
+            payload["top_k"] = self.top_k
+        if self.repeat_penalty is not None:
+            payload["repeat_penalty"] = self.repeat_penalty
+        if self.num_predict is not None:
+            payload["num_predict"] = self.num_predict
+        
+        # Debug: Log message count and parameters being sent
+        payload_info = {'model': self.model, 'stream': True}
+        if self.thinking:
+            payload_info['thinking'] = True
+        if self.num_ctx is not None:
+            payload_info['num_ctx'] = self.num_ctx
+        if self.temperature is not None:
+            payload_info['temperature'] = self.temperature
+        if self.top_p is not None:
+            payload_info['top_p'] = self.top_p
+        if self.top_k is not None:
+            payload_info['top_k'] = self.top_k
+        if self.repeat_penalty is not None:
+            payload_info['repeat_penalty'] = self.repeat_penalty
+        if self.num_predict is not None:
+            payload_info['num_predict'] = self.num_predict
+        debug_log('debug', f"Sending {len(self.messages)} messages to Ollama", server=self.name, data={'message_count': len(self.messages), 'payload': payload_info})
         if len(self.messages) > 0:
             # Show first message (system prompt) preview
             first_msg = self.messages[0]
@@ -231,7 +279,7 @@ class FiveWhysOllama:
         self.total_completion_tokens = 0
         self.total_tokens = 0
 
-    def run_five_whys(self, initial_question: str, context_file: str = None, restart: bool = False, continue_from_round: int = None):
+    def run_five_whys(self, initial_question: str, context_file: str = None, restart: bool = False, continue_from_round: int = None, be_brief: bool = None):
         """Execute the 5 Whys technique.
         
         Args:
@@ -243,6 +291,10 @@ class FiveWhysOllama:
         # Reset if restart requested
         if restart:
             self.reset_conversation()
+
+        # Update be_brief setting if provided
+        if be_brief is not None:
+            self.be_brief = be_brief
 
         # Track start time
         self.start_time = time.time()
@@ -466,14 +518,14 @@ analysis_metadata = {}  # analysis_id -> {question, context_filename, timestamp,
 server_runtimes = {}  # analysis_id -> {server_name: runtime_seconds}
 
 
-def run_analysis_thread(analyzer: FiveWhysOllama, question: str, context_file: str, name: str, session_id: str = None, restart: bool = False):
+def run_analysis_thread(analyzer: FiveWhysOllama, question: str, context_file: str, name: str, session_id: str = None, restart: bool = False, be_brief: bool = False):
     """Run analysis in a separate thread."""
     try:
-        debug_log('info', f"run_analysis_thread for {name}: context_file={context_file}, exists={os.path.exists(context_file) if context_file else False}, session_id={session_id}", server=name, data={'context_file': context_file, 'session_id': session_id})
+        debug_log('info', f"run_analysis_thread for {name}: context_file={context_file}, exists={os.path.exists(context_file) if context_file else False}, session_id={session_id}, be_brief={be_brief}", server=name, data={'context_file': context_file, 'session_id': session_id, 'be_brief': be_brief})
         if context_file:
             file_size = os.path.getsize(context_file) if os.path.exists(context_file) else 0
             debug_log('info', f"Context file path for {name}: '{context_file}', file size: {file_size} bytes", server=name, data={'path': context_file, 'file_size': file_size})
-        analyzer.run_five_whys(question, context_file, restart=restart)
+        analyzer.run_five_whys(question, context_file, restart=restart, be_brief=be_brief)
     except Exception as e:
         socketio.emit('error', {
             'server': name,
@@ -624,73 +676,106 @@ def generate_pdf(analysis_id):
     if len(analyzers_data) == 0:
         return jsonify({'error': 'No analysis data found'}), 404
     
-    # Create PDF in memory
+    # Create PDF in memory with better margins
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter,
-                          rightMargin=0.5*inch, leftMargin=0.5*inch,
-                          topMargin=0.5*inch, bottomMargin=0.5*inch)
+                          rightMargin=0.6*inch, leftMargin=0.6*inch,
+                          topMargin=0.6*inch, bottomMargin=0.6*inch)
     
     # Container for the 'Flowable' objects
     elements = []
     
-    # Define styles
+    # Define styles with Excel color palette
     styles = getSampleStyleSheet()
     title_style = ParagraphStyle(
         'CustomTitle',
         parent=styles['Heading1'],
-        fontSize=18,
-        textColor=colors.HexColor('#1a1a1a'),
-        spaceAfter=12,
-        alignment=TA_LEFT
+        fontSize=20,
+        textColor=colors.HexColor('#1f4e78'),
+        spaceAfter=16,
+        alignment=TA_LEFT,
+        fontName='Helvetica-Bold',
+        leading=24
     )
     
     heading_style = ParagraphStyle(
         'CustomHeading',
         parent=styles['Heading2'],
         fontSize=14,
-        textColor=colors.HexColor('#2c3e50'),
-        spaceAfter=8,
-        spaceBefore=12,
-        alignment=TA_LEFT
+        textColor=colors.HexColor('#1f4e78'),
+        spaceAfter=10,
+        spaceBefore=16,
+        alignment=TA_LEFT,
+        fontName='Helvetica-Bold',
+        leading=18
     )
     
     question_style = ParagraphStyle(
         'QuestionStyle',
         parent=styles['Normal'],
-        fontSize=11,
-        textColor=colors.HexColor('#2980b9'),
-        spaceAfter=6,
-        fontName='Helvetica-Bold'
+        fontSize=10,
+        textColor=colors.HexColor('#1f4e78'),
+        spaceAfter=4,
+        fontName='Helvetica-Bold',
+        leading=12
     )
     
     answer_style = ParagraphStyle(
         'AnswerStyle',
         parent=styles['Normal'],
-        fontSize=10,
-        textColor=colors.HexColor('#34495e'),
-        spaceAfter=12,
+        fontSize=9.5,
+        textColor=colors.HexColor('#000000'),
+        spaceAfter=10,
         alignment=TA_JUSTIFY,
-        leading=14
+        leading=13.5,
+        leftIndent=0,
+        rightIndent=0
     )
     
     info_style = ParagraphStyle(
         'InfoStyle',
         parent=styles['Normal'],
         fontSize=9,
-        textColor=colors.HexColor('#7f8c8d'),
-        spaceAfter=4
+        textColor=colors.HexColor('#808080'),
+        spaceAfter=3,
+        leading=11
+    )
+    
+    token_style = ParagraphStyle(
+        'TokenStyle',
+        parent=styles['Normal'],
+        fontSize=8,
+        textColor=colors.HexColor('#808080'),
+        spaceAfter=0,
+        leading=10,
+        fontName='Helvetica-Oblique'
     )
     
     # Title
     elements.append(Paragraph("5 Whys Analysis - Side by Side Comparison", title_style))
-    elements.append(Spacer(1, 0.2*inch))
-    
-    # Analysis metadata
-    elements.append(Paragraph(f"<b>Initial Question:</b> {metadata['question']}", info_style))
-    if metadata['context_filename']:
-        elements.append(Paragraph(f"<b>Context File:</b> {metadata['context_filename']}", info_style))
-    elements.append(Paragraph(f"<b>Date:</b> {metadata['timestamp'][:19].replace('T', ' ')}", info_style))
     elements.append(Spacer(1, 0.15*inch))
+    
+    # Analysis metadata in a subtle box - escape HTML
+    question_escaped = metadata['question'].replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+    metadata_text = f"<b>Initial Question:</b> {question_escaped}<br/>"
+    if metadata['context_filename']:
+        filename_escaped = metadata['context_filename'].replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+        metadata_text += f"<b>Context File:</b> {filename_escaped}<br/>"
+    metadata_text += f"<b>Date:</b> {metadata['timestamp'][:19].replace('T', ' ')}"
+    
+    # Create a subtle background for metadata with Excel colors
+    metadata_table = Table([[Paragraph(metadata_text, info_style)]], colWidths=[doc.width])
+    metadata_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#f2f2f2')),
+        ('LEFTPADDING', (0, 0), (-1, -1), 10),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 10),
+        ('TOPPADDING', (0, 0), (-1, -1), 8),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#d0d0d0')),
+    ]))
+    elements.append(metadata_table)
+    elements.append(Spacer(1, 0.2*inch))
     
     # Get maximum number of rounds
     max_rounds = max(len(a['conversation_history']) for a in analyzers_data) if analyzers_data else 0
@@ -707,9 +792,19 @@ def generate_pdf(analysis_id):
         # Header row
         header_row = []
         for analyzer_data in analyzers_data:
-            header_row.append(Paragraph(f"<b>{analyzer_data['name']}</b><br/><font size=8>{analyzer_data['model']}</font>", 
-                                       ParagraphStyle('HeaderStyle', parent=styles['Normal'], fontSize=10, 
-                                                     textColor=colors.HexColor('#2c3e50'), alignment=TA_LEFT)))
+            header_para_style = ParagraphStyle(
+                'HeaderStyle',
+                parent=styles['Normal'],
+                fontSize=10,
+                textColor=colors.HexColor('#ffffff'),
+                alignment=TA_LEFT,
+                fontName='Helvetica-Bold',
+                leading=12
+            )
+            header_row.append(Paragraph(
+                f"<b>{analyzer_data['name']}</b><br/><font size=7>{analyzer_data['model']}</font>",
+                header_para_style
+            ))
         table_data.append(header_row)
         
         # Content row
@@ -722,34 +817,52 @@ def generate_pdf(analysis_id):
                 answer = round_data.get('answer', '')
                 tokens = round_data.get('tokens', {})
                 
-                round_content = f"<b>Q:</b> {question}<br/><br/>{answer}"
+                # Format question and answer with better styling - escape HTML in content
+                # Escape special characters for XML/HTML
+                question_escaped = question.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+                answer_escaped = answer.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+                
+                round_content = f"<b>Q:</b> {question_escaped}<br/><br/>{answer_escaped}"
                 if tokens:
-                    round_content += f"<br/><br/><font size=8 color='#7f8c8d'>Tokens: {tokens.get('prompt_tokens', 0)} prompt + {tokens.get('completion_tokens', 0)} completion = {tokens.get('total', 0)} total</font>"
+                    token_text = f"Tokens: {tokens.get('prompt_tokens', 0)} prompt + {tokens.get('completion_tokens', 0)} completion = {tokens.get('total', 0)} total"
+                    round_content += f"<br/><br/><font color='#808080' size=7><i>{token_text}</i></font>"
             else:
                 round_content = "<i>No data for this round</i>"
             
-            content_row.append(Paragraph(round_content, answer_style))
+            # Use a container paragraph style for better formatting
+            content_para_style = ParagraphStyle(
+                'ContentStyle',
+                parent=answer_style,
+                fontSize=9.5,
+                textColor=colors.HexColor('#000000'),
+                leading=13.5
+            )
+            content_row.append(Paragraph(round_content, content_para_style))
         
         table_data.append(content_row)
         
-        # Create table
+        # Create table with earth-tone styling
         col_widths = [doc.width / len(analyzers_data)] * len(analyzers_data)
         table = Table(table_data, colWidths=col_widths, hAlign='LEFT')
         table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#ecf0f1')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#2c3e50')),
+            # Header row styling with Excel blue
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#4472c4')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#ffffff')),
             ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, 0), 10),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-            ('TOPPADDING', (0, 0), (-1, 0), 12),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.white),
-            ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#bdc3c7')),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 14),
+            ('TOPPADDING', (0, 0), (-1, 0), 14),
+            # Content row styling
+            ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#ffffff')),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#d0d0d0')),
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ('LEFTPADDING', (0, 0), (-1, -1), 8),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 8),
-            ('TOPPADDING', (0, 1), (-1, -1), 10),
-            ('BOTTOMPADDING', (0, 1), (-1, -1), 10),
+            ('LEFTPADDING', (0, 0), (-1, -1), 12),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 12),
+            ('TOPPADDING', (0, 1), (-1, -1), 12),
+            ('BOTTOMPADDING', (0, 1), (-1, -1), 12),
+            # Inner borders for better separation
+            ('LINEBELOW', (0, 0), (-1, 0), 1.5, colors.HexColor('#1f4e78')),
         ]))
         
         elements.append(table)
@@ -758,7 +871,7 @@ def generate_pdf(analysis_id):
     # Summary section
     elements.append(PageBreak())
     elements.append(Paragraph("Summary", heading_style))
-    elements.append(Spacer(1, 0.1*inch))
+    elements.append(Spacer(1, 0.15*inch))
     
     summary_data = [['Server', 'Model', 'Total Prompt Tokens', 'Total Completion Tokens', 'Total Tokens', 'Runtime']]
     for analyzer_data in analyzers_data:
@@ -774,15 +887,26 @@ def generate_pdf(analysis_id):
     
     summary_table = Table(summary_data, colWidths=[1.8*inch, 1.3*inch, 1.1*inch, 1.3*inch, 0.9*inch, 1.2*inch])
     summary_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#34495e')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        # Header styling with Excel blue
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#4472c4')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#ffffff')),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (-1, 0), 10),
         ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#ecf0f1')),
-        ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#95a5a6')),
+        ('TOPPADDING', (0, 0), (-1, 0), 12),
+        # Row styling - alternating for better readability
+        ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#ffffff')),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.HexColor('#ffffff'), colors.HexColor('#f2f2f2')]),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#d0d0d0')),
+        ('LINEBELOW', (0, 0), (-1, 0), 1.5, colors.HexColor('#1f4e78')),
         ('FONTSIZE', (0, 1), (-1, -1), 9),
+        ('TEXTCOLOR', (0, 1), (-1, -1), colors.HexColor('#000000')),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 8),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+        ('TOPPADDING', (0, 1), (-1, -1), 8),
+        ('BOTTOMPADDING', (0, 1), (-1, -1), 8),
     ]))
     elements.append(summary_table)
     
@@ -878,8 +1002,9 @@ def handle_start_analysis(data):
     session_id = data.get('session_id')  # For uploaded files
     servers = data.get('servers', [])
     restart = data.get('restart', False)  # Whether to restart the dialog
+    be_brief = data.get('be_brief', False)  # Whether to include "Be Brief." in questions
     
-    debug_log('info', f"handle_start_analysis received: question='{question}', context_file='{context_file}', session_id='{session_id}', restart={restart}")
+    debug_log('info', f"handle_start_analysis received: question='{question}', context_file='{context_file}', session_id='{session_id}', restart={restart}, be_brief={be_brief}")
     debug_log('debug', f"Current uploaded_files keys: {list(uploaded_files.keys())}")
     
     # If session_id is provided, get the uploaded file path
@@ -911,6 +1036,28 @@ def handle_start_analysis(data):
         emit('error', {'error': 'No servers configured'})
         return
 
+    # Store analysis metadata for PDF generation (create analysis_id early)
+    import datetime
+    analysis_id = str(uuid.uuid4())
+    analysis_metadata[analysis_id] = {
+        'question': question,
+        'context_filename': os.path.basename(context_file) if context_file else None,
+        'context_file': context_file,
+        'timestamp': datetime.datetime.now().isoformat(),
+        'servers': []  # Will be populated below
+    }
+    server_runtimes[analysis_id] = {}
+
+    # Get thinking mode and generation parameters from request (optional)
+    thinking_params = data.get('thinking_params', {})
+    thinking_mode = thinking_params.get('thinking', False)
+    num_ctx = thinking_params.get('num_ctx')
+    temperature = thinking_params.get('temperature')
+    top_p = thinking_params.get('top_p')
+    top_k = thinking_params.get('top_k')
+    repeat_penalty = thinking_params.get('repeat_penalty')
+    num_predict = thinking_params.get('num_predict')
+
     # Create and validate analyzers for each server
     analyzers = []
     for server_config in servers:
@@ -922,9 +1069,34 @@ def handle_start_analysis(data):
         is_new_analyzer = name not in analyzer_instances
         if not restart and not is_new_analyzer:
             analyzer = analyzer_instances[name]
+            # Update thinking mode and generation parameters if provided
+            analyzer.thinking = thinking_mode
+            analyzer.be_brief = be_brief
+            if temperature is not None:
+                analyzer.temperature = temperature
+            if top_p is not None:
+                analyzer.top_p = top_p
+            if top_k is not None:
+                analyzer.top_k = top_k
+            if repeat_penalty is not None:
+                analyzer.repeat_penalty = repeat_penalty
+            if num_predict is not None:
+                analyzer.num_predict = num_predict
+            if num_ctx is not None:
+                analyzer.num_ctx = num_ctx
         else:
-            # Create new analyzer
-            analyzer = FiveWhysOllama(host, model, name)
+            # Create new analyzer with thinking mode and generation parameters
+            analyzer = FiveWhysOllama(
+                host, model, name,
+                num_ctx=num_ctx if num_ctx is not None else 8192,
+                temperature=temperature,
+                top_p=top_p,
+                top_k=top_k,
+                repeat_penalty=repeat_penalty,
+                num_predict=num_predict,
+                thinking=thinking_mode,
+                be_brief=be_brief
+            )
             analyzer_instances[name] = analyzer
 
         # Set up callback to emit WebSocket events
@@ -956,22 +1128,13 @@ def handle_start_analysis(data):
 
         analyzers.append((analyzer, name))
 
+    # Update servers list in metadata now that we have the final analyzers
+    analysis_metadata[analysis_id]['servers'] = [name for _, name in analyzers]
+
     # Track file usage count if we have a session_id (uploaded file)
     if session_id and session_id in uploaded_files:
         # Track how many threads will use this file (based on actual analyzers, not all servers)
         file_usage_count[session_id] = len(analyzers)
-
-    # Store analysis metadata for PDF generation
-    import datetime
-    analysis_id = str(uuid.uuid4())
-    analysis_metadata[analysis_id] = {
-        'question': question,
-        'context_filename': os.path.basename(context_file) if context_file else None,
-        'context_file': context_file,
-        'timestamp': datetime.datetime.now().isoformat(),
-        'servers': [name for _, name in analyzers]
-    }
-    server_runtimes[analysis_id] = {}
     
     # Emit analysis_started BEFORE starting threads so client can initialize
     # Include context file info if provided
@@ -988,7 +1151,7 @@ def handle_start_analysis(data):
     for analyzer, name in analyzers:
         thread = threading.Thread(
             target=run_analysis_thread,
-            args=(analyzer, question, context_file, name, session_id if session_id else None, restart),
+            args=(analyzer, question, context_file, name, session_id if session_id else None, restart, be_brief),
             daemon=True
         )
         thread.start()
