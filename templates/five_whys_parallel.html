@@ -1028,8 +1028,20 @@
             const contentEl = document.getElementById(`content-${server}`);
             if (!contentEl) return;
 
+            // Track completion order and play sound
+            // Check if this is the second server to complete
+            const isSecondServer = completedServers.size === 1;
+            completedServers.add(server);
+            
             // Play mellow sound when server completes
-            playMellowSound(server);
+            // If this is the second server, play it twice
+            if (isSecondServer) {
+                playMellowSound(server);
+                // Play second time after a short delay
+                setTimeout(() => playMellowSound(server), 200);
+            } else {
+                playMellowSound(server);
+            }
 
             // Format runtime
             let runtimeStr = 'N/A';
