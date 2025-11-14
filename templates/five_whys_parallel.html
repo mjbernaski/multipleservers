@@ -15,7 +15,7 @@
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             background: #ffffff;
-            padding: 20px;
+            padding: 15px;
             color: #000000;
         }
 
@@ -27,38 +27,52 @@
         h1 {
             text-align: center;
             color: #1f4e78;
-            margin-bottom: 30px;
+            margin-bottom: 15px;
             font-weight: 600;
             letter-spacing: -0.5px;
+            font-size: 24px;
         }
 
         .controls {
             background: #ffffff;
-            padding: 24px;
+            padding: 16px;
             border-radius: 8px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
             margin-bottom: 20px;
             border: 1px solid #d0d0d0;
         }
 
+        .controls-two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 16px;
+        }
+
+        @media (max-width: 1200px) {
+            .controls-two-column {
+                grid-template-columns: 1fr;
+            }
+        }
+
         .form-group {
-            margin-bottom: 18px;
+            margin-bottom: 12px;
         }
 
         label {
             display: block;
-            margin-bottom: 6px;
+            margin-bottom: 5px;
             font-weight: 500;
             color: #1f4e78;
-            font-size: 14px;
+            font-size: 13px;
         }
 
         input[type="text"], textarea {
             width: 100%;
-            padding: 10px 12px;
+            padding: 8px 10px;
             border: 1px solid #d0d0d0;
             border-radius: 4px;
-            font-size: 14px;
+            font-size: 13px;
             background: #ffffff;
             color: #000000;
             transition: border-color 0.2s;
@@ -130,9 +144,9 @@
 
         .server-status-container {
             background: #f2f2f2;
-            padding: 10px;
+            padding: 8px;
             border-radius: 6px;
-            margin-bottom: 15px;
+            margin-bottom: 12px;
             border: 1px solid #d0d0d0;
         }
 
@@ -370,74 +384,73 @@
         <h1>5 Whys Analysis - Parallel Execution</h1>
 
         <div class="controls">
-            <div class="server-status-container">
-                <div class="server-status-title" onclick="toggleServerStatus()">
-                    <span id="serverStatusToggle" style="margin-right: 6px; font-size: 12px;">▼</span>
-                    <span>Server Status</span>
-                </div>
-                <div id="serverStatusList" style="display: block;">
-                    <div class="server-status-item">
-                        <span class="server-status-name">Checking...</span>
-                        <div class="server-status-indicator">
-                            <span class="status-dot checking"></span>
-                            <span class="status-text checking">Checking</span>
+            <div class="controls-two-column">
+                <!-- Left Column -->
+                <div>
+                    <div class="server-status-container">
+                        <div class="server-status-title" onclick="toggleServerStatus()">
+                            <span id="serverStatusToggle" style="margin-right: 6px; font-size: 12px;">▼</span>
+                            <span>Server Status</span>
                         </div>
+                        <div id="serverStatusList" style="display: block;">
+                            <div class="server-status-item">
+                                <span class="server-status-name">Checking...</span>
+                                <div class="server-status-indicator">
+                                    <span class="status-dot checking"></span>
+                                    <span class="status-text checking">Checking</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="question">Initial Question:</label>
+                        <input type="text" id="question" placeholder="Enter your initial question here..." value="">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="fileUpload">Upload Context File (optional):</label>
+                        <input type="file" id="fileUpload" accept=".txt,.md,.log,.json" onchange="updateFileInfo()">
+                        <div id="fileInfo" style="margin-top: 5px; font-size: 11px; color: #808080;"></div>
+                    </div>
+                </div>
+
+                <!-- Right Column -->
+                <div>
+                    <div class="form-group" style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                        <label style="display: flex; align-items: center; cursor: pointer; margin: 0; font-weight: 600; color: #1f4e78;">
+                            <input type="checkbox" id="beBrief" style="width: auto; margin-right: 6px; cursor: pointer; accent-color: #4472c4; transform: scale(1.2);">
+                            <span>Be Brief.</span>
+                        </label>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="numWhys">Number of "Why?" Questions:</label>
+                        <select id="numWhys" style="width: 120px; padding: 6px; border: 1px solid #d0d0d0; border-radius: 4px; font-size: 14px; background: #ffffff; color: #000000;">
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3" selected>3</option>
+                            <option value="4">4</option>
+                            <option value="5">5</option>
+                            <option value="6">6</option>
+                            <option value="7">7</option>
+                            <option value="8">8</option>
+                            <option value="9">9</option>
+                            <option value="10">10</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label style="display: flex; align-items: center; cursor: pointer;">
+                            <input type="checkbox" id="restartDialog" checked style="width: auto; margin-right: 8px; cursor: pointer; accent-color: #4472c4;">
+                            <span style="font-size: 13px;">Restart Dialog</span>
+                        </label>
                     </div>
                 </div>
             </div>
 
-            <div class="form-group" style="display: flex; align-items: center; gap: 12px; margin-bottom: 18px;">
-                <label style="display: flex; align-items: center; cursor: pointer; margin: 0; font-weight: 600; color: #1f4e78;">
-                    <input type="checkbox" id="beBrief" style="width: auto; margin-right: 8px; cursor: pointer; accent-color: #4472c4; transform: scale(1.2);">
-                    <span>Be Brief.</span>
-                </label>
-                <div style="font-size: 12px; color: #808080; font-style: italic;">
-                    When enabled, "Be Brief." will be included in each question sent to the models
-                </div>
-            </div>
-
-            <div class="form-group">
-                <label for="question">Initial Question:</label>
-                <input type="text" id="question" placeholder="Enter your initial question here..." value="">
-            </div>
-
-            <div class="form-group">
-                <label for="numWhys">Number of "Why?" Questions:</label>
-                <select id="numWhys" style="width: 120px; padding: 6px; border: 1px solid #d0d0d0; border-radius: 4px; font-size: 14px; background: #ffffff; color: #000000;">
-                    <option value="1">1</option>
-                    <option value="2">2</option>
-                    <option value="3" selected>3</option>
-                    <option value="4">4</option>
-                    <option value="5">5</option>
-                    <option value="6">6</option>
-                    <option value="7">7</option>
-                    <option value="8">8</option>
-                    <option value="9">9</option>
-                    <option value="10">10</option>
-                </select>
-                <div style="margin-top: 5px; font-size: 12px; color: #808080;">
-                    Number of follow-up "Why?" questions to ask
-                </div>
-            </div>
-
-            <div class="form-group">
-                <label for="fileUpload">Upload Context File (optional):</label>
-                <input type="file" id="fileUpload" accept=".txt,.md,.log,.json" onchange="updateFileInfo()">
-                <div id="fileInfo" style="margin-top: 5px; font-size: 12px; color: #808080;"></div>
-            </div>
-
-            <div class="form-group">
-                <label style="display: flex; align-items: center; cursor: pointer;">
-                    <input type="checkbox" id="restartDialog" checked style="width: auto; margin-right: 8px; cursor: pointer; accent-color: #4472c4;">
-                    <span>Restart Dialog (clears conversation history and starts fresh)</span>
-                </label>
-                <div style="margin-top: 5px; font-size: 12px; color: #808080;">
-                    Unchecked: Continue from previous conversation. Checked: Start new conversation.
-                </div>
-            </div>
-
-            <div class="form-group" style="border-top: 1px solid #d0d0d0; padding-top: 18px; margin-top: 18px;">
-                <label style="display: flex; align-items: center; cursor: pointer; font-weight: 600; color: #1f4e78; margin-bottom: 12px;" onclick="toggleModelParams()">
+            <div class="form-group" style="border-top: 1px solid #d0d0d0; padding-top: 12px; margin-top: 12px;">
+                <label style="display: flex; align-items: center; cursor: pointer; font-weight: 600; color: #1f4e78; margin-bottom: 10px;" onclick="toggleModelParams()">
                     <span id="modelParamsToggle" style="margin-right: 8px; font-size: 14px;">▶</span>
                     <span>Model Parameters (Optional)</span>
                 </label>
@@ -485,10 +498,10 @@
                 </div>
             </div>
 
-            <div style="display: flex; gap: 10px; align-items: center;">
-                <button id="startBtn" onclick="startAnalysis()">Start Parallel Analysis</button>
-                <button id="createPdfBtn" onclick="createPdf()" style="display: none; background: #70ad47;">📄 Create PDF</button>
-                <button onclick="clearAll()" style="background: #c55a11; margin-left: auto;">Clear All</button>
+            <div style="display: flex; gap: 10px; align-items: center; margin-top: 12px; padding-top: 12px; border-top: 1px solid #d0d0d0;">
+                <button id="startBtn" onclick="startAnalysis()" style="padding: 10px 20px; font-size: 14px;">Start Parallel Analysis</button>
+                <button id="createPdfBtn" onclick="createPdf()" style="display: none; background: #70ad47; padding: 10px 20px; font-size: 14px;">📄 Create PDF</button>
+                <button onclick="clearAll()" style="background: #c55a11; margin-left: auto; padding: 10px 20px; font-size: 14px;">Clear All</button>
             </div>
             <div id="status" class="status"></div>
         </div>
