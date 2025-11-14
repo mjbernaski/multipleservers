@@ -31,6 +31,10 @@ import html
 import unicodedata
 import hashlib
 from openai import OpenAI
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 
 class FiveWhysOllama:

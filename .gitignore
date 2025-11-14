@@ -16,6 +16,9 @@ output/
 # TTS cache
 tts_cache/
 
+# Environment variables
+.env
+
 # Example/test files
 *.txt
 !requirements.txt
