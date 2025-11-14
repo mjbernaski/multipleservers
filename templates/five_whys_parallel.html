@@ -318,6 +318,28 @@
             border: 1px solid #d0d0d0;
         }
 
+        .speaker-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px;
+            font-size: 18px;
+            color: #4472c4;
+            opacity: 0.7;
+            transition: opacity 0.2s, transform 0.2s;
+            flex-shrink: 0;
+        }
+
+        .speaker-btn:hover {
+            opacity: 1.0;
+            transform: scale(1.1);
+        }
+
+        .speaker-btn:disabled {
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
         .answer.streaming {
             background: #fff2cc;
             border-left-color: #ffc000;
@@ -945,7 +967,12 @@
                     <div class="question-label">Q:</div>
                     <div>${question}</div>
                 </div>
-                <div class="answer streaming" id="answer-${server}-${roundNum}"></div>
+                <div style="display: flex; align-items: flex-start; gap: 8px;">
+                    <div class="answer streaming" id="answer-${server}-${roundNum}" style="flex: 1;"></div>
+                    <button class="speaker-btn" onclick="playTextToSpeech('${server}', ${roundNum})" id="speaker-${server}-${roundNum}" style="display: none; background: none; border: none; cursor: pointer; padding: 4px; font-size: 18px; color: #4472c4; opacity: 0.7; transition: opacity 0.2s;" title="Play audio">
+                        🔊
+                    </button>
+                </div>
                 <div class="tokens" id="tokens-${server}-${roundNum}"></div>
             `;
 
@@ -963,6 +990,12 @@
                 serverData[server].currentAnswer += content;
                 answerEl.textContent = serverData[server].currentAnswer;
                 
+                // Show speaker button once we have some content
+                const speakerBtn = document.getElementById(`speaker-${server}-${roundNum}`);
+                if (speakerBtn && serverData[server].currentAnswer.trim().length > 0) {
+                    speakerBtn.style.display = 'block';
+                }
+                
                 // Auto-scroll
                 const contentEl = document.getElementById(`content-${server}`);
                 if (contentEl) {
@@ -974,10 +1007,16 @@
         function completeRound(server, roundNum, answer, tokens) {
             const answerEl = document.getElementById(`answer-${server}-${roundNum}`);
             const tokensEl = document.getElementById(`tokens-${server}-${roundNum}`);
+            const speakerBtn = document.getElementById(`speaker-${server}-${roundNum}`);
 
             if (answerEl) {
                 answerEl.textContent = answer;
                 answerEl.classList.remove('streaming');
+            }
+
+            // Show speaker button when answer is complete
+            if (speakerBtn && answer) {
+                speakerBtn.style.display = 'block';
             }
 
             if (tokensEl && tokens) {
@@ -992,6 +1031,82 @@
             // Check if all rounds are complete for this server
             // Note: We'll check completion based on the expected number from the server
             // The actual check happens in checkAllComplete() which compares against all servers
+        }
+
+        async function playTextToSpeech(server, roundNum) {
+            const answerEl = document.getElementById(`answer-${server}-${roundNum}`);
+            const speakerBtn = document.getElementById(`speaker-${server}-${roundNum}`);
+            
+            if (!answerEl || !answerEl.textContent.trim()) {
+                return;
+            }
+            
+            const text = answerEl.textContent.trim();
+            
+            // Disable button and show loading state
+            if (speakerBtn) {
+                speakerBtn.disabled = true;
+                speakerBtn.style.opacity = '0.5';
+                speakerBtn.textContent = '⏳';
+            }
+            
+            try {
+                const response = await fetch('/text_to_speech', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ text: text })
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to generate speech');
+                }
+                
+                // Get audio blob and play it
+                const audioBlob = await response.blob();
+                const audioUrl = URL.createObjectURL(audioBlob);
+                const audio = new Audio(audioUrl);
+                
+                audio.onended = () => {
+                    URL.revokeObjectURL(audioUrl);
+                    if (speakerBtn) {
+                        speakerBtn.disabled = false;
+                        speakerBtn.style.opacity = '0.7';
+                        speakerBtn.textContent = '🔊';
+                    }
+                };
+                
+                audio.onerror = (e) => {
+                    console.error('Error playing audio:', e);
+                    URL.revokeObjectURL(audioUrl);
+                    if (speakerBtn) {
+                        speakerBtn.disabled = false;
+                        speakerBtn.style.opacity = '0.7';
+                        speakerBtn.textContent = '🔊';
+                    }
+                    alert('Error playing audio. Please try again.');
+                };
+                
+                await audio.play();
+                
+                // Update button to show playing state
+                if (speakerBtn) {
+                    speakerBtn.textContent = '🔊';
+                    speakerBtn.style.opacity = '1.0';
+                }
+                
+            } catch (error) {
+                console.error('Error with text-to-speech:', error);
+                alert(`Error: ${error.message}`);
+                
+                if (speakerBtn) {
+                    speakerBtn.disabled = false;
+                    speakerBtn.style.opacity = '0.7';
+                    speakerBtn.textContent = '🔊';
+                }
+            }
         }
 
         // Function to play mellow sound for server completion

@@ -29,6 +29,8 @@ from reportlab.lib.utils import simpleSplit
 import io
 import html
 import unicodedata
+import hashlib
+from openai import OpenAI
 
 
 class FiveWhysOllama:
@@ -1077,6 +1079,62 @@ def check_servers():
     
     return jsonify({'servers': server_statuses})
 
+
+@app.route('/text_to_speech', methods=['POST'])
+def text_to_speech():
+    """Generate or retrieve cached audio for text using OpenAI TTS."""
+    try:
+        data = request.get_json()
+        text = data.get('text', '').strip()
+        
+        if not text:
+            return jsonify({'error': 'No text provided'}), 400
+        
+        # Create cache directory if it doesn't exist
+        cache_dir = os.path.join(os.path.dirname(__file__), 'tts_cache')
+        os.makedirs(cache_dir, exist_ok=True)
+        
+        # Create hash of text for cache key
+        text_hash = hashlib.md5(text.encode('utf-8')).hexdigest()
+        audio_path = os.path.join(cache_dir, f'{text_hash}.mp3')
+        
+        # Check if audio already exists
+        if os.path.exists(audio_path):
+            debug_log('info', f"Using cached audio for text hash: {text_hash[:8]}...")
+            return send_file(audio_path, mimetype='audio/mpeg')
+        
+        # Generate new audio using OpenAI TTS
+        # Check for API key in environment variable
+        api_key = os.environ.get('OPENAI_API_KEY')
+        if not api_key:
+            return jsonify({'error': 'OPENAI_API_KEY environment variable not set'}), 500
+        
+        debug_log('info', f"Generating new audio for text (hash: {text_hash[:8]}...), length: {len(text)} chars")
+        
+        client = OpenAI(api_key=api_key)
+        
+        # Use a pleasant voice - "alloy" is one of the nicer options
+        # Available voices: alloy, echo, fable, onyx, nova, shimmer
+        response = client.audio.speech.create(
+            model="tts-1",
+            voice="nova",  # Pleasant, clear voice
+            input=text,
+            speed=1.0
+        )
+        
+        # Save audio to cache
+        with open(audio_path, 'wb') as f:
+            for chunk in response.iter_bytes():
+                f.write(chunk)
+        
+        debug_log('info', f"Audio generated and cached: {audio_path}")
+        
+        return send_file(audio_path, mimetype='audio/mpeg')
+        
+    except Exception as e:
+        error_msg = f"Error generating speech: {str(e)}"
+        debug_log('error', error_msg, data={'error': str(e)})
+        return jsonify({'error': error_msg}), 500
 
 @app.route('/upload', methods=['POST'])
 def upload_file():

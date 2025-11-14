@@ -13,6 +13,9 @@ ENV/
 # Output files
 output/
 
+# TTS cache
+tts_cache/
+
 # Example/test files
 *.txt
 !requirements.txt
