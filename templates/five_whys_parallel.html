@@ -276,7 +276,7 @@
 
         .results-container {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1fr 1fr 1fr;
             gap: 20px;
             margin-top: 20px;
         }
@@ -510,6 +510,12 @@
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 1600px) {
+            .results-container {
+                grid-template-columns: 1fr 1fr;
+            }
         }
 
         @media (max-width: 1200px) {
