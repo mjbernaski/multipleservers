@@ -1185,7 +1185,17 @@
             }
 
             if (tokensEl && tokens) {
-                tokensEl.textContent = `Tokens - Prompt: ${tokens.prompt_tokens}, Completion: ${tokens.completion_tokens}, Total: ${tokens.total}`;
+                let tokenText = `Tokens - Prompt: ${tokens.prompt_tokens}, Completion: ${tokens.completion_tokens}, Total: ${tokens.total}`;
+
+                // Add performance metrics if available
+                if (tokens.tokens_per_second && tokens.tokens_per_second > 0) {
+                    tokenText += ` | Speed: ${tokens.tokens_per_second.toFixed(2)} tok/s`;
+                }
+                if (tokens.time_to_first_token && tokens.time_to_first_token > 0) {
+                    tokenText += ` | TTFT: ${tokens.time_to_first_token.toFixed(2)}s`;
+                }
+
+                tokensEl.textContent = tokenText;
             }
 
             serverData[server].rounds[roundNum] = {

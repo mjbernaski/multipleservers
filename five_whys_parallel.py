@@ -181,6 +181,14 @@ class FiveWhysOllama:
             prompt_tokens = 0
             completion_tokens = 0
             chunk_count = 0
+            first_token_time = None
+            start_time = time.time()
+
+            # Timing information
+            total_duration = 0
+            load_duration = 0
+            prompt_eval_duration = 0
+            eval_duration = 0
 
             # Process streaming response
             for line in response.iter_lines():
@@ -192,6 +200,11 @@ class FiveWhysOllama:
                     if 'message' in chunk and 'content' in chunk['message']:
                         content = chunk['message']['content']
                         answer += content
+
+                        # Track time to first token
+                        if first_token_time is None and content:
+                            first_token_time = time.time() - start_time
+
                         # Call stream callback if set
                         if self.stream_callback:
                             self.stream_callback({
@@ -201,14 +214,30 @@ class FiveWhysOllama:
                                 'name': self.name
                             })
 
-                    # Token counts come in the final message
+                    # Token counts and timing come in the final message
                     if chunk.get('done', False):
                         prompt_tokens = chunk.get('prompt_eval_count', 0)
                         completion_tokens = chunk.get('eval_count', 0)
 
+                        # Capture timing information (in nanoseconds)
+                        total_duration = chunk.get('total_duration', 0)
+                        load_duration = chunk.get('load_duration', 0)
+                        prompt_eval_duration = chunk.get('prompt_eval_duration', 0)
+                        eval_duration = chunk.get('eval_duration', 0)
+
             total = prompt_tokens + completion_tokens
 
-            debug_log('info', f"Response complete (round {round_num}): {len(answer)} chars, {chunk_count} chunks, tokens: {prompt_tokens} prompt + {completion_tokens} completion = {total} total", server=self.name, data={'answer_length': len(answer), 'chunks': chunk_count, 'prompt_tokens': prompt_tokens, 'completion_tokens': completion_tokens, 'total_tokens': total})
+            # Calculate performance metrics
+            tokens_per_second = 0
+            if eval_duration > 0 and completion_tokens > 0:
+                # Convert nanoseconds to seconds
+                eval_duration_sec = eval_duration / 1e9
+                tokens_per_second = completion_tokens / eval_duration_sec
+
+            # Time to first token (in seconds)
+            ttft = first_token_time if first_token_time else 0
+
+            debug_log('info', f"Response complete (round {round_num}): {len(answer)} chars, {chunk_count} chunks, tokens: {prompt_tokens} prompt + {completion_tokens} completion = {total} total, TTFT: {ttft:.2f}s, TPS: {tokens_per_second:.2f}", server=self.name, data={'answer_length': len(answer), 'chunks': chunk_count, 'prompt_tokens': prompt_tokens, 'completion_tokens': completion_tokens, 'total_tokens': total, 'ttft': ttft, 'tps': tokens_per_second})
             debug_log('debug', f"Answer preview (first 200 chars): {answer[:200]}...", server=self.name)
 
             # Add assistant response to conversation history
@@ -222,7 +251,13 @@ class FiveWhysOllama:
             token_info = {
                 'prompt_tokens': prompt_tokens,
                 'completion_tokens': completion_tokens,
-                'total': total
+                'total': total,
+                'tokens_per_second': tokens_per_second,
+                'time_to_first_token': ttft,
+                'total_duration_ms': total_duration / 1e6 if total_duration > 0 else 0,
+                'load_duration_ms': load_duration / 1e6 if load_duration > 0 else 0,
+                'prompt_eval_duration_ms': prompt_eval_duration / 1e6 if prompt_eval_duration > 0 else 0,
+                'eval_duration_ms': eval_duration / 1e6 if eval_duration > 0 else 0
             }
 
             # Notify completion
