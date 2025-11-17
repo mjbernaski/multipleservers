@@ -897,7 +897,45 @@ def generate_pdf(analysis_id):
     
     # Get maximum number of rounds
     max_rounds = max(len(a['conversation_history']) for a in analyzers_data) if analyzers_data else 0
-    
+
+    # Define text cleaning utilities used across rounds
+    replacements = {
+        # Superscripts
+        '²': '^2', '³': '^3', '¹': '^1', '⁰': '^0', '⁴': '^4', '⁵': '^5', '⁶': '^6', '⁷': '^7', '⁸': '^8', '⁹': '^9',
+        # Subscripts
+        '₂': '_2', '₃': '_3', '₁': '_1', '₀': '_0', '₄': '_4', '₅': '_5', '₆': '_6', '₇': '_7', '₈': '_8', '₉': '_9',
+        # Math symbols
+        '×': 'x', '÷': '/', '±': '+/-', '≈': '~', '≠': '!=', '≤': '<=', '≥': '>=',
+        '°': ' degrees', '∞': 'infinity', 'α': 'alpha', 'β': 'beta', 'γ': 'gamma',
+        'Δ': 'Delta', 'π': 'pi', '∑': 'sum', '√': 'sqrt', '∫': 'integral',
+        # Dashes and hyphens
+        '–': '-', '—': '-', '−': '-', '‑': '-', '‒': '-', '―': '-',
+        # Quotes
+        ''': "'", ''': "'", '"': '"', '"': '"', '‚': ',', '„': '"',
+        # Other common problematic characters
+        '…': '...', '•': '*', '·': '*',
+        # Remove square/box characters
+        '■': '', '□': '', '▪': '', '▫': '', '▬': '', '▭': '', '▮': '', '▯': '',
+        '▰': '', '▱': '', '▲': '', '△': '', '▼': '', '▽': '', '◆': '', '◇': '',
+        # Zero-width characters
+        '\u200b': '', '\u200c': '', '\u200d': '', '\ufeff': '',
+    }
+
+    def clean_text(text):
+        """Remove or replace problematic Unicode characters."""
+        result = []
+        for char in text:
+            if char in ['■', '□', '▪', '▫', '▬', '▭', '▮', '▯', '▰', '▱', '▲', '△', '▼', '▽', '◆', '◇']:
+                result.append('-')
+            elif unicodedata.category(char) in ['So', 'Sm'] and ord(char) > 127:
+                if char.isprintable() and ord(char) < 256:
+                    result.append(char)
+                else:
+                    result.append('-')
+            else:
+                result.append(char)
+        return ''.join(result)
+
     # Create side-by-side content for each round
     for round_num in range(max_rounds):
         round_label = "Initial Question" if round_num == 0 else f"Why #{round_num}"
@@ -944,70 +982,11 @@ def generate_pdf(analysis_id):
                 question_escaped = html.escape(question)
                 answer_escaped = html.escape(answer)
 
-                # Replace common Unicode characters that ReportLab might not handle well
-                # Convert superscripts and other special characters to plain text equivalents
-                # This prevents square characters (■) from appearing when Unicode isn't supported
-                replacements = {
-                    # Superscripts
-                    '²': '^2', '³': '^3', '¹': '^1', '⁰': '^0', '⁴': '^4', '⁵': '^5', '⁶': '^6', '⁷': '^7', '⁸': '^8', '⁹': '^9',
-                    # Subscripts
-                    '₂': '_2', '₃': '_3', '₁': '_1', '₀': '_0', '₄': '_4', '₅': '_5', '₆': '_6', '₇': '_7', '₈': '_8', '₉': '_9',
-                    # Math symbols
-                    '×': 'x', '÷': '/', '±': '+/-', '≈': '~', '≠': '!=', '≤': '<=', '≥': '>=',
-                    '°': ' degrees', '∞': 'infinity', 'α': 'alpha', 'β': 'beta', 'γ': 'gamma',
-                    'Δ': 'Delta', 'π': 'pi', '∑': 'sum', '√': 'sqrt', '∫': 'integral',
-                    # Dashes and hyphens (common source of square characters)
-                    '–': '-',  # En-dash
-                    '—': '-',  # Em-dash
-                    '−': '-',  # Minus sign
-                    '‑': '-',  # Non-breaking hyphen
-                    '‒': '-',  # Figure dash
-                    '―': '-',  # Horizontal bar
-                    # Quotes
-                    ''': "'",  # Left single quotation mark
-                    ''': "'",  # Right single quotation mark
-                    '"': '"',  # Left double quotation mark
-                    '"': '"',  # Right double quotation mark
-                    '‚': ',',  # Single low-9 quotation mark
-                    '„': '"',  # Double low-9 quotation mark
-                    # Other common problematic characters
-                    '…': '...',  # Horizontal ellipsis
-                    '•': '*',   # Bullet
-                    '·': '*',   # Middle dot
-                    '–': '-',   # En dash (duplicate but ensures coverage)
-                    # Remove square/box characters that appear as fallbacks
-                    '■': '', '□': '', '▪': '', '▫': '', '▬': '', '▭': '', '▮': '', '▯': '',
-                    '▰': '', '▱': '', '▲': '', '△': '', '▼': '', '▽': '', '◆': '', '◇': '',
-                    # Zero-width and invisible characters
-                    '\u200b': '',  # Zero-width space
-                    '\u200c': '',  # Zero-width non-joiner
-                    '\u200d': '',  # Zero-width joiner
-                    '\ufeff': '',  # Zero-width no-break space
-                }
+                # Apply replacements and cleaning
                 for unicode_char, replacement in replacements.items():
                     answer_escaped = answer_escaped.replace(unicode_char, replacement)
                     question_escaped = question_escaped.replace(unicode_char, replacement)
-                
-                # Additional fallback: remove any remaining box/square characters that might appear
-                # This catches any Unicode characters that ReportLab can't render
-                def clean_text(text):
-                    """Remove or replace problematic Unicode characters."""
-                    result = []
-                    for char in text:
-                        # Check if character is a box/square character (common fallback for unsupported Unicode)
-                        if char in ['■', '□', '▪', '▫', '▬', '▭', '▮', '▯', '▰', '▱', '▲', '△', '▼', '▽', '◆', '◇']:
-                            result.append('-')  # Replace with hyphen
-                        # Check for other problematic categories
-                        elif unicodedata.category(char) in ['So', 'Sm'] and ord(char) > 127:
-                            # Symbols and other characters - try to keep ASCII-safe ones
-                            if char.isprintable() and ord(char) < 256:
-                                result.append(char)
-                            else:
-                                result.append('-')  # Replace with hyphen if problematic
-                        else:
-                            result.append(char)
-                    return ''.join(result)
-                
+
                 answer_escaped = clean_text(answer_escaped)
                 question_escaped = clean_text(question_escaped)
                 
@@ -1063,13 +1042,62 @@ def generate_pdf(analysis_id):
             ('LINEBELOW', (0, 0), (-1, 0), 1.5, colors.HexColor('#1f4e78')),
         ]))
         
-        # Use KeepTogether to attach header to content (prevent page breaks)
-        # For 3+ servers, don't use KeepTogether to allow table splitting across pages
+        # For 3+ servers, split the table to allow row splitting
+        # This prevents cells from being too tall to fit on a page
         if num_servers >= 3:
+            # Don't use table layout for 3+ servers - instead create individual sections
             elements.append(round_header)
             elements.append(Spacer(1, 0.05*inch))
-            elements.append(table)
+
+            # Create a mini table for each server separately (allows page breaks between servers)
+            for i, analyzer_data in enumerate(analyzers_data):
+                # Get the content for this specific server
+                if round_num < len(analyzer_data['conversation_history']):
+                    round_data = analyzer_data['conversation_history'][round_num]
+                    question = round_data.get('question', '')
+                    answer = round_data.get('answer', '')
+                    tokens = round_data.get('tokens', {})
+
+                    # Get performance metrics if available
+                    ttft = tokens.get('time_to_first_token', 0)
+                    tps = tokens.get('tokens_per_second', 0)
+
+                    # Escape and clean text
+                    question_escaped = html.escape(question)
+                    answer_escaped = html.escape(answer)
+
+                    for unicode_char, replacement in replacements.items():
+                        answer_escaped = answer_escaped.replace(unicode_char, replacement)
+                        question_escaped = question_escaped.replace(unicode_char, replacement)
+
+                    answer_escaped = clean_text(answer_escaped)
+                    question_escaped = clean_text(question_escaped)
+
+                    # Build content
+                    server_heading = Paragraph(f"<b>{analyzer_data['name']} ({analyzer_data['model']})</b>", question_style)
+                    elements.append(server_heading)
+                    elements.append(Spacer(1, 0.03*inch))
+
+                    q_para = Paragraph(f"<b>Q:</b> {question_escaped}", question_style)
+                    elements.append(q_para)
+                    elements.append(Spacer(1, 0.05*inch))
+
+                    a_para = Paragraph(answer_escaped, answer_style)
+                    elements.append(a_para)
+
+                    if tokens:
+                        token_text = f"Tokens: {tokens.get('prompt_tokens', 0)} prompt + {tokens.get('completion_tokens', 0)} completion = {tokens.get('total', 0)} total"
+                        if tps > 0:
+                            token_text += f" | Speed: {tps:.2f} tok/s"
+                        if ttft > 0:
+                            token_text += f" | TTFT: {ttft:.2f}s"
+                        token_para = Paragraph(f"<i>{token_text}</i>", token_style)
+                        elements.append(Spacer(1, 0.05*inch))
+                        elements.append(token_para)
+
+                    elements.append(Spacer(1, 0.1*inch))
         else:
+            # Use table layout for 1-2 servers (original behavior)
             round_section = KeepTogether([
                 round_header,
                 Spacer(1, 0.05*inch),
