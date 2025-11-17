@@ -818,7 +818,7 @@ def generate_pdf(analysis_id):
     # Title
     elements.append(Paragraph("5 Whys Analysis - Side by Side Comparison", title_style))
     elements.append(Spacer(1, 0.15*inch))
-    
+
     # Analysis metadata in a subtle box - escape HTML properly
     question_escaped = html.escape(metadata['question'])
     metadata_text = f"<b>Initial Question:</b> {question_escaped}<br/>"
@@ -826,7 +826,7 @@ def generate_pdf(analysis_id):
         filename_escaped = html.escape(metadata['context_filename'])
         metadata_text += f"<b>Context File:</b> {filename_escaped}<br/>"
     metadata_text += f"<b>Date:</b> {metadata['timestamp'][:19].replace('T', ' ')}"
-    
+
     # Create a subtle background for metadata with Excel colors
     metadata_table = Table([[Paragraph(metadata_text, info_style)]], colWidths=[doc.width])
     metadata_table.setStyle(TableStyle([
@@ -839,6 +839,50 @@ def generate_pdf(analysis_id):
         ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#d0d0d0')),
     ]))
     elements.append(metadata_table)
+    elements.append(Spacer(1, 0.15*inch))
+
+    # Server configuration section
+    server_config_heading = Paragraph("Server Configuration", heading_style)
+    elements.append(server_config_heading)
+    elements.append(Spacer(1, 0.1*inch))
+
+    server_config_data = [['Server Name', 'Host', 'Model']]
+    for analyzer_data in analyzers_data:
+        server_config_data.append([
+            analyzer_data['name'],
+            analyzer_data['host'],
+            analyzer_data['model']
+        ])
+
+    if num_servers >= 3:
+        config_table = Table(server_config_data, colWidths=[2.2*inch, 2.2*inch, 1.9*inch])
+    else:
+        config_table = Table(server_config_data, colWidths=[2.5*inch, 2.5*inch, 2.5*inch])
+
+    config_table.setStyle(TableStyle([
+        # Header styling
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#c55a11')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#ffffff')),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 8.5 if num_servers < 3 else 7.5),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+        ('TOPPADDING', (0, 0), (-1, 0), 8),
+        # Row styling
+        ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#ffffff')),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.HexColor('#ffffff'), colors.HexColor('#f2f2f2')]),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#d0d0d0')),
+        ('LINEBELOW', (0, 0), (-1, 0), 1.5, colors.HexColor('#833c0c')),
+        ('FONTSIZE', (0, 1), (-1, -1), 8 if num_servers < 3 else 7),
+        ('TEXTCOLOR', (0, 1), (-1, -1), colors.HexColor('#000000')),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 8),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+        ('TOPPADDING', (0, 1), (-1, -1), 6),
+        ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
+    ]))
+
+    elements.append(config_table)
     elements.append(Spacer(1, 0.2*inch))
     
     # Get maximum number of rounds
