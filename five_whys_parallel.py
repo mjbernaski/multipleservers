@@ -720,28 +720,38 @@ def generate_pdf(analysis_id):
     
     if len(analyzers_data) == 0:
         return jsonify({'error': 'No analysis data found'}), 404
-    
+
+    # Determine number of servers for layout decisions
+    num_servers = len(analyzers_data)
+
     # Create PDF in memory with better margins
+    # Use landscape for 3+ servers to provide more width for side-by-side layout
     buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter,
+    if num_servers >= 3:
+        from reportlab.lib.pagesizes import landscape
+        pagesize = landscape(letter)
+    else:
+        pagesize = letter
+
+    doc = SimpleDocTemplate(buffer, pagesize=pagesize,
                           rightMargin=0.6*inch, leftMargin=0.6*inch,
                           topMargin=0.6*inch, bottomMargin=0.6*inch)
-    
+
     # Container for the 'Flowable' objects
     elements = []
 
     # Adjust font sizes based on number of servers for better fitting
-    num_servers = len(analyzers_data)
     if num_servers >= 3:
-        # Smaller fonts and tighter spacing for 3+ servers
+        # Landscape mode with 3+ servers - use moderate fonts
+        # Landscape provides ~34% more width, allowing better text wrapping
         title_font_size = 14
-        heading_font_size = 9
-        question_font_size = 7
-        answer_font_size = 6.5
-        answer_leading = 8.5
-        answer_space_after = 4
+        heading_font_size = 10
+        question_font_size = 7.5
+        answer_font_size = 7
+        answer_leading = 9
+        answer_space_after = 5
     else:
-        # Original sizes for 1-2 servers
+        # Original sizes for 1-2 servers (portrait mode)
         title_font_size = 16
         heading_font_size = 11
         question_font_size = 8.5
