@@ -729,50 +729,69 @@ def generate_pdf(analysis_id):
     
     # Container for the 'Flowable' objects
     elements = []
-    
+
+    # Adjust font sizes based on number of servers for better fitting
+    num_servers = len(analyzers_data)
+    if num_servers >= 3:
+        # Smaller fonts and tighter spacing for 3+ servers
+        title_font_size = 14
+        heading_font_size = 9
+        question_font_size = 7
+        answer_font_size = 6.5
+        answer_leading = 8.5
+        answer_space_after = 4
+    else:
+        # Original sizes for 1-2 servers
+        title_font_size = 16
+        heading_font_size = 11
+        question_font_size = 8.5
+        answer_font_size = 8
+        answer_leading = 11
+        answer_space_after = 8
+
     # Define styles with Excel color palette
     styles = getSampleStyleSheet()
     title_style = ParagraphStyle(
         'CustomTitle',
         parent=styles['Heading1'],
-        fontSize=16,
+        fontSize=title_font_size,
         textColor=colors.HexColor('#1f4e78'),
         spaceAfter=12,
         alignment=TA_LEFT,
         fontName='Helvetica-Bold',
-        leading=20
+        leading=title_font_size + 4
     )
-    
+
     heading_style = ParagraphStyle(
         'CustomHeading',
         parent=styles['Heading2'],
-        fontSize=11,
+        fontSize=heading_font_size,
         textColor=colors.HexColor('#1f4e78'),
         spaceAfter=6,
         spaceBefore=10,
         alignment=TA_LEFT,
         fontName='Helvetica-Bold',
-        leading=14
+        leading=heading_font_size + 3
     )
-    
+
     question_style = ParagraphStyle(
         'QuestionStyle',
         parent=styles['Normal'],
-        fontSize=8.5,
+        fontSize=question_font_size,
         textColor=colors.HexColor('#1f4e78'),
         spaceAfter=3,
         fontName='Helvetica-Bold',
-        leading=10
+        leading=question_font_size + 1.5
     )
-    
+
     answer_style = ParagraphStyle(
         'AnswerStyle',
         parent=styles['Normal'],
-        fontSize=8,
+        fontSize=answer_font_size,
         textColor=colors.HexColor('#000000'),
-        spaceAfter=8,
+        spaceAfter=answer_space_after,
         alignment=TA_JUSTIFY,
-        leading=11,
+        leading=answer_leading,
         leftIndent=0,
         rightIndent=0
     )
@@ -835,18 +854,19 @@ def generate_pdf(analysis_id):
         
         # Header row
         header_row = []
+        header_model_font = 6 if num_servers >= 3 else 6
         for analyzer_data in analyzers_data:
             header_para_style = ParagraphStyle(
                 'HeaderStyle',
                 parent=styles['Normal'],
-                fontSize=8.5,
+                fontSize=question_font_size,
                 textColor=colors.HexColor('#ffffff'),
                 alignment=TA_LEFT,
                 fontName='Helvetica-Bold',
-                leading=10
+                leading=question_font_size + 1.5
             )
             header_row.append(Paragraph(
-                f"<b>{analyzer_data['name']}</b><br/><font size=6>{analyzer_data['model']}</font>",
+                f"<b>{analyzer_data['name']}</b><br/><font size={header_model_font}>{analyzer_data['model']}</font>",
                 header_para_style
             ))
         table_data.append(header_row)
@@ -944,15 +964,19 @@ def generate_pdf(analysis_id):
             content_para_style = ParagraphStyle(
                 'ContentStyle',
                 parent=answer_style,
-                fontSize=8,
+                fontSize=answer_font_size,
                 textColor=colors.HexColor('#000000'),
-                leading=11
+                leading=answer_leading
             )
             content_row.append(Paragraph(round_content, content_para_style))
         
         table_data.append(content_row)
         
         # Create table with earth-tone styling
+        # Adjust padding based on number of servers
+        cell_padding = 6 if num_servers >= 3 else 10
+        header_padding = 6 if num_servers >= 3 else 10
+
         col_widths = [doc.width / len(analyzers_data)] * len(analyzers_data)
         table = Table(table_data, colWidths=col_widths, hAlign='LEFT')
         table.setStyle(TableStyle([
@@ -961,29 +985,35 @@ def generate_pdf(analysis_id):
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#ffffff')),
             ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 8.5),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
-            ('TOPPADDING', (0, 0), (-1, 0), 10),
+            ('FONTSIZE', (0, 0), (-1, 0), question_font_size),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), header_padding),
+            ('TOPPADDING', (0, 0), (-1, 0), header_padding),
             # Content row styling
             ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#ffffff')),
             ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#d0d0d0')),
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ('LEFTPADDING', (0, 0), (-1, -1), 10),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 10),
-            ('TOPPADDING', (0, 1), (-1, -1), 10),
-            ('BOTTOMPADDING', (0, 1), (-1, -1), 10),
+            ('LEFTPADDING', (0, 0), (-1, -1), cell_padding),
+            ('RIGHTPADDING', (0, 0), (-1, -1), cell_padding),
+            ('TOPPADDING', (0, 1), (-1, -1), cell_padding),
+            ('BOTTOMPADDING', (0, 1), (-1, -1), cell_padding),
             # Inner borders for better separation
             ('LINEBELOW', (0, 0), (-1, 0), 1.5, colors.HexColor('#1f4e78')),
         ]))
         
         # Use KeepTogether to attach header to content (prevent page breaks)
-        round_section = KeepTogether([
-            round_header,
-            Spacer(1, 0.05*inch),
-            table
-        ])
-        elements.append(round_section)
-        elements.append(Spacer(1, 0.15*inch))
+        # For 3+ servers, don't use KeepTogether to allow table splitting across pages
+        if num_servers >= 3:
+            elements.append(round_header)
+            elements.append(Spacer(1, 0.05*inch))
+            elements.append(table)
+        else:
+            round_section = KeepTogether([
+                round_header,
+                Spacer(1, 0.05*inch),
+                table
+            ])
+            elements.append(round_section)
+        elements.append(Spacer(1, 0.15*inch if num_servers < 3 else 0.1*inch))
     
     # Summary section
     elements.append(PageBreak())
