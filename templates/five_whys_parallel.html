@@ -1274,19 +1274,41 @@
                     }
                     alert('Error playing audio. Please try again.');
                 };
-                
-                await audio.play();
-                
-                // Update button to show playing state
-                if (speakerBtn) {
-                    speakerBtn.textContent = '🔊';
-                    speakerBtn.style.opacity = '1.0';
+
+                // Try to play audio - handle autoplay policy
+                try {
+                    await audio.play();
+
+                    // Update button to show playing state
+                    if (speakerBtn) {
+                        speakerBtn.textContent = '🔊';
+                        speakerBtn.style.opacity = '1.0';
+                    }
+                } catch (playError) {
+                    console.error('Audio play blocked:', playError);
+                    URL.revokeObjectURL(audioUrl);
+                    if (speakerBtn) {
+                        speakerBtn.disabled = false;
+                        speakerBtn.style.opacity = '0.7';
+                        speakerBtn.textContent = '🔊';
+                    }
+
+                    // Provide helpful message based on error type
+                    if (playError.name === 'NotAllowedError') {
+                        alert('Audio playback blocked by browser. Please check your browser settings:\n\n' +
+                              '1. Make sure audio is not muted\n' +
+                              '2. Click the speaker icon in the address bar to allow audio\n' +
+                              '3. Try clicking the speaker icon again');
+                    } else {
+                        alert(`Could not play audio: ${playError.message}`);
+                    }
+                    return;
                 }
-                
+
             } catch (error) {
                 console.error('Error with text-to-speech:', error);
                 alert(`Error: ${error.message}`);
-                
+
                 if (speakerBtn) {
                     speakerBtn.disabled = false;
                     speakerBtn.style.opacity = '0.7';
