@@ -707,17 +707,17 @@
                 {
                     host: 'http://192.168.5.40:11434',
                     model: 'gpt-oss:20b',
-                    name: 'Server 1'
+                    name: 'NVIDIA DGX Spark 1'
                 },
                 {
                     host: 'http://192.168.5.46:11434',
                     model: 'gpt-oss:120b',
-                    name: 'Server 2'
+                    name: 'NVIDIA DGX Spark 2'
                 },
                 {
                     host: 'http://192.168.6.40:11434',
                     model: 'gpt-oss:20b',
-                    name: 'Server 3'
+                    name: 'RT5090'
                 }
             ];
             
@@ -1292,9 +1292,9 @@
                 // Map each server to a different mellow frequency (musical notes)
                 // Using pleasant frequencies in a minor pentatonic scale
                 const serverFrequencies = {
-                    'Server 1': 220.00,  // A3
-                    'Server 2': 261.63,  // C4
-                    'Server 3': 293.66,  // D4
+                    'NVIDIA DGX Spark 1': 220.00,  // A3
+                    'NVIDIA DGX Spark 2': 261.63,  // C4
+                    'RT5090': 293.66,  // D4
                     'Server 4': 329.63,  // E4
                     'Server 5': 392.00,  // G4
                 };
