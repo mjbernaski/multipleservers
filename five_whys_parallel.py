@@ -1086,36 +1086,51 @@ def check_servers():
     """Check the status of configured servers."""
     data = request.get_json()
     servers = data.get('servers', [])
-    
+
     server_statuses = []
     for server_config in servers:
         host = server_config.get('host')
         model = server_config.get('model')
         name = server_config.get('name', f"{host} ({model})")
-        
+
         analyzer = FiveWhysOllama(host, model, name)
         is_available = analyzer.check_server_available()
-        
+
         # Get available models for this server
         available_models = []
+        loaded_models = []
         if is_available:
             try:
+                # Get available models
                 url = f"{host.rstrip('/')}/api/tags"
                 response = requests.get(url, timeout=5)
                 if response.status_code == 200:
                     models_data = response.json()
                     available_models = [model.get('name', '') for model in models_data.get('models', [])]
+
+                # Get currently loaded models and memory usage
+                ps_url = f"{host.rstrip('/')}/api/ps"
+                ps_response = requests.get(ps_url, timeout=5)
+                if ps_response.status_code == 200:
+                    ps_data = ps_response.json()
+                    for m in ps_data.get('models', []):
+                        loaded_models.append({
+                            'name': m.get('name', ''),
+                            'size_vram': m.get('size_vram', 0),
+                            'context_length': m.get('context_length', 0)
+                        })
             except:
                 pass  # If we can't get models, just leave it empty
-        
+
         server_statuses.append({
             'name': name,
             'host': host,
             'model': model,
             'available': is_available,
-            'available_models': available_models
+            'available_models': available_models,
+            'loaded_models': loaded_models
         })
-    
+
     return jsonify({'servers': server_statuses})
 
 

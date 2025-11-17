@@ -769,7 +769,7 @@
                     const statusItem = document.getElementById(`status-${serverStatus.name}`);
                     if (statusItem) {
                         const isOnline = serverStatus.available;
-                        
+
                         // Display model selector if we have available models - more compact layout
                         let modelSelector = '';
                         if (serverStatus.available_models && serverStatus.available_models.length > 0) {
@@ -777,7 +777,7 @@
                             modelSelector = `<div style="width: 100%; margin-top: 6px; font-size: 10px; color: #1f4e78;">
                                 <label style="display: inline-block; margin-right: 6px; font-weight: 600;">Model:</label>
                                 <select id="model-select-${serverStatus.name}" style="width: auto; min-width: 180px; padding: 4px 6px; border: 1px solid #d0d0d0; border-radius: 4px; font-size: 10px; background: #ffffff; color: #000000;">
-                                    ${serverStatus.available_models.map(m => 
+                                    ${serverStatus.available_models.map(m =>
                                         `<option value="${m}" ${m === currentModel ? 'selected' : ''}>${m}</option>`
                                     ).join('')}
                                 </select>
@@ -788,11 +788,22 @@
                                 <span>Model: ${serverStatus.model || 'Unknown'}</span>
                             </div>`;
                         }
-                        
+
+                        // Display loaded models and VRAM usage
+                        let memoryInfo = '';
+                        if (serverStatus.loaded_models && serverStatus.loaded_models.length > 0) {
+                            const totalVram = serverStatus.loaded_models.reduce((sum, m) => sum + m.size_vram, 0);
+                            const vramGB = (totalVram / 1024 / 1024 / 1024).toFixed(2);
+                            memoryInfo = `<div style="width: 100%; margin-top: 4px; font-size: 9px; color: #70ad47;">
+                                <span style="font-weight: 600;">Loaded:</span> ${serverStatus.loaded_models.map(m => m.name).join(', ')} (${vramGB} GB VRAM)
+                            </div>`;
+                        }
+
                         statusItem.innerHTML = `
                             <div style="flex: 1; min-width: 100px;">
                                 <span class="server-status-name" style="font-size: 12px;">${serverStatus.name}</span>
                                 ${modelSelector}
+                                ${memoryInfo}
                             </div>
                             <div class="server-status-indicator" style="flex-shrink: 0;">
                                 <span class="status-dot ${isOnline ? 'online' : 'offline'}"></span>
