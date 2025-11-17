@@ -881,11 +881,15 @@ def generate_pdf(analysis_id):
                 answer = round_data.get('answer', '')
                 tokens = round_data.get('tokens', {})
                 
+                # Get performance metrics if available
+                ttft = tokens.get('time_to_first_token', 0)
+                tps = tokens.get('tokens_per_second', 0)
+
                 # Format question and answer with better styling - escape HTML properly
                 # Use html.escape for proper HTML entity encoding
                 question_escaped = html.escape(question)
                 answer_escaped = html.escape(answer)
-                
+
                 # Replace common Unicode characters that ReportLab might not handle well
                 # Convert superscripts and other special characters to plain text equivalents
                 # This prevents square characters (■) from appearing when Unicode isn't supported
@@ -956,6 +960,11 @@ def generate_pdf(analysis_id):
                 round_content = f"<b>Q:</b> {question_escaped}<br/><br/>{answer_escaped}"
                 if tokens:
                     token_text = f"Tokens: {tokens.get('prompt_tokens', 0)} prompt + {tokens.get('completion_tokens', 0)} completion = {tokens.get('total', 0)} total"
+                    # Add performance metrics if available
+                    if tps > 0:
+                        token_text += f" | Speed: {tps:.2f} tok/s"
+                    if ttft > 0:
+                        token_text += f" | TTFT: {ttft:.2f}s"
                     round_content += f"<br/><br/><font color='#808080' size=7><i>{token_text}</i></font>"
             else:
                 round_content = "<i>No data for this round</i>"
@@ -1020,30 +1029,65 @@ def generate_pdf(analysis_id):
     summary_heading = Paragraph("Summary", heading_style)
     elements.append(summary_heading)
     elements.append(Spacer(1, 0.1*inch))
-    
+
     # Get num_whys from metadata
     num_whys = metadata.get('num_whys', 3)
-    
-    summary_data = [['Server', 'Model', 'Total Prompt Tokens', 'Total Completion Tokens', 'Total Tokens', 'Runtime']]
+
+    # Calculate average performance metrics for each server
+    server_metrics = []
     for analyzer_data in analyzers_data:
         runtime_str = format_runtime(analyzer_data.get('runtime_seconds', 0))
+
+        # Calculate averages from conversation history
+        conv_history = analyzer_data.get('conversation_history', [])
+        tps_values = []
+        ttft_values = []
+        for round_data in conv_history:
+            tokens = round_data.get('tokens', {})
+            if tokens.get('tokens_per_second', 0) > 0:
+                tps_values.append(tokens['tokens_per_second'])
+            if tokens.get('time_to_first_token', 0) > 0:
+                ttft_values.append(tokens['time_to_first_token'])
+
+        avg_tps = sum(tps_values) / len(tps_values) if tps_values else 0
+        avg_ttft = sum(ttft_values) / len(ttft_values) if ttft_values else 0
+
+        server_metrics.append({
+            'name': analyzer_data['name'],
+            'model': analyzer_data['model'],
+            'total_prompt_tokens': analyzer_data['total_prompt_tokens'],
+            'total_completion_tokens': analyzer_data['total_completion_tokens'],
+            'total_tokens': analyzer_data['total_tokens'],
+            'runtime': runtime_str,
+            'avg_tps': avg_tps,
+            'avg_ttft': avg_ttft
+        })
+
+    # Token count summary table
+    summary_data = [['Server', 'Model', 'Prompt Tokens', 'Completion Tokens', 'Total Tokens', 'Runtime']]
+    for metrics in server_metrics:
         summary_data.append([
-            analyzer_data['name'],
-            analyzer_data['model'],
-            str(analyzer_data['total_prompt_tokens']),
-            str(analyzer_data['total_completion_tokens']),
-            str(analyzer_data['total_tokens']),
-            runtime_str
+            metrics['name'],
+            metrics['model'],
+            str(metrics['total_prompt_tokens']),
+            str(metrics['total_completion_tokens']),
+            str(metrics['total_tokens']),
+            metrics['runtime']
         ])
-    
-    summary_table = Table(summary_data, colWidths=[1.8*inch, 1.3*inch, 1.1*inch, 1.3*inch, 0.9*inch, 1.2*inch])
+
+    # Adjust column widths based on number of servers
+    if num_servers >= 3:
+        summary_table = Table(summary_data, colWidths=[1.5*inch, 1.2*inch, 1.0*inch, 1.2*inch, 0.9*inch, 1.0*inch])
+    else:
+        summary_table = Table(summary_data, colWidths=[1.8*inch, 1.3*inch, 1.1*inch, 1.3*inch, 0.9*inch, 1.2*inch])
+
     summary_table.setStyle(TableStyle([
         # Header styling with Excel blue
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#4472c4')),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#ffffff')),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 8.5),
+        ('FONTSIZE', (0, 0), (-1, 0), 8.5 if num_servers < 3 else 7.5),
         ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
         ('TOPPADDING', (0, 0), (-1, 0), 8),
         # Row styling - alternating for better readability
@@ -1051,7 +1095,7 @@ def generate_pdf(analysis_id):
         ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.HexColor('#ffffff'), colors.HexColor('#f2f2f2')]),
         ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#d0d0d0')),
         ('LINEBELOW', (0, 0), (-1, 0), 1.5, colors.HexColor('#1f4e78')),
-        ('FONTSIZE', (0, 1), (-1, -1), 8),
+        ('FONTSIZE', (0, 1), (-1, -1), 8 if num_servers < 3 else 7),
         ('TEXTCOLOR', (0, 1), (-1, -1), colors.HexColor('#000000')),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('LEFTPADDING', (0, 0), (-1, -1), 6),
@@ -1059,14 +1103,54 @@ def generate_pdf(analysis_id):
         ('TOPPADDING', (0, 1), (-1, -1), 6),
         ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
     ]))
-    
-    # Keep summary header with table
-    summary_section = KeepTogether([
-        summary_heading,
-        Spacer(1, 0.1*inch),
-        summary_table
-    ])
-    elements.append(summary_section)
+
+    elements.append(summary_table)
+    elements.append(Spacer(1, 0.15*inch))
+
+    # Performance metrics table
+    perf_heading = Paragraph("Performance Metrics", heading_style)
+    elements.append(perf_heading)
+    elements.append(Spacer(1, 0.1*inch))
+
+    perf_data = [['Server', 'Avg Tokens/Second', 'Avg Time to First Token']]
+    for metrics in server_metrics:
+        tps_str = f"{metrics['avg_tps']:.2f} tok/s" if metrics['avg_tps'] > 0 else "N/A"
+        ttft_str = f"{metrics['avg_ttft']:.2f}s" if metrics['avg_ttft'] > 0 else "N/A"
+        perf_data.append([
+            metrics['name'],
+            tps_str,
+            ttft_str
+        ])
+
+    if num_servers >= 3:
+        perf_table = Table(perf_data, colWidths=[2.5*inch, 1.8*inch, 2.0*inch])
+    else:
+        perf_table = Table(perf_data, colWidths=[3.0*inch, 2.0*inch, 2.5*inch])
+
+    perf_table.setStyle(TableStyle([
+        # Header styling
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#70ad47')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#ffffff')),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 8.5 if num_servers < 3 else 7.5),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+        ('TOPPADDING', (0, 0), (-1, 0), 8),
+        # Row styling
+        ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#ffffff')),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.HexColor('#ffffff'), colors.HexColor('#f2f2f2')]),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#d0d0d0')),
+        ('LINEBELOW', (0, 0), (-1, 0), 1.5, colors.HexColor('#548235')),
+        ('FONTSIZE', (0, 1), (-1, -1), 8 if num_servers < 3 else 7),
+        ('TEXTCOLOR', (0, 1), (-1, -1), colors.HexColor('#000000')),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 6),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+        ('TOPPADDING', (0, 1), (-1, -1), 6),
+        ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
+    ]))
+
+    elements.append(perf_table)
     
     # Build PDF
     doc.build(elements)
