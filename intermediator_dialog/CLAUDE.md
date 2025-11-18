@@ -114,9 +114,9 @@ Filename format: `{sanitized_topic}_{timestamp}.{json|pdf}`
 
 ### Default Server Configuration
 
-- **Intermediator**: RT5090 at http://192.168.6.40:11434 (model: gpt-oss:20b)
-- **Participant 1**: NVIDIA DGX Spark 1 at http://192.168.5.40:11434 (model: gpt-oss:20b)
-- **Participant 2**: NVIDIA DGX Spark 2 at http://192.168.5.46:11434 (model: gpt-oss:120b)
+- **Intermediator**: RT5090 at http://localhost:11434 (model: gpt-oss:20b)
+- **Participant 1**: NVIDIA DGX Spark 1 at http://localhost:11434 (model: gpt-oss:20b)
+- **Participant 2**: NVIDIA DGX Spark 2 at http://localhost:11434 (model: gpt-oss:120b)
 
 All configurations are customizable via the web interface.
 

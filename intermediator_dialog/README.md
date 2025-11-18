@@ -54,11 +54,11 @@ python intermediator_dialog.py --host 0.0.0.0 --port 5006
 
 The web interface will be available at `http://localhost:5006` (or the configured host/port).
 
-### Default Configuration
+### Default Server Configuration
 
-- **Intermediator**: RT5090 (http://192.168.6.40:11434, model: gpt-oss:20b)
-- **Participant 1**: NVIDIA DGX Spark 1 (http://192.168.5.40:11434, model: gpt-oss:20b)
-- **Participant 2**: NVIDIA DGX Spark 2 (http://192.168.5.46:11434, model: gpt-oss:120b)
+- **Intermediator**: RT5090 (http://localhost:11434, model: gpt-oss:20b)
+- **Participant 1**: NVIDIA DGX Spark 1 (http://localhost:11434, model: gpt-oss:20b)
+- **Participant 2**: NVIDIA DGX Spark 2 (http://localhost:11434, model: gpt-oss:120b)
 
 ### Using the Interface
 

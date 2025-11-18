@@ -127,6 +127,15 @@ class OllamaClient:
 
         try:
             response = requests.post(url, json=payload, timeout=300, stream=True)
+            
+            if response.status_code >= 400:
+                try:
+                    # Try to read error message from response
+                    error_content = response.text
+                    print(f"Ollama API Error ({response.status_code}): {error_content}")
+                except Exception:
+                    pass
+                    
             response.raise_for_status()
 
             answer = ""
@@ -716,8 +725,11 @@ def generate_tts_audio(text: str, speaker: str, dialog_id: str, turn: int, enabl
     Returns:
         Path to the saved audio file, or None if TTS fails or is disabled
     """
+    debug_log('info', f"generate_tts_audio called for {speaker} (turn {turn}), enable_tts={enable_tts}")
+    
     # Skip TTS if disabled
     if not enable_tts:
+        debug_log('info', "TTS disabled, skipping generation")
         return None
 
     # Map speakers to OpenAI TTS voices
@@ -762,7 +774,13 @@ def generate_tts_audio(text: str, speaker: str, dialog_id: str, turn: int, enabl
         )
 
         # Save audio file
-        response.stream_to_file(filepath)
+        # Check if stream_to_file exists (older versions)
+        if hasattr(response, 'stream_to_file'):
+            response.stream_to_file(filepath)
+        else:
+            # Newer versions or standard response
+            with open(filepath, 'wb') as f:
+                f.write(response.content)
 
         debug_log('info', f"Generated TTS audio: {filename}", server=speaker)
 
@@ -1409,10 +1427,11 @@ def generate_pdf(dialog_id):
 def get_audio_files(dialog_id):
     """Get list of audio files for a dialog."""
     audio_dir = os.path.join('output', 'audio', dialog_id)
-
+    debug_log('info', f"get_audio_files called for {dialog_id}, dir={audio_dir}")
+    
     if not os.path.exists(audio_dir):
+        debug_log('warning', f"Audio directory not found: {audio_dir}")
         return jsonify({'error': 'No audio files found for this dialog'}), 404
-
     # Get all audio files and sort them by turn number
     audio_files = []
     for filename in os.listdir(audio_dir):
@@ -1695,6 +1714,8 @@ def handle_start_dialog(data):
     thinking_params = data.get('thinking_params', {})
     prompt_config = data.get('prompt_config', {})
     enable_tts = data.get('enable_tts', True)
+    
+    debug_log('info', f"handle_start_dialog: enable_tts={enable_tts}")
     
     # Validate that intermediator topic prompt is provided
     if not prompt_config.get('intermediator_topic_prompt'):
