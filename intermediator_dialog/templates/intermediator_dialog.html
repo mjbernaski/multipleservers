@@ -1598,12 +1598,6 @@ You follow the instructions of the intermediator, review the responses of your a
 
             autoPlayPlayer = new Audio(nextAudio.url);
 
-            // Emit playing event for debug monitor
-            socket.emit('audio_playing', {
-                filename: nextAudio.filename,
-                url: nextAudio.url
-            });
-
             autoPlayPlayer.addEventListener('ended', () => {
                 // Emit ended event for debug monitor
                 socket.emit('audio_ended', {
@@ -1653,28 +1647,37 @@ You follow the instructions of the intermediator, review the responses of your a
                 }
             });
 
-            autoPlayPlayer.play().catch(error => {
-                console.error('Error starting auto-play:', error);
+            // Start playback
+            autoPlayPlayer.play()
+                .then(() => {
+                    // Emit playing event for debug monitor AFTER successful start
+                    socket.emit('audio_playing', {
+                        filename: nextAudio.filename,
+                        url: nextAudio.url
+                    });
+                })
+                .catch(error => {
+                    console.error('Error starting auto-play:', error);
 
-                // Emit error event for debug monitor
-                socket.emit('audio_error', {
-                    filename: nextAudio.filename,
-                    error: 'Failed to start playback: ' + error.message,
-                    retryCount: retryCount
+                    // Emit error event for debug monitor
+                    socket.emit('audio_error', {
+                        filename: nextAudio.filename,
+                        error: 'Failed to start playback: ' + error.message,
+                        retryCount: retryCount
+                    });
+
+                    // Retry or continue to next audio
+                    if (retryCount < 3) {
+                        const retryDelay = Math.pow(2, retryCount) * 500;
+                        console.warn(`Auto-play retry ${retryCount + 1}/3 for ${nextAudio.filename} after ${retryDelay}ms (play() failed)`);
+                        setTimeout(() => {
+                            playNextInQueue(retryCount + 1, nextAudio);
+                        }, retryDelay);
+                    } else {
+                        console.warn(`Skipping auto-play audio after 3 failed play() attempts: ${nextAudio.filename}`);
+                        playNextInQueue(0, null);
+                    }
                 });
-
-                // Retry or continue to next audio
-                if (retryCount < 3) {
-                    const retryDelay = Math.pow(2, retryCount) * 500;
-                    console.warn(`Auto-play retry ${retryCount + 1}/3 for ${nextAudio.filename} after ${retryDelay}ms (play() failed)`);
-                    setTimeout(() => {
-                        playNextInQueue(retryCount + 1, nextAudio);
-                    }, retryDelay);
-                } else {
-                    console.warn(`Skipping auto-play audio after 3 failed play() attempts: ${nextAudio.filename}`);
-                    playNextInQueue(0, null);
-                }
-            });
         }
 
         function updateStatusBar(speaker, text, turnNum) {
