@@ -1557,7 +1557,12 @@ You follow the instructions of the intermediator, review the responses of your a
             }
         }
 
-        function playNextInQueue() {
+        function playNextInQueue(retryCount = 0, failedAudio = null) {
+            // If retrying, put the failed audio back at the front of the queue
+            if (failedAudio && retryCount > 0 && retryCount < 3) {
+                autoPlayQueue.unshift(failedAudio);
+            }
+
             if (autoPlayQueue.length === 0) {
                 isAutoPlaying = false;
                 if (autoPlayPlayer) {
@@ -1577,19 +1582,56 @@ You follow the instructions of the intermediator, review the responses of your a
             autoPlayPlayer = new Audio(nextAudio.url);
 
             autoPlayPlayer.addEventListener('ended', () => {
-                playNextInQueue();
+                playNextInQueue(0, null);
             });
 
             autoPlayPlayer.addEventListener('error', (e) => {
-                console.error('Auto-play audio error:', e);
-                // Continue to next audio
-                playNextInQueue();
+                console.error('Auto-play audio error:', {
+                    filename: nextAudio.filename,
+                    url: nextAudio.url,
+                    error: e,
+                    mediaError: autoPlayPlayer.error,
+                    retryCount: retryCount
+                });
+
+                // Get detailed error message
+                let errorDetail = 'Unknown error';
+                if (autoPlayPlayer.error) {
+                    switch(autoPlayPlayer.error.code) {
+                        case 1: errorDetail = 'Audio loading aborted'; break;
+                        case 2: errorDetail = 'Network error'; break;
+                        case 3: errorDetail = 'Audio decoding failed'; break;
+                        case 4: errorDetail = 'Audio format not supported'; break;
+                    }
+                }
+
+                // Retry up to 3 times with exponential backoff
+                if (retryCount < 3) {
+                    const retryDelay = Math.pow(2, retryCount) * 500; // 500ms, 1s, 2s
+                    console.warn(`Auto-play retry ${retryCount + 1}/3 for ${nextAudio.filename} after ${retryDelay}ms (${errorDetail})`);
+                    setTimeout(() => {
+                        playNextInQueue(retryCount + 1, nextAudio);
+                    }, retryDelay);
+                } else {
+                    // After 3 retries, skip to next
+                    console.warn(`Skipping auto-play audio after 3 failed attempts: ${nextAudio.filename} (${errorDetail})`);
+                    playNextInQueue(0, null);
+                }
             });
 
             autoPlayPlayer.play().catch(error => {
-                console.error('Error auto-playing audio:', error);
-                // Continue to next audio
-                playNextInQueue();
+                console.error('Error starting auto-play:', error);
+                // Retry or continue to next audio
+                if (retryCount < 3) {
+                    const retryDelay = Math.pow(2, retryCount) * 500;
+                    console.warn(`Auto-play retry ${retryCount + 1}/3 for ${nextAudio.filename} after ${retryDelay}ms (play() failed)`);
+                    setTimeout(() => {
+                        playNextInQueue(retryCount + 1, nextAudio);
+                    }, retryDelay);
+                } else {
+                    console.warn(`Skipping auto-play audio after 3 failed play() attempts: ${nextAudio.filename}`);
+                    playNextInQueue(0, null);
+                }
             });
         }
 
@@ -2012,7 +2054,7 @@ You follow the instructions of the intermediator, review the responses of your a
             }
         }
 
-        function playNextAudio() {
+        function playNextAudio(retryCount = 0) {
             if (!isAudioPlaying || currentAudioIndex >= audioPlaylist.length) {
                 // Playback complete
                 stopAudioDebate();
@@ -2043,8 +2085,12 @@ You follow the instructions of the intermediator, review the responses of your a
                 displayName = `${speakerNames[speaker] || speaker} (Turn ${turn})`;
             }
 
-            audioStatus.textContent = `Playing: ${displayName} (${currentAudioIndex + 1}/${audioPlaylist.length})`;
-            audioStatus.style.color = '#4472c4';
+            const statusText = retryCount > 0
+                ? `Retrying: ${displayName} (${currentAudioIndex + 1}/${audioPlaylist.length}) - Attempt ${retryCount + 1}`
+                : `Playing: ${displayName} (${currentAudioIndex + 1}/${audioPlaylist.length})`;
+
+            audioStatus.textContent = statusText;
+            audioStatus.style.color = retryCount > 0 ? '#ffc000' : '#4472c4';
 
             // Create or reuse audio element
             if (audioPlayer) {
@@ -2057,18 +2103,47 @@ You follow the instructions of the intermediator, review the responses of your a
             // Handle audio events
             audioPlayer.addEventListener('ended', () => {
                 currentAudioIndex++;
-                playNextAudio();
+                playNextAudio(0);
             });
 
             audioPlayer.addEventListener('error', (e) => {
-                console.error('Audio playback error:', e);
-                audioStatus.textContent = `Error playing ${displayName}`;
-                audioStatus.style.color = '#c55a11';
-                // Try to continue with next audio after a short delay
-                setTimeout(() => {
-                    currentAudioIndex++;
-                    playNextAudio();
-                }, 1000);
+                console.error('Audio playback error:', {
+                    filename: filename,
+                    url: audioUrl,
+                    error: e,
+                    mediaError: audioPlayer.error,
+                    retryCount: retryCount
+                });
+
+                // Get detailed error message
+                let errorDetail = 'Unknown error';
+                if (audioPlayer.error) {
+                    switch(audioPlayer.error.code) {
+                        case 1: errorDetail = 'Audio loading aborted'; break;
+                        case 2: errorDetail = 'Network error'; break;
+                        case 3: errorDetail = 'Audio decoding failed'; break;
+                        case 4: errorDetail = 'Audio format not supported'; break;
+                    }
+                }
+
+                // Retry up to 3 times with exponential backoff
+                if (retryCount < 3) {
+                    const retryDelay = Math.pow(2, retryCount) * 500; // 500ms, 1s, 2s
+                    audioStatus.textContent = `Error: ${errorDetail}. Retrying ${displayName} in ${retryDelay/1000}s...`;
+                    audioStatus.style.color = '#ffc000';
+                    setTimeout(() => {
+                        playNextAudio(retryCount + 1);
+                    }, retryDelay);
+                } else {
+                    // After 3 retries, skip to next
+                    audioStatus.textContent = `Failed to play ${displayName} after 3 attempts. Skipping... (${errorDetail})`;
+                    audioStatus.style.color = '#c55a11';
+                    console.warn(`Skipping audio file after 3 failed attempts: ${filename}`);
+                    setTimeout(() => {
+                        currentAudioIndex++;
+                        playNextAudio(0);
+                    }, 2000);
+                }
             });
 
             // Start playback
