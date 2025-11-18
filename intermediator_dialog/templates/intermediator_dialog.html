@@ -661,6 +661,12 @@ You follow the instructions of the intermediator, review the responses of your a
                             🔊 Generate Audio (TTS)
                         </label>
                     </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="checkbox" id="autoPlayAudio" onchange="saveAutoPlaySetting()" style="width: 18px; height: 18px; cursor: pointer;">
+                        <label for="autoPlayAudio" style="margin: 0; font-size: 13px; cursor: pointer;">
+                            ▶️ Auto-play during debate
+                        </label>
+                    </div>
                 </div>
                 <div id="fileInfo" style="margin-top: 4px; font-size: 11px; color: #808080;"></div>
             </div>
@@ -753,6 +759,11 @@ You follow the instructions of the intermediator, review the responses of your a
         let isQueueRunning = false;
         let queueCancelled = false;
 
+        // Auto-play audio management
+        let autoPlayQueue = [];
+        let autoPlayPlayer = null;
+        let isAutoPlaying = false;
+
         // Dark mode functionality
         function toggleDarkMode() {
             const body = document.body;
@@ -790,7 +801,20 @@ You follow the instructions of the intermediator, review the responses of your a
             }
         }
 
+        function saveAutoPlaySetting() {
+            const enabled = document.getElementById('autoPlayAudio').checked;
+            localStorage.setItem('idi_auto_play_audio', enabled ? 'true' : 'false');
+        }
+
+        function loadAutoPlaySetting() {
+            const enabled = localStorage.getItem('idi_auto_play_audio');
+            if (enabled !== null) {
+                document.getElementById('autoPlayAudio').checked = enabled === 'true';
+            }
+        }
+
         loadTTSSetting();
+        loadAutoPlaySetting();
 
         // Initialize shared model sync on page load
         updateSharedModel();
@@ -1158,15 +1182,24 @@ You follow the instructions of the intermediator, review the responses of your a
             document.getElementById('startBtn').disabled = true;
             currentDialogId = data.dialog_id;
             dialogData = [];
-            
+
+            // Clear auto-play queue for new dialog
+            autoPlayQueue = [];
+            if (autoPlayPlayer) {
+                autoPlayPlayer.pause();
+                autoPlayPlayer.src = '';
+                autoPlayPlayer = null;
+            }
+            isAutoPlaying = false;
+
             // Hide PDF export button
             hidePdfButton();
-            
+
             // Show status bar
             const statusBar = document.getElementById('statusBar');
             statusBar.style.display = 'flex';
             updateStatusBar('intermediator', 'Starting dialog...', 0);
-            
+
             const dialogDiv = document.getElementById('dialog');
             dialogDiv.style.display = 'block';
             dialogDiv.innerHTML = `
@@ -1175,7 +1208,7 @@ You follow the instructions of the intermediator, review the responses of your a
                     <div class="turn-content">Starting dialog...</div>
                 </div>
             `;
-            
+
             showStatus('Dialog started', 'info');
         });
 
@@ -1509,6 +1542,65 @@ You follow the instructions of the intermediator, review the responses of your a
         socket.on('cache_reset', (data) => {
             showStatus(data.message, 'success');
         });
+
+        socket.on('audio_ready', (data) => {
+            // Check if auto-play is enabled
+            const autoPlayEnabled = document.getElementById('autoPlayAudio').checked;
+            if (autoPlayEnabled && data.dialog_id === currentDialogId) {
+                queueAndPlayAudio(data.dialog_id, data.filename);
+            }
+        });
+
+        function queueAndPlayAudio(dialogId, filename) {
+            const audioUrl = `/audio/${dialogId}/${filename}`;
+
+            // Add to queue
+            autoPlayQueue.push({
+                url: audioUrl,
+                filename: filename
+            });
+
+            // Start playing if not already playing
+            if (!isAutoPlaying) {
+                playNextInQueue();
+            }
+        }
+
+        function playNextInQueue() {
+            if (autoPlayQueue.length === 0) {
+                isAutoPlaying = false;
+                if (autoPlayPlayer) {
+                    autoPlayPlayer = null;
+                }
+                return;
+            }
+
+            isAutoPlaying = true;
+            const nextAudio = autoPlayQueue.shift();
+
+            if (autoPlayPlayer) {
+                autoPlayPlayer.pause();
+                autoPlayPlayer.src = '';
+            }
+
+            autoPlayPlayer = new Audio(nextAudio.url);
+
+            autoPlayPlayer.addEventListener('ended', () => {
+                playNextInQueue();
+            });
+
+            autoPlayPlayer.addEventListener('error', (e) => {
+                console.error('Auto-play audio error:', e);
+                // Continue to next audio
+                playNextInQueue();
+            });
+
+            autoPlayPlayer.play().catch(error => {
+                console.error('Error auto-playing audio:', error);
+                // Continue to next audio
+                playNextInQueue();
+            });
+        }
 
         function updateStatusBar(speaker, text, turnNum) {
             const statusBar = document.getElementById('statusBar');

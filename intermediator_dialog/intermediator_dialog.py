@@ -360,7 +360,14 @@ Please use this context to inform your responses."""
         })
 
         # Generate TTS for intro
-        generate_tts_audio(intro_response, 'intermediator', self.dialog_id, 0, self.enable_tts)
+        audio_path = generate_tts_audio(intro_response, 'intermediator', self.dialog_id, 0, self.enable_tts)
+        if audio_path and self.enable_tts:
+            self._emit('audio_ready', {
+                'dialog_id': self.dialog_id,
+                'filename': os.path.basename(audio_path),
+                'speaker': 'intermediator',
+                'turn': 0
+            })
 
         # Continue dialog for max_turns * 2 (so each participant goes max_turns times)
         for turn in range(1, (max_turns * 2) + 1):
@@ -411,7 +418,14 @@ Please respond thoughtfully. Engage with the points raised and contribute your p
                 })
 
                 # Generate TTS for participant 1
-                generate_tts_audio(p1_response, 'participant1', self.dialog_id, turn, self.enable_tts)
+                audio_path = generate_tts_audio(p1_response, 'participant1', self.dialog_id, turn, self.enable_tts)
+                if audio_path and self.enable_tts:
+                    self._emit('audio_ready', {
+                        'dialog_id': self.dialog_id,
+                        'filename': os.path.basename(audio_path),
+                        'speaker': 'participant1',
+                        'turn': turn
+                    })
 
                 # Update intermediator's context with participant 1's response
                 self.intermediator.messages.append({
@@ -456,7 +470,14 @@ Provide a brief moderation comment (2-3 sentences) that keeps the dialog product
                 })
 
                 # Generate TTS for intermediator moderation
-                generate_tts_audio(mod_response, 'intermediator', self.dialog_id, turn, self.enable_tts)
+                audio_path = generate_tts_audio(mod_response, 'intermediator', self.dialog_id, turn, self.enable_tts)
+                if audio_path and self.enable_tts:
+                    self._emit('audio_ready', {
+                        'dialog_id': self.dialog_id,
+                        'filename': os.path.basename(audio_path),
+                        'speaker': 'intermediator',
+                        'turn': turn
+                    })
 
                 # Update participants' context
                 self.participant1.messages.append({
@@ -505,7 +526,14 @@ Please respond thoughtfully. Engage with the points raised and contribute your p
                 })
 
                 # Generate TTS for participant 2
-                generate_tts_audio(p2_response, 'participant2', self.dialog_id, turn, self.enable_tts)
+                audio_path = generate_tts_audio(p2_response, 'participant2', self.dialog_id, turn, self.enable_tts)
+                if audio_path and self.enable_tts:
+                    self._emit('audio_ready', {
+                        'dialog_id': self.dialog_id,
+                        'filename': os.path.basename(audio_path),
+                        'speaker': 'participant2',
+                        'turn': turn
+                    })
 
                 # Update intermediator's context with participant 2's response
                 self.intermediator.messages.append({
@@ -550,7 +578,14 @@ Provide a brief moderation comment (2-3 sentences) that keeps the dialog product
                 })
 
                 # Generate TTS for intermediator moderation
-                generate_tts_audio(mod_response, 'intermediator', self.dialog_id, turn, self.enable_tts)
+                audio_path = generate_tts_audio(mod_response, 'intermediator', self.dialog_id, turn, self.enable_tts)
+                if audio_path and self.enable_tts:
+                    self._emit('audio_ready', {
+                        'dialog_id': self.dialog_id,
+                        'filename': os.path.basename(audio_path),
+                        'speaker': 'intermediator',
+                        'turn': turn
+                    })
 
                 # Update participants' context
                 self.participant1.messages.append({
@@ -605,7 +640,14 @@ Be thorough but concise. This summary should help anyone understand the essence 
         })
 
         # Generate TTS for final summary
-        generate_tts_audio(summary_response, 'intermediator', self.dialog_id, summary_turn, self.enable_tts)
+        audio_path = generate_tts_audio(summary_response, 'intermediator', self.dialog_id, summary_turn, self.enable_tts)
+        if audio_path and self.enable_tts:
+            self._emit('audio_ready', {
+                'dialog_id': self.dialog_id,
+                'filename': os.path.basename(audio_path),
+                'speaker': 'intermediator',
+                'turn': summary_turn
+            })
 
         # Share the summary with both participants
         self.participant1.messages.append({
