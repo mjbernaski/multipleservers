@@ -1313,13 +1313,11 @@ You follow the instructions of the intermediator, review the responses of your a
                 case 'dialog_complete':
                     dialogActive = false;
                     document.getElementById('startBtn').disabled = false;
-                    updateStatusBar('idle', 'Dialog completed', null);
-                    showStatus('Dialog completed', 'success');
-                    // Show PDF export button
-                    showPdfButton();
 
-                    // If queue is running, advance to next debate
+                    // If queue is running, keep status bar visible and show transition
                     if (isQueueRunning && !queueCancelled) {
+                        updateStatusBar('intermediator', 'Debate completed - Preparing next debate...', null);
+
                         // Hide turn progress temporarily
                         updateTurnProgress();
 
@@ -1331,9 +1329,16 @@ You follow the instructions of the intermediator, review the responses of your a
                             runNextDebateInQueue();
                         }, 2000);
                     } else {
-                        // Not in queue, hide turn progress
+                        // Not in queue, show completion status
+                        updateStatusBar('idle', 'Dialog completed', null);
+
+                        // Hide turn progress
                         updateTurnProgress();
                     }
+
+                    showStatus('Dialog completed', 'success');
+                    // Show PDF export button
+                    showPdfButton();
                     break;
             }
         }
@@ -1937,6 +1942,9 @@ You follow the instructions of the intermediator, review the responses of your a
                 queueCancelled = true;
                 isQueueRunning = false;
 
+                // Update status bar
+                updateStatusBar('idle', 'Debate queue cancelled by user', null);
+
                 // Hide progress indicator
                 const progressEl = document.getElementById('debateQueueProgress');
                 if (progressEl) {
@@ -1950,6 +1958,9 @@ You follow the instructions of the intermediator, review the responses of your a
         function endDebateQueue(message) {
             isQueueRunning = false;
             queueCancelled = false;
+
+            // Update status bar to show queue completion
+            updateStatusBar('idle', message, null);
 
             // Hide progress indicator after a delay
             setTimeout(() => {
