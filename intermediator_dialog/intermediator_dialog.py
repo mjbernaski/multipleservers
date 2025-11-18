@@ -733,8 +733,8 @@ def generate_tts_audio(text: str, speaker: str, dialog_id: str, turn: int, enabl
     audio_dir = os.path.join('output', 'audio', dialog_id)
     os.makedirs(audio_dir, exist_ok=True)
 
-    # Generate filename
-    filename = f"{speaker}_turn{turn:03d}.mp3"
+    # Generate filename with sequence number first for better sorting
+    filename = f"{turn:03d}_{speaker}.mp3"
     filepath = os.path.join(audio_dir, filename)
 
     try:
@@ -1377,13 +1377,8 @@ def get_audio_files(dialog_id):
         if filename.endswith('.mp3'):
             audio_files.append(filename)
 
-    # Sort by turn number (extract from filename like "intermediator_turn001.mp3")
-    def get_turn_number(filename):
-        import re
-        match = re.search(r'turn(\d+)', filename)
-        return int(match.group(1)) if match else 0
-
-    audio_files.sort(key=get_turn_number)
+    # Sort by filename (format: "001_speaker.mp3" - naturally sorts by sequence)
+    audio_files.sort()
 
     return jsonify({
         'dialog_id': dialog_id,

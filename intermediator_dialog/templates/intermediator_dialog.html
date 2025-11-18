@@ -2082,12 +2082,12 @@ You follow the instructions of the intermediator, review the responses of your a
             const audioUrl = `/audio/${currentDialogId}/${filename}`;
             const audioStatus = document.getElementById('audioStatus');
 
-            // Extract speaker name from filename (e.g., "intermediator_turn001.mp3")
-            const speakerMatch = filename.match(/^([^_]+)_turn(\d+)/);
+            // Extract speaker name from filename (e.g., "001_intermediator.mp3")
+            const speakerMatch = filename.match(/^(\d+)_([^.]+)\.mp3/);
             let displayName = filename;
             if (speakerMatch) {
-                const speaker = speakerMatch[1];
-                const turn = parseInt(speakerMatch[2]);
+                const turn = parseInt(speakerMatch[1]);
+                const speaker = speakerMatch[2];
                 const speakerNames = {
                     'intermediator': 'Moderator',
                     'participant1': 'Participant 1',
