@@ -1,0 +1,2007 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Intermediated Dialog (IDi)</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #ffffff;
+            padding: 15px;
+            color: #000000;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        body.dark-mode {
+            background: #1a1a1a;
+            color: #e0e0e0;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding-bottom: 60px; /* Space for status bar */
+        }
+
+        h1 {
+            text-align: center;
+            color: #1f4e78;
+            margin-bottom: 12px;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+            font-size: 28px;
+            transition: color 0.3s ease;
+        }
+
+        body.dark-mode h1 {
+            color: #6ba3d8;
+        }
+
+        .controls {
+            background: #ffffff;
+            padding: 14px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            border: 1px solid #d0d0d0;
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+        }
+
+        body.dark-mode .controls {
+            background: #2d2d2d;
+            border-color: #404040;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 4px;
+            font-weight: 500;
+            color: #1f4e78;
+            font-size: 13px;
+            transition: color 0.3s ease;
+        }
+
+        body.dark-mode label {
+            color: #6ba3d8;
+        }
+
+        input[type="text"], textarea, select {
+            width: 100%;
+            padding: 7px 10px;
+            border: 1px solid #d0d0d0;
+            border-radius: 4px;
+            font-size: 13px;
+            background: #ffffff;
+            color: #000000;
+            transition: border-color 0.2s, background-color 0.3s ease, color 0.3s ease;
+        }
+
+        body.dark-mode input[type="text"],
+        body.dark-mode textarea,
+        body.dark-mode select {
+            background: #1a1a1a;
+            color: #e0e0e0;
+            border-color: #404040;
+        }
+
+        input[type="text"]:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: #4472c4;
+            box-shadow: 0 0 0 2px rgba(68, 114, 196, 0.1);
+        }
+
+        textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+
+        button {
+            background: #4472c4;
+            color: #ffffff;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 500;
+            transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(68, 114, 196, 0.2);
+        }
+
+        button:hover {
+            background: #365899;
+            box-shadow: 0 3px 6px rgba(68, 114, 196, 0.3);
+            transform: translateY(-1px);
+        }
+
+        button:disabled {
+            background: #d0d0d0;
+            color: #808080;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .status {
+            margin-top: 10px;
+            padding: 12px 16px;
+            border-radius: 4px;
+            display: none;
+            font-size: 14px;
+        }
+
+        .status.info {
+            background: #dae3f3;
+            color: #1f4e78;
+            border: 1px solid #8db4e2;
+        }
+
+        .status.error {
+            background: #fce4d6;
+            color: #c55a11;
+            border: 1px solid #f4b084;
+        }
+
+        .status.success {
+            background: #e2efda;
+            color: #70ad47;
+            border: 1px solid #a9d08e;
+        }
+
+        .ai-config {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        @media (max-width: 1200px) {
+            .ai-config {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .ai-panel {
+            background: #f2f2f2;
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid #d0d0d0;
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+        }
+
+        body.dark-mode .ai-panel {
+            background: #252525;
+            border-color: #404040;
+        }
+
+        .ai-panel.intermediator {
+            border-left: 4px solid #4472c4;
+        }
+
+        .ai-panel.participant1 {
+            border-left: 4px solid #70ad47;
+        }
+
+        .ai-panel.participant2 {
+            border-left: 4px solid #c55a11;
+        }
+
+        .ai-panel-title {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #1f4e78;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        body.dark-mode .ai-panel-title {
+            color: #6ba3d8;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            flex-shrink: 0;
+            margin-right: 4px;
+        }
+
+        .status-indicator.online {
+            background: #70ad47;
+            box-shadow: 0 0 6px rgba(112, 173, 71, 0.5);
+        }
+
+        .status-indicator.offline {
+            background: #c55a11;
+            box-shadow: 0 0 4px rgba(197, 90, 17, 0.4);
+        }
+
+        .status-indicator.checking {
+            background: #ffc000;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .status-text {
+            font-size: 11px;
+            font-weight: 500;
+            margin-left: 4px;
+        }
+
+        .status-text.online {
+            color: #70ad47;
+        }
+
+        .status-text.offline {
+            color: #c55a11;
+        }
+
+        .status-text.checking {
+            color: #ffc000;
+        }
+
+        .dialog-container {
+            background: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            border: 1px solid #d0d0d0;
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+            max-height: calc(80vh - 60px); /* Account for status bar */
+            overflow-y: auto;
+        }
+
+        body.dark-mode .dialog-container {
+            background: #2d2d2d;
+            border-color: #404040;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .dialog-turn {
+            padding: 16px 20px;
+            border-bottom: 1px solid #d0d0d0;
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+        }
+
+        body.dark-mode .dialog-turn {
+            border-bottom-color: #404040;
+        }
+
+        .dialog-turn:last-child {
+            border-bottom: none;
+        }
+
+        .dialog-turn.intermediator {
+            background: #dae3f3;
+            border-left: 4px solid #4472c4;
+        }
+
+        body.dark-mode .dialog-turn.intermediator {
+            background: #2a3441;
+        }
+
+        .dialog-turn.intermediator.summary {
+            background: #e7f3ff;
+            border-left: 4px solid #1f4e78;
+            border-top: 2px solid #4472c4;
+        }
+
+        body.dark-mode .dialog-turn.intermediator.summary {
+            background: #1a2a3a;
+        }
+
+        .dialog-turn.participant1 {
+            background: #e2efda;
+            border-left: 4px solid #70ad47;
+        }
+
+        body.dark-mode .dialog-turn.participant1 {
+            background: #2d3528;
+        }
+
+        .dialog-turn.participant2 {
+            background: #fce4d6;
+            border-left: 4px solid #c55a11;
+        }
+
+        body.dark-mode .dialog-turn.participant2 {
+            background: #3d2f28;
+        }
+
+        .turn-header {
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .turn-header.intermediator {
+            color: #1f4e78;
+        }
+
+        body.dark-mode .turn-header.intermediator {
+            color: #6ba3d8;
+        }
+
+        .turn-header.participant1 {
+            color: #548235;
+        }
+
+        .turn-header.participant2 {
+            color: #833c0c;
+        }
+
+        .turn-content {
+            white-space: pre-wrap;
+            line-height: 1.7;
+            color: #000000;
+        }
+
+        body.dark-mode .turn-content {
+            color: #e0e0e0;
+        }
+
+        .turn-content.streaming {
+            background: #fff2cc;
+            padding: 8px;
+            border-radius: 4px;
+        }
+
+        body.dark-mode .turn-content.streaming {
+            background: #3d3520;
+        }
+
+        .tokens {
+            margin-top: 8px;
+            font-size: 11px;
+            color: #808080;
+            font-style: italic;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #808080;
+        }
+
+        .spinner {
+            border: 3px solid #d0d0d0;
+            border-top: 3px solid #4472c4;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .status-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #1f4e78;
+            color: #ffffff;
+            padding: 12px 20px;
+            font-size: 14px;
+            font-weight: 500;
+            box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: background-color 0.3s ease;
+        }
+
+        body.dark-mode .status-bar {
+            background: #2d4a6b;
+        }
+
+        .status-bar.intermediator {
+            background: #4472c4;
+        }
+
+        body.dark-mode .status-bar.intermediator {
+            background: #365899;
+        }
+
+        .status-bar.participant1 {
+            background: #70ad47;
+        }
+
+        body.dark-mode .status-bar.participant1 {
+            background: #548235;
+        }
+
+        .status-bar.participant2 {
+            background: #c55a11;
+        }
+
+        body.dark-mode .status-bar.participant2 {
+            background: #833c0c;
+        }
+
+        .status-bar.idle {
+            background: #808080;
+        }
+
+        body.dark-mode .status-bar.idle {
+            background: #555555;
+        }
+
+        .status-bar-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ffffff;
+            box-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(1.1); }
+        }
+
+        .status-bar-content {
+            flex: 1;
+        }
+
+        .status-bar-turn {
+            font-size: 12px;
+            opacity: 0.9;
+            margin-left: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <h1 style="margin: 0;">Intermediated Dialog <span style="font-size: 20px; color: #808080; font-weight: 400;">(IDi)</span></h1>
+            <button id="darkModeToggle" onclick="toggleDarkMode()" style="background: #4472c4; color: #ffffff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 500;">
+                🌙 Dark Mode
+            </button>
+        </div>
+
+        <div class="controls">
+            <div class="ai-config">
+                <div class="ai-panel intermediator">
+                    <div class="ai-panel-title">
+                        <span class="status-indicator checking" id="intermediator-status-indicator"></span>
+                        <span>Intermediator (Moderator)</span>
+                        <span class="status-text checking" id="intermediator-status-text" style="margin-left: auto;">Checking...</span>
+                    </div>
+                    <div class="form-group">
+                        <label for="intermediator-host">Host:</label>
+                        <input type="text" id="intermediator-host" value="http://192.168.6.40:11434" placeholder="http://host:port" onchange="checkServerStatus('intermediator'); loadModels('intermediator')">
+                    </div>
+                    <div class="form-group">
+                        <label for="intermediator-model">Model:</label>
+                        <select id="intermediator-model" onchange="checkServerStatus('intermediator')" style="width: 100%; padding: 7px 10px; border: 1px solid #d0d0d0; border-radius: 4px; font-size: 13px; background: #ffffff; color: #000000;">
+                            <option value="gpt-oss:20b" selected>Loading models...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="intermediator-name">Name:</label>
+                        <input type="text" id="intermediator-name" value="RT5090" placeholder="Display name">
+                    </div>
+                </div>
+
+                <div class="ai-panel participant1">
+                    <div class="ai-panel-title">
+                        <span class="status-indicator checking" id="participant1-status-indicator"></span>
+                        <span>Participant 1 (Spark 1)</span>
+                        <span class="status-text checking" id="participant1-status-text" style="margin-left: auto;">Checking...</span>
+                    </div>
+                    <div class="form-group">
+                        <label for="participant1-host">Host:</label>
+                        <input type="text" id="participant1-host" value="http://192.168.5.40:11434" placeholder="http://host:port" onchange="checkServerStatus('participant1'); loadModels('participant1')">
+                    </div>
+                    <div class="form-group">
+                        <label style="display: flex; align-items: center; gap: 8px;">
+                            <input type="checkbox" id="participant1-override-model" onchange="toggleParticipant1Model()" style="width: auto;">
+                            <span>Override shared model</span>
+                        </label>
+                        <select id="participant1-model" style="margin-top: 4px; width: 100%; padding: 7px 10px; border: 1px solid #d0d0d0; border-radius: 4px; font-size: 13px; background: #ffffff; color: #000000;" disabled onchange="checkServerStatus('participant1')">
+                            <option value="gpt-oss:20b" selected>Loading models...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="participant1-name">Name:</label>
+                        <input type="text" id="participant1-name" value="NVIDIA DGX Spark 1" placeholder="Display name">
+                    </div>
+                </div>
+
+                <div class="ai-panel participant2">
+                    <div class="ai-panel-title">
+                        <span class="status-indicator checking" id="participant2-status-indicator"></span>
+                        <span>Participant 2 (Spark 2)</span>
+                        <span class="status-text checking" id="participant2-status-text" style="margin-left: auto;">Checking...</span>
+                    </div>
+                    <div class="form-group">
+                        <label for="participant2-host">Host:</label>
+                        <input type="text" id="participant2-host" value="http://192.168.5.46:11434" placeholder="http://host:port" onchange="checkServerStatus('participant2'); loadModels('participant2')">
+                    </div>
+                    <div class="form-group">
+                        <label style="display: flex; align-items: center; gap: 8px;">
+                            <input type="checkbox" id="participant2-override-model" onchange="toggleParticipant2Model()" style="width: auto;">
+                            <span>Override shared model</span>
+                        </label>
+                        <select id="participant2-model" style="margin-top: 4px; width: 100%; padding: 7px 10px; border: 1px solid #d0d0d0; border-radius: 4px; font-size: 13px; background: #ffffff; color: #000000;" disabled onchange="checkServerStatus('participant2')">
+                            <option value="gpt-oss:120b" selected>Loading models...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="participant2-name">Name:</label>
+                        <input type="text" id="participant2-name" value="NVIDIA DGX Spark 2" placeholder="Display name">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group" style="background: #f2f2f2; padding: 12px; border-radius: 6px; margin-top: 12px; border: 1px solid #d0d0d0;">
+                <label for="shared-spark-model" style="font-weight: 600; color: #1f4e78;">Shared Model for Spark Servers:</label>
+                <select id="shared-spark-model" onchange="updateSharedModel()" style="width: 100%; padding: 7px 10px; border: 1px solid #d0d0d0; border-radius: 4px; font-size: 13px; background: #ffffff; color: #000000;">
+                    <option value="gpt-oss:20b" selected>gpt-oss:20b</option>
+                </select>
+                <div style="font-size: 11px; color: #808080; margin-top: 4px;">This model will be used for both Spark servers unless overridden individually. Models will be populated when servers are checked.</div>
+            </div>
+
+            <div class="form-group" style="border-top: 1px solid #d0d0d0; padding-top: 12px; margin-top: 12px;">
+                <label style="display: flex; align-items: center; cursor: pointer; font-weight: 600; color: #1f4e78; margin-bottom: 8px; font-size: 13px;" onclick="togglePromptConfig()">
+                    <span id="promptConfigToggle" style="margin-right: 8px; font-size: 13px;">▼</span>
+                    <span>Prompt Configuration</span>
+                </label>
+                
+                <div id="promptConfigSection" style="display: block;">
+                    <div class="form-group">
+                        <label for="intermediator-pre-prompt">Intermediator Pre-Prompt (static):</label>
+                        <textarea id="intermediator-pre-prompt" placeholder="Static pre-prompt for the intermediator that stays the same across dialogs...">You are the intermediator for a dialog between two AI participants.
+Your role is to present the participants with the rules and the topic.
+You review each response before passing
+it on to the other participant.
+If you have to remind the participants of the rules you will.
+If a participant misbehaves you will mention that in your final summary.
+encourage brevity and clarity.</textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="intermediator-topic-prompt">Intermediator Topic/Instructions Prompt <span style="color: #c55a11;">*</span>:</label>
+                        <textarea id="intermediator-topic-prompt" placeholder="Dynamic prompt that frames the specific topic and instructions for this dialog. This is required and replaces the separate topic field." required></textarea>
+                        <div style="font-size: 11px; color: #808080; margin-top: 4px;">Required: Include the topic and any specific instructions here. This will be combined with the pre-prompt (if provided) to form the intermediator's system prompt.</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="participant-pre-prompt">Participant Pre-Prompt (shared):</label>
+                        <textarea id="participant-pre-prompt" placeholder="Shared prompt that appears before the mid-prompt for both participants...">You are the participant in a debate.
+You follow the instructions of the intermediator, review the responses of your adversary, and develop thoughtful on-point responses.</textarea>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                        <div class="form-group">
+                            <label for="participant1-mid-prompt">Participant 1 Mid-Prompt:</label>
+                            <textarea id="participant1-mid-prompt" placeholder="Custom prompt for Participant 1 (Spark 1)..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="participant2-mid-prompt">Participant 2 Mid-Prompt:</label>
+                            <textarea id="participant2-mid-prompt" placeholder="Custom prompt for Participant 2 (Spark 2)..."></textarea>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="participant-post-prompt">Participant Post-Prompt (shared):</label>
+                        <textarea id="participant-post-prompt" placeholder="Shared prompt that appears after the mid-prompt for both participants...">You bottom line your response in 1 sentence.</textarea>
+                    </div>
+                    
+                    <div style="font-size: 11px; color: #808080; margin-top: 8px;">
+                        <strong>Prompt Structure:</strong><br>
+                        Intermediator: pre-prompt (static) + topic/instructions prompt (dynamic)<br>
+                        Participants: pre-prompt (shared) + [mid-prompt (custom per server)] + post-prompt (shared)
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group" style="border-top: 1px solid #d0d0d0; padding-top: 12px; margin-top: 12px;">
+                <label style="display: flex; align-items: center; cursor: pointer; font-weight: 600; color: #1f4e78; margin-bottom: 8px; font-size: 13px;" onclick="toggleDebateLibrary()">
+                    <span id="debateLibraryToggle" style="margin-right: 8px; font-size: 13px;">▶</span>
+                    <span>Debate Library (20 debates available)</span>
+                </label>
+
+                <div id="debateLibrarySection" style="display: none;">
+                    <div style="margin-bottom: 12px; padding: 10px; background: #f9f9f9; border-radius: 4px; border: 1px solid #d0d0d0;">
+                        <div style="display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap;">
+                            <button onclick="selectAllDebates()" style="background: #70ad47; padding: 6px 12px; font-size: 12px;">Select All</button>
+                            <button onclick="deselectAllDebates()" style="background: #808080; padding: 6px 12px; font-size: 12px;">Deselect All</button>
+                            <button onclick="loadSelectedDebates()" style="background: #4472c4; padding: 6px 12px; font-size: 12px;">Load Selected Debates</button>
+                        </div>
+                        <div id="debateSelectionCount" style="font-size: 12px; color: #808080; font-style: italic;">0 debates selected</div>
+                    </div>
+
+                    <div id="debateList" style="max-height: 400px; overflow-y: auto; border: 1px solid #d0d0d0; border-radius: 4px; padding: 8px; background: #ffffff;">
+                        <div style="text-align: center; padding: 20px; color: #808080;">Loading debates...</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <div style="display: flex; align-items: center; gap: 24px; flex-wrap: wrap;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <label for="fileUpload" style="margin: 0; font-size: 13px;">Upload Context File (optional):</label>
+                        <input type="file" id="fileUpload" accept=".txt,.md,.log,.json" onchange="updateFileInfo()" style="font-size: 13px;">
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <label for="maxTurns" style="margin: 0; font-size: 13px;">Max Turns:</label>
+                        <input type="number" id="maxTurns" value="3" min="1" max="50" autocomplete="off" style="width: 80px;">
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="checkbox" id="enableTTS" checked onchange="saveTTSSetting()" style="width: 18px; height: 18px; cursor: pointer;">
+                        <label for="enableTTS" style="margin: 0; font-size: 13px; cursor: pointer;">
+                            🔊 Generate Audio (TTS)
+                        </label>
+                    </div>
+                </div>
+                <div id="fileInfo" style="margin-top: 4px; font-size: 11px; color: #808080;"></div>
+            </div>
+
+            <div style="display: flex; gap: 10px; align-items: center; margin-top: 10px;">
+                <button id="startBtn" onclick="startDialog()">Start Dialog</button>
+                <button onclick="resetCache()" style="background: #ffc000; color: #000000;">Reset Cache</button>
+                <button onclick="loadTestCase()" style="background: #70ad47; color: #ffffff;">Load Test Case</button>
+                <button onclick="clearAll()" style="background: #c55a11; margin-left: auto;">Clear All</button>
+            </div>
+            <div id="status" class="status"></div>
+        </div>
+
+        <div id="debateQueueProgress" style="display: none; margin-bottom: 20px; padding: 16px; background: #e7f3ff; border: 2px solid #4472c4; border-radius: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <div style="font-weight: 600; font-size: 16px; color: #1f4e78;">
+                    🎯 Running Debate Queue
+                </div>
+                <button onclick="cancelDebateQueue()" style="background: #c55a11; padding: 6px 16px; font-size: 13px;">
+                    Cancel Queue
+                </button>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 12px;">
+                <div style="text-align: center; padding: 8px; background: #ffffff; border-radius: 4px;">
+                    <div style="font-size: 24px; font-weight: 600; color: #4472c4;" id="queueCompleted">0</div>
+                    <div style="font-size: 12px; color: #808080;">Completed</div>
+                </div>
+                <div style="text-align: center; padding: 8px; background: #ffffff; border-radius: 4px;">
+                    <div style="font-size: 24px; font-weight: 600; color: #70ad47;" id="queueCurrent">-</div>
+                    <div style="font-size: 12px; color: #808080;">Current</div>
+                </div>
+                <div style="text-align: center; padding: 8px; background: #ffffff; border-radius: 4px;">
+                    <div style="font-size: 24px; font-weight: 600; color: #808080;" id="queueRemaining">0</div>
+                    <div style="font-size: 12px; color: #808080;">Remaining</div>
+                </div>
+                <div style="text-align: center; padding: 8px; background: #ffffff; border-radius: 4px;">
+                    <div style="font-size: 24px; font-weight: 600; color: #1f4e78;" id="queueTotal">0</div>
+                    <div style="font-size: 12px; color: #808080;">Total</div>
+                </div>
+            </div>
+            <div style="background: #d0d0d0; height: 8px; border-radius: 4px; overflow: hidden;">
+                <div id="queueProgressBar" style="background: linear-gradient(90deg, #4472c4, #70ad47); height: 100%; width: 0%; transition: width 0.3s ease;"></div>
+            </div>
+            <div id="queueCurrentDebate" style="margin-top: 8px; font-size: 13px; color: #1f4e78; font-style: italic; text-align: center;">
+                Preparing debates...
+            </div>
+        </div>
+
+        <div id="dialog" class="dialog-container" style="display: none;">
+            <div class="loading">
+                <div class="spinner"></div>
+                <div>Starting dialog...</div>
+            </div>
+        </div>
+
+        <div id="pdfExportSection" style="display: none; margin-top: 20px; text-align: center;">
+            <div style="display: flex; gap: 12px; justify-content: center; align-items: center; flex-wrap: wrap;">
+                <button id="pdfExportBtn" onclick="exportToPdf()" style="background: #70ad47; color: #ffffff; border: none; padding: 12px 24px; border-radius: 4px; cursor: pointer; font-size: 15px; font-weight: 500; box-shadow: 0 2px 4px rgba(112, 173, 71, 0.2); transition: all 0.2s;" onmouseover="this.style.background='#548235'; this.style.boxShadow='0 3px 6px rgba(112, 173, 71, 0.3)'; this.style.transform='translateY(-1px)'" onmouseout="this.style.background='#70ad47'; this.style.boxShadow='0 2px 4px rgba(112, 173, 71, 0.2)'; this.style.transform='none'">
+                    📄 Export to PDF
+                </button>
+                <button id="audioPlayBtn" onclick="playAudioDebate()" style="background: #4472c4; color: #ffffff; border: none; padding: 12px 24px; border-radius: 4px; cursor: pointer; font-size: 15px; font-weight: 500; box-shadow: 0 2px 4px rgba(68, 114, 196, 0.2); transition: all 0.2s;" onmouseover="this.style.background='#365899'; this.style.boxShadow='0 3px 6px rgba(68, 114, 196, 0.3)'; this.style.transform='translateY(-1px)'" onmouseout="this.style.background='#4472c4'; this.style.boxShadow='0 2px 4px rgba(68, 114, 196, 0.2)'; this.style.transform='none'">
+                    🔊 Play Audio
+                </button>
+                <button id="audioStopBtn" onclick="stopAudioDebate()" style="display: none; background: #c55a11; color: #ffffff; border: none; padding: 12px 24px; border-radius: 4px; cursor: pointer; font-size: 15px; font-weight: 500; box-shadow: 0 2px 4px rgba(197, 90, 17, 0.2); transition: all 0.2s;" onmouseover="this.style.background='#833c0c'; this.style.boxShadow='0 3px 6px rgba(197, 90, 17, 0.3)'; this.style.transform='translateY(-1px)'" onmouseout="this.style.background='#c55a11'; this.style.boxShadow='0 2px 4px rgba(197, 90, 17, 0.2)'; this.style.transform='none'">
+                    ⏹️ Stop Audio
+                </button>
+            </div>
+            <div id="audioStatus" style="margin-top: 12px; font-size: 14px; color: #808080; min-height: 20px;"></div>
+        </div>
+    </div>
+
+    <div id="statusBar" class="status-bar idle" style="display: none;">
+        <div class="status-bar-indicator"></div>
+        <div class="status-bar-content">
+            <span id="statusBarText">Ready</span>
+            <span class="status-bar-turn" id="statusBarTurn"></span>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        let dialogActive = false;
+        let currentDialogId = null;
+        let dialogData = [];
+
+        // Debate library and queue management
+        let debateLibrary = [];
+        let debateQueue = [];
+        let currentDebateIndex = 0;
+        let isQueueRunning = false;
+        let queueCancelled = false;
+
+        // Dark mode functionality
+        function toggleDarkMode() {
+            const body = document.body;
+            const isDark = body.classList.toggle('dark-mode');
+            const toggleBtn = document.getElementById('darkModeToggle');
+            localStorage.setItem('darkMode', isDark ? 'enabled' : 'disabled');
+            if (toggleBtn) {
+                toggleBtn.textContent = isDark ? '☀️ Light Mode' : '🌙 Dark Mode';
+            }
+        }
+
+        function loadDarkModePreference() {
+            const darkModeEnabled = localStorage.getItem('darkMode') === 'enabled';
+            const toggleBtn = document.getElementById('darkModeToggle');
+            if (darkModeEnabled) {
+                document.body.classList.add('dark-mode');
+                if (toggleBtn) {
+                    toggleBtn.textContent = '☀️ Light Mode';
+                }
+            }
+        }
+
+        loadDarkModePreference();
+
+        // TTS Settings
+        function saveTTSSetting() {
+            const enabled = document.getElementById('enableTTS').checked;
+            localStorage.setItem('idi_enable_tts', enabled ? 'true' : 'false');
+        }
+
+        function loadTTSSetting() {
+            const enabled = localStorage.getItem('idi_enable_tts');
+            if (enabled !== null) {
+                document.getElementById('enableTTS').checked = enabled === 'true';
+            }
+        }
+
+        loadTTSSetting();
+
+        // Initialize shared model sync on page load
+        updateSharedModel();
+
+        // Default intermediator pre-prompt
+        const DEFAULT_INTERMEDIATOR_PRE_PROMPT = `You are the intermediator for a dialog between two AI participants.
+Your role is to present the participants with the rules and the topic.
+You review each response before passing
+it on to the other participant.
+If you have to remind the participants of the rules you will.
+If a participant misbehaves you will mention that in your final summary.
+encourage brevity and clarity.`;
+
+        // Default participant pre-prompt
+        const DEFAULT_PARTICIPANT_PRE_PROMPT = `You are the participant in a debate.
+You follow the instructions of the intermediator, review the responses of your adversary, and develop thoughtful on-point responses.`;
+
+        // Default participant post-prompt
+        const DEFAULT_PARTICIPANT_POST_PROMPT = `You bottom line your response in 1 sentence.`;
+
+        // Load test case function
+        function loadTestCase() {
+            // Pre-populate all fields with an interesting test case
+            document.getElementById('intermediator-topic-prompt').value =
+                "Should AI systems be allowed to make final hiring decisions without human oversight?";
+
+            document.getElementById('intermediator-pre-prompt').value = DEFAULT_INTERMEDIATOR_PRE_PROMPT;
+
+            document.getElementById('participant-pre-prompt').value = DEFAULT_PARTICIPANT_PRE_PROMPT;
+
+            document.getElementById('participant1-mid-prompt').value =
+                "You are optimistic about AI capabilities and believe technology can improve hiring fairness.";
+
+            document.getElementById('participant2-mid-prompt').value =
+                "You are cautious about AI bias and emphasize the importance of human judgment in hiring decisions.";
+
+            document.getElementById('participant-post-prompt').value = DEFAULT_PARTICIPANT_POST_PROMPT;
+
+            document.getElementById('maxTurns').value = "4";
+
+            // Show confirmation
+            const status = document.getElementById('status');
+            status.textContent = '✓ Test case loaded! Review the fields and click "Start Dialog" when ready.';
+            status.style.color = '#70ad47';
+            status.style.display = 'block';
+
+            // Clear status after 3 seconds
+            setTimeout(() => {
+                status.style.display = 'none';
+            }, 3000);
+        }
+
+        // Load persisted prompt fields
+        function loadPersistedFields() {
+            // Load prompt configuration (excluding pre/post prompts which always revert to defaults)
+            const intermediatorPrePrompt = localStorage.getItem('idi_intermediator_pre_prompt');
+            const intermediatorTopicPrompt = localStorage.getItem('idi_intermediator_topic_prompt');
+            const participant1MidPrompt = localStorage.getItem('idi_participant1_mid_prompt');
+            const participant2MidPrompt = localStorage.getItem('idi_participant2_mid_prompt');
+            
+            // Use localStorage value if exists, otherwise use default
+            const intermediatorPrePromptEl = document.getElementById('intermediator-pre-prompt');
+            if (intermediatorPrePrompt) {
+                intermediatorPrePromptEl.value = intermediatorPrePrompt;
+            } else {
+                intermediatorPrePromptEl.value = DEFAULT_INTERMEDIATOR_PRE_PROMPT;
+            }
+            
+            if (intermediatorTopicPrompt) document.getElementById('intermediator-topic-prompt').value = intermediatorTopicPrompt;
+            
+            // Participant pre-prompt: use localStorage if exists, otherwise use default
+            const participantPrePromptEl = document.getElementById('participant-pre-prompt');
+            const participantPrePrompt = localStorage.getItem('idi_participant_pre_prompt');
+            if (participantPrePrompt) {
+                participantPrePromptEl.value = participantPrePrompt;
+            } else {
+                participantPrePromptEl.value = DEFAULT_PARTICIPANT_PRE_PROMPT;
+            }
+            
+            // Participant post-prompt: use localStorage if exists, otherwise use default
+            const participantPostPromptEl = document.getElementById('participant-post-prompt');
+            const participantPostPrompt = localStorage.getItem('idi_participant_post_prompt');
+            if (participantPostPrompt) {
+                participantPostPromptEl.value = participantPostPrompt;
+            } else {
+                participantPostPromptEl.value = DEFAULT_PARTICIPANT_POST_PROMPT;
+            }
+            if (participant1MidPrompt) document.getElementById('participant1-mid-prompt').value = participant1MidPrompt;
+            if (participant2MidPrompt) document.getElementById('participant2-mid-prompt').value = participant2MidPrompt;
+            
+            // Load other settings (maxTurns always defaults to 3, so don't load it)
+            const sharedSparkModel = localStorage.getItem('idi_shared_spark_model');
+            const participant1Override = localStorage.getItem('idi_participant1_override') === 'true';
+            const participant2Override = localStorage.getItem('idi_participant2_override') === 'true';
+            const participant1Model = localStorage.getItem('idi_participant1_model');
+            const participant2Model = localStorage.getItem('idi_participant2_model');
+            
+            // Always set maxTurns to default of 3
+            document.getElementById('maxTurns').value = '3';
+            
+            if (sharedSparkModel) {
+                document.getElementById('shared-spark-model').value = sharedSparkModel;
+                updateSharedModel();
+            }
+            if (participant1Override !== null) {
+                document.getElementById('participant1-override-model').checked = participant1Override;
+                toggleParticipant1Model();
+                if (participant1Model && participant1Override) {
+                    document.getElementById('participant1-model').value = participant1Model;
+                }
+            }
+            if (participant2Override !== null) {
+                document.getElementById('participant2-override-model').checked = participant2Override;
+                toggleParticipant2Model();
+                if (participant2Model && participant2Override) {
+                    document.getElementById('participant2-model').value = participant2Model;
+                }
+            }
+        }
+
+        // Save prompt fields to localStorage
+        function savePromptFields() {
+            localStorage.setItem('idi_intermediator_pre_prompt', document.getElementById('intermediator-pre-prompt').value);
+            localStorage.setItem('idi_intermediator_topic_prompt', document.getElementById('intermediator-topic-prompt').value);
+            localStorage.setItem('idi_participant_pre_prompt', document.getElementById('participant-pre-prompt').value);
+            localStorage.setItem('idi_participant_post_prompt', document.getElementById('participant-post-prompt').value);
+            localStorage.setItem('idi_participant1_mid_prompt', document.getElementById('participant1-mid-prompt').value);
+            localStorage.setItem('idi_participant2_mid_prompt', document.getElementById('participant2-mid-prompt').value);
+            
+            // Save other settings (maxTurns always defaults to 3, so don't save it)
+            localStorage.setItem('idi_shared_spark_model', document.getElementById('shared-spark-model').value);
+            localStorage.setItem('idi_participant1_override', document.getElementById('participant1-override-model').checked);
+            localStorage.setItem('idi_participant2_override', document.getElementById('participant2-override-model').checked);
+            if (document.getElementById('participant1-override-model').checked) {
+                localStorage.setItem('idi_participant1_model', document.getElementById('participant1-model').value);
+            }
+            if (document.getElementById('participant2-override-model').checked) {
+                localStorage.setItem('idi_participant2_model', document.getElementById('participant2-model').value);
+            }
+        }
+
+        // Load persisted fields on page load
+        loadPersistedFields();
+        
+        // Ensure maxTurns is always set to 3 on page load (override any cached values)
+        function ensureMaxTurnsDefault() {
+            const maxTurnsInput = document.getElementById('maxTurns');
+            if (maxTurnsInput) {
+                maxTurnsInput.value = '3';
+            }
+        }
+        
+        // Set it immediately if DOM is already loaded, otherwise wait for DOMContentLoaded
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', ensureMaxTurnsDefault);
+        } else {
+            ensureMaxTurnsDefault();
+        }
+
+        // Auto-save prompt fields when they change
+        document.addEventListener('input', function(e) {
+            if (e.target.id && (
+                (e.target.id.includes('prompt') && 
+                 e.target.id !== 'participant-pre-prompt' && 
+                 e.target.id !== 'participant-post-prompt') || 
+                e.target.id === 'shared-spark-model' ||
+                e.target.id === 'participant1-model' ||
+                e.target.id === 'participant2-model'
+            )) {
+                savePromptFields();
+            }
+        });
+
+        // Auto-save when checkboxes change
+        document.addEventListener('change', function(e) {
+            if (e.target.id && (
+                e.target.id.includes('override') ||
+                e.target.id === 'shared-spark-model'
+            )) {
+                savePromptFields();
+            }
+        });
+
+        // Load models for a server
+        async function loadModels(serverType) {
+            const hostInput = document.getElementById(`${serverType}-host`);
+            const modelSelect = document.getElementById(`${serverType}-model`);
+            
+            if (!hostInput || !modelSelect) return;
+            
+            const host = hostInput.value.trim();
+            if (!host) return;
+            
+            try {
+                const response = await fetch('/check_servers', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        servers: [{
+                            host: host,
+                            model: '',
+                            name: serverType
+                        }]
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.servers && result.servers.length > 0) {
+                    const serverStatus = result.servers[0];
+                    if (serverStatus.available_models && serverStatus.available_models.length > 0) {
+                        const currentModel = modelSelect.value;
+                        modelSelect.innerHTML = '';
+                        serverStatus.available_models.forEach(model => {
+                            const option = document.createElement('option');
+                            option.value = model;
+                            option.textContent = model;
+                            if (model === currentModel || (model === serverStatus.model && !currentModel)) {
+                                option.selected = true;
+                            }
+                            modelSelect.appendChild(option);
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error(`Error loading models for ${serverType}:`, error);
+            }
+        }
+
+        // Check server status on page load
+        function checkAllServers() {
+            checkServerStatus('intermediator');
+            checkServerStatus('participant1');
+            checkServerStatus('participant2');
+            // Also load models
+            loadModels('intermediator');
+            loadModels('participant1');
+            loadModels('participant2');
+        }
+
+        async function checkServerStatus(serverType) {
+            const hostInput = document.getElementById(`${serverType}-host`);
+            const modelSelect = document.getElementById(`${serverType}-model`);
+            const statusIndicator = document.getElementById(`${serverType}-status-indicator`);
+            const statusText = document.getElementById(`${serverType}-status-text`);
+            
+            if (!hostInput || !modelSelect || !statusIndicator || !statusText) return;
+            
+            const host = hostInput.value.trim();
+            
+            if (!host) {
+                statusIndicator.className = 'status-indicator offline';
+                statusText.className = 'status-text offline';
+                statusText.textContent = 'Not configured';
+                return;
+            }
+            
+            // Show checking state
+            statusIndicator.className = 'status-indicator checking';
+            statusText.className = 'status-text checking';
+            statusText.textContent = 'Checking...';
+            
+            try {
+                const response = await fetch('/check_servers', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        servers: [{
+                            host: host,
+                            model: modelSelect.value || '',
+                            name: serverType
+                        }]
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.servers && result.servers.length > 0) {
+                    const serverStatus = result.servers[0];
+                    
+                    // Update model dropdown with available models
+                    if (serverStatus.available_models && serverStatus.available_models.length > 0) {
+                        const currentModel = modelSelect.value;
+                        const isDisabled = modelSelect.disabled;
+                        modelSelect.innerHTML = '';
+                        serverStatus.available_models.forEach(model => {
+                            const option = document.createElement('option');
+                            option.value = model;
+                            option.textContent = model;
+                            if (model === currentModel || (model === serverStatus.model && !currentModel)) {
+                                option.selected = true;
+                            }
+                            modelSelect.appendChild(option);
+                        });
+                        modelSelect.disabled = isDisabled;
+                        
+                        // If this is a participant and shared model is enabled, update shared model dropdown too
+                        if ((serverType === 'participant1' || serverType === 'participant2') && serverStatus.available_models.length > 0) {
+                            const sharedModelSelect = document.getElementById('shared-spark-model');
+                            if (sharedModelSelect) {
+                                const currentShared = sharedModelSelect.value;
+                                const hasCurrent = Array.from(sharedModelSelect.options).some(opt => opt.value === currentShared);
+                                if (!hasCurrent || sharedModelSelect.options.length <= 1) {
+                                    // Update shared model dropdown with available models
+                                    sharedModelSelect.innerHTML = '';
+                                    serverStatus.available_models.forEach(model => {
+                                        const option = document.createElement('option');
+                                        option.value = model;
+                                        option.textContent = model;
+                                        if (model === currentShared || (model === 'gpt-oss:20b' && !currentShared)) {
+                                            option.selected = true;
+                                        }
+                                        sharedModelSelect.appendChild(option);
+                                    });
+                                }
+                            }
+                        }
+                    }
+                    
+                    if (serverStatus.available) {
+                        statusIndicator.className = 'status-indicator online';
+                        statusText.className = 'status-text online';
+                        statusText.textContent = 'Online';
+                    } else {
+                        statusIndicator.className = 'status-indicator offline';
+                        statusText.className = 'status-text offline';
+                        statusText.textContent = 'Offline';
+                    }
+                } else {
+                    statusIndicator.className = 'status-indicator offline';
+                    statusText.className = 'status-text offline';
+                    statusText.textContent = 'Error';
+                }
+            } catch (error) {
+                statusIndicator.className = 'status-indicator offline';
+                statusText.className = 'status-text offline';
+                statusText.textContent = 'Error';
+            }
+        }
+
+        socket.on('connect', () => {
+            console.log('Connected to server');
+            showStatus('Connected to server', 'success');
+            // Check all servers on connect (with a small delay to ensure DOM is ready)
+            setTimeout(() => {
+                checkAllServers();
+            }, 500);
+            // Check servers every 30 seconds
+            setInterval(checkAllServers, 30000);
+        });
+        
+        // Also check on page load (in case socket connects before DOM is ready)
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                checkAllServers();
+            }, 1000);
+        });
+
+        socket.on('dialog_started', (data) => {
+            dialogActive = true;
+            document.getElementById('startBtn').disabled = true;
+            currentDialogId = data.dialog_id;
+            dialogData = [];
+            
+            // Hide PDF export button
+            hidePdfButton();
+            
+            // Show status bar
+            const statusBar = document.getElementById('statusBar');
+            statusBar.style.display = 'flex';
+            updateStatusBar('intermediator', 'Starting dialog...', 0);
+            
+            const dialogDiv = document.getElementById('dialog');
+            dialogDiv.style.display = 'block';
+            dialogDiv.innerHTML = `
+                <div class="dialog-turn intermediator">
+                    <div class="turn-header intermediator">Intermediator: ${data.intermediator}</div>
+                    <div class="turn-content">Starting dialog...</div>
+                </div>
+            `;
+            
+            showStatus('Dialog started', 'info');
+        });
+
+        socket.on('dialog_update', (data) => {
+            handleDialogUpdate(data);
+        });
+
+        socket.on('error', (data) => {
+            showStatus(`Error: ${data.error}`, 'error');
+        });
+
+        socket.on('dialog_saved', (data) => {
+            const filename = data.txt_path ? data.txt_path.split('/').pop() : 'dialog files';
+            showStatus(`Dialog saved: ${filename}`, 'success');
+        });
+
+        function handleDialogUpdate(data) {
+            const dialogDiv = document.getElementById('dialog');
+            const { type, speaker, message, content, answer, tokens, role } = data;
+
+            switch (type) {
+                case 'dialog_started':
+                    // Already handled
+                    break;
+
+                case 'intermediator_turn':
+                case 'participant_turn':
+                    // Add new turn
+                    const turnDiv = document.createElement('div');
+                    turnDiv.className = `dialog-turn ${speaker || role}`;
+                    turnDiv.id = `turn-${dialogData.length}`;
+                    
+                    const speakerName = speaker === 'intermediator' ? 'Intermediator' : 
+                                      speaker === 'participant1' ? 'Participant 1' : 'Participant 2';
+                    
+                    // Get server name for status display
+                    let serverName = speakerName;
+                    if (speaker === 'intermediator') {
+                        serverName = data.intermediator || 'Intermediator';
+                    } else if (speaker === 'participant1') {
+                        serverName = data.participant1 || 'Participant 1';
+                    } else if (speaker === 'participant2') {
+                        serverName = data.participant2 || 'Participant 2';
+                    }
+                    
+                    // Check if this is a summary (will be marked in the data)
+                    const isSummary = data.is_summary || false;
+                    const turnLabel = isSummary ? `${speakerName} - Summary` : speakerName;
+                    
+                    if (isSummary) {
+                        turnDiv.classList.add('summary');
+                    }
+                    
+                    // Update status bar - show "thinking" if thinking flag is set
+                    const turnNum = data.turn !== undefined ? data.turn : dialogData.length;
+                    const isThinking = data.thinking || false;
+                    let statusText;
+                    if (isThinking) {
+                        statusText = isSummary ? `${serverName} is generating summary...` : `${serverName} is thinking...`;
+                    } else {
+                        statusText = isSummary ? 'Summarizing dialog...' : `${speakerName} is speaking...`;
+                    }
+                    updateStatusBar(speaker || role, statusText, turnNum);
+                    
+                    turnDiv.innerHTML = `
+                        <div class="turn-header ${speaker || role}">${turnLabel}</div>
+                        <div class="turn-content streaming" id="content-${dialogData.length}"></div>
+                    `;
+                    
+                    dialogDiv.appendChild(turnDiv);
+                    dialogData.push({ speaker: speaker || role, content: '', is_summary: isSummary });
+                    break;
+
+                case 'content':
+                    // Append streaming content
+                    const lastTurn = dialogData[dialogData.length - 1];
+                    if (lastTurn) {
+                        lastTurn.content += content;
+                        const contentEl = document.getElementById(`content-${dialogData.length - 1}`);
+                        if (contentEl) {
+                            contentEl.textContent = lastTurn.content;
+                            contentEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                        }
+                        // Update status bar to show who is currently speaking
+                        const speakerName = lastTurn.speaker === 'intermediator' ? 'Intermediator' : 
+                                          lastTurn.speaker === 'participant1' ? 'Participant 1' : 'Participant 2';
+                        const statusText = lastTurn.is_summary ? 'Summarizing dialog...' : `${speakerName} is speaking...`;
+                        updateStatusBar(lastTurn.speaker, statusText, null);
+                    }
+                    break;
+
+                case 'response_complete':
+                    // Complete the turn
+                    const turnIndex = dialogData.length - 1;
+                    const contentEl = document.getElementById(`content-${turnIndex}`);
+                    if (contentEl && answer) {
+                        contentEl.textContent = answer;
+                        contentEl.classList.remove('streaming');
+                        
+                        if (tokens) {
+                            const tokensDiv = document.createElement('div');
+                            tokensDiv.className = 'tokens';
+                            tokensDiv.textContent = `Tokens: ${tokens.total} (${tokens.prompt_tokens} prompt + ${tokens.completion_tokens} completion)`;
+                            contentEl.parentElement.appendChild(tokensDiv);
+                        }
+                        
+                        // Update status bar - turn is complete, waiting for next speaker
+                        const lastTurnData = dialogData[turnIndex];
+                        if (lastTurnData) {
+                            const speakerName = lastTurnData.speaker === 'intermediator' ? 'Intermediator' : 
+                                              lastTurnData.speaker === 'participant1' ? 'Participant 1' : 'Participant 2';
+                            updateStatusBar(lastTurnData.speaker, `${speakerName} finished speaking`, null);
+                        }
+                    }
+                    break;
+
+                case 'dialog_complete':
+                    dialogActive = false;
+                    document.getElementById('startBtn').disabled = false;
+                    updateStatusBar('idle', 'Dialog completed', null);
+                    showStatus('Dialog completed', 'success');
+                    // Show PDF export button
+                    showPdfButton();
+
+                    // If queue is running, advance to next debate
+                    if (isQueueRunning && !queueCancelled) {
+                        currentDebateIndex++;
+                        updateQueueProgress();
+
+                        // Small delay before starting next debate
+                        setTimeout(() => {
+                            runNextDebateInQueue();
+                        }, 2000);
+                    }
+                    break;
+            }
+        }
+
+        async function startDialog() {
+            try {
+                // Check that intermediator topic prompt is provided
+                const intermediatorTopicPrompt = document.getElementById('intermediator-topic-prompt').value.trim();
+                if (!intermediatorTopicPrompt) {
+                    showStatus('Please provide the Intermediator Topic/Instructions Prompt', 'error');
+                    // Expand prompt config section if collapsed
+                    const promptConfigSection = document.getElementById('promptConfigSection');
+                    if (promptConfigSection && promptConfigSection.style.display === 'none') {
+                        togglePromptConfig();
+                    }
+                    return;
+                }
+
+                const fileInput = document.getElementById('fileUpload');
+                let sessionId = null;
+
+                if (fileInput.files && fileInput.files.length > 0) {
+                    const file = fileInput.files[0];
+                    showStatus('Uploading file...', 'info');
+                    
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    
+                    const response = await fetch('/upload', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    const result = await response.json();
+                    if (!response.ok) {
+                        showStatus(`Upload error: ${result.error}`, 'error');
+                        return;
+                    }
+                    
+                    sessionId = result.session_id;
+                    showStatus(`File "${result.filename}" uploaded`, 'success');
+                }
+
+                const intermediator = {
+                    host: document.getElementById('intermediator-host').value.trim(),
+                    model: document.getElementById('intermediator-model').value.trim(),
+                    name: document.getElementById('intermediator-name').value.trim()
+                };
+
+                const participant1 = {
+                    host: document.getElementById('participant1-host').value.trim(),
+                    model: document.getElementById('participant1-model').value.trim(),
+                    name: document.getElementById('participant1-name').value.trim()
+                };
+
+                const participant2 = {
+                    host: document.getElementById('participant2-host').value.trim(),
+                    model: document.getElementById('participant2-model').value.trim(),
+                    name: document.getElementById('participant2-name').value.trim()
+                };
+
+                const maxTurns = parseInt(document.getElementById('maxTurns').value) || 3;
+                const enableTTS = document.getElementById('enableTTS').checked;
+
+                // Get shared model and override flags
+                const sharedSparkModel = document.getElementById('shared-spark-model').value.trim();
+                const participant1Override = document.getElementById('participant1-override-model').checked;
+                const participant2Override = document.getElementById('participant2-override-model').checked;
+
+                // Get prompt configuration
+                const promptConfig = {
+                    intermediator_pre_prompt: document.getElementById('intermediator-pre-prompt').value.trim() || null,
+                    intermediator_topic_prompt: document.getElementById('intermediator-topic-prompt').value.trim() || null,
+                    participant_pre_prompt: document.getElementById('participant-pre-prompt').value.trim() || null,
+                    participant1_mid_prompt: document.getElementById('participant1-mid-prompt').value.trim() || null,
+                    participant2_mid_prompt: document.getElementById('participant2-mid-prompt').value.trim() || null,
+                    participant_post_prompt: document.getElementById('participant-post-prompt').value.trim() || null
+                };
+
+                // Remove null values
+                Object.keys(promptConfig).forEach(key => {
+                    if (promptConfig[key] === null || promptConfig[key] === '') {
+                        delete promptConfig[key];
+                    }
+                });
+
+                socket.emit('start_dialog', {
+                    session_id: sessionId,
+                    intermediator: intermediator,
+                    participant1: participant1,
+                    participant2: participant2,
+                    max_turns: maxTurns,
+                    thinking_params: {},
+                    shared_spark_model: sharedSparkModel || null,
+                    participant1_override_model: participant1Override ? participant1.model : null,
+                    participant2_override_model: participant2Override ? participant2.model : null,
+                    prompt_config: promptConfig,
+                    enable_tts: enableTTS
+                });
+            } catch (error) {
+                console.error('Error in startDialog:', error);
+                showStatus(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        function updateFileInfo() {
+            const fileInput = document.getElementById('fileUpload');
+            const fileInfo = document.getElementById('fileInfo');
+            if (fileInput.files && fileInput.files.length > 0) {
+                const file = fileInput.files[0];
+                const sizeKB = (file.size / 1024).toFixed(2);
+                fileInfo.textContent = `Selected: ${file.name} (${sizeKB} KB)`;
+                fileInfo.style.color = '#70ad47';
+            } else {
+                fileInfo.textContent = '';
+            }
+        }
+
+        function showStatus(message, type) {
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = message;
+            statusEl.className = `status ${type}`;
+            statusEl.style.display = 'block';
+            
+            if (type === 'success' || type === 'info') {
+                setTimeout(() => {
+                    statusEl.style.display = 'none';
+                }, 3000);
+            }
+        }
+
+        function toggleParticipant1Model() {
+            const override = document.getElementById('participant1-override-model').checked;
+            const modelInput = document.getElementById('participant1-model');
+            modelInput.disabled = !override;
+            if (!override) {
+                updateSharedModel();
+            } else {
+                // If enabling override, check status with the new model
+                checkServerStatus('participant1');
+            }
+            savePromptFields();
+        }
+
+        function toggleParticipant2Model() {
+            const override = document.getElementById('participant2-override-model').checked;
+            const modelInput = document.getElementById('participant2-model');
+            modelInput.disabled = !override;
+            if (!override) {
+                updateSharedModel();
+            } else {
+                // If enabling override, check status with the new model
+                checkServerStatus('participant2');
+            }
+            savePromptFields();
+        }
+
+        function updateSharedModel() {
+            const sharedModel = document.getElementById('shared-spark-model').value;
+            if (!document.getElementById('participant1-override-model').checked) {
+                const participant1Model = document.getElementById('participant1-model');
+                // Check if the shared model exists in the dropdown
+                if (Array.from(participant1Model.options).some(opt => opt.value === sharedModel)) {
+                    participant1Model.value = sharedModel;
+                }
+                checkServerStatus('participant1');
+            }
+            if (!document.getElementById('participant2-override-model').checked) {
+                const participant2Model = document.getElementById('participant2-model');
+                // Check if the shared model exists in the dropdown
+                if (Array.from(participant2Model.options).some(opt => opt.value === sharedModel)) {
+                    participant2Model.value = sharedModel;
+                }
+                checkServerStatus('participant2');
+            }
+            savePromptFields();
+        }
+
+        function togglePromptConfig() {
+            const section = document.getElementById('promptConfigSection');
+            const toggle = document.getElementById('promptConfigToggle');
+            if (section.style.display === 'none') {
+                section.style.display = 'block';
+                toggle.textContent = '▼';
+            } else {
+                section.style.display = 'none';
+                toggle.textContent = '▶';
+            }
+        }
+
+        function resetCache() {
+            if (confirm('Reset conversation cache for all AI clients? This will clear their conversation history.')) {
+                socket.emit('reset_dialog_cache', { reset_all: true });
+            }
+        }
+
+        socket.on('cache_reset', (data) => {
+            showStatus(data.message, 'success');
+        });
+
+        function updateStatusBar(speaker, text, turnNum) {
+            const statusBar = document.getElementById('statusBar');
+            const statusBarText = document.getElementById('statusBarText');
+            const statusBarTurn = document.getElementById('statusBarTurn');
+            
+            if (!statusBar || !statusBarText) return;
+            
+            // Update classes to change color based on speaker
+            statusBar.className = 'status-bar ' + speaker;
+            
+            // Update text
+            statusBarText.textContent = text;
+            
+            // Update turn number
+            if (statusBarTurn) {
+                if (turnNum !== null && turnNum !== undefined) {
+                    statusBarTurn.textContent = `(Turn ${turnNum})`;
+                } else {
+                    statusBarTurn.textContent = '';
+                }
+            }
+        }
+
+        function clearAll() {
+            // Clear prompt fields (pre/post prompts always revert to defaults)
+            document.getElementById('intermediator-pre-prompt').value = DEFAULT_INTERMEDIATOR_PRE_PROMPT;
+            document.getElementById('intermediator-topic-prompt').value = '';
+            document.getElementById('participant-pre-prompt').value = '';
+            document.getElementById('participant1-mid-prompt').value = '';
+            document.getElementById('participant2-mid-prompt').value = '';
+            document.getElementById('participant-post-prompt').value = '';
+            
+            // Clear other fields (maxTurns always defaults to 3)
+            document.getElementById('fileUpload').value = '';
+            document.getElementById('fileInfo').textContent = '';
+            document.getElementById('maxTurns').value = '3';
+            document.getElementById('shared-spark-model').value = 'gpt-oss:20b';
+            document.getElementById('participant1-override-model').checked = false;
+            document.getElementById('participant2-override-model').checked = false;
+            toggleParticipant1Model();
+            toggleParticipant2Model();
+            updateSharedModel();
+            
+            document.getElementById('dialog').style.display = 'none';
+            dialogData = [];
+            dialogActive = false;
+            currentDialogId = null;
+            
+            // Hide PDF export button
+            hidePdfButton();
+            
+            // Hide status bar
+            const statusBar = document.getElementById('statusBar');
+            if (statusBar) {
+                statusBar.style.display = 'none';
+            }
+            
+            // Reset prompt config section
+            const promptConfigSection = document.getElementById('promptConfigSection');
+            const promptConfigToggle = document.getElementById('promptConfigToggle');
+            if (promptConfigSection) {
+                promptConfigSection.style.display = 'none';
+            }
+            if (promptConfigToggle) {
+                promptConfigToggle.textContent = '▶';
+            }
+            
+            // Clear localStorage (excluding pre/post prompts and maxTurns which aren't persisted)
+            localStorage.removeItem('idi_intermediator_pre_prompt');
+            localStorage.removeItem('idi_intermediator_topic_prompt');
+            localStorage.removeItem('idi_participant1_mid_prompt');
+            localStorage.removeItem('idi_participant2_mid_prompt');
+            localStorage.removeItem('idi_shared_spark_model');
+            localStorage.removeItem('idi_participant1_override');
+            localStorage.removeItem('idi_participant2_override');
+            localStorage.removeItem('idi_participant1_model');
+            localStorage.removeItem('idi_participant2_model');
+            // Explicitly remove any old maxTurns value that might exist
+            localStorage.removeItem('idi_max_turns');
+            
+            showStatus('All fields cleared', 'success');
+        }
+
+        function showPdfButton() {
+            const pdfSection = document.getElementById('pdfExportSection');
+            if (pdfSection && currentDialogId) {
+                pdfSection.style.display = 'block';
+            }
+        }
+
+        function hidePdfButton() {
+            const pdfSection = document.getElementById('pdfExportSection');
+            if (pdfSection) {
+                pdfSection.style.display = 'none';
+            }
+        }
+
+        // Debate Library Functions
+        async function loadDebateLibrary() {
+            try {
+                const response = await fetch('/debate_library');
+                if (!response.ok) {
+                    throw new Error('Failed to load debate library');
+                }
+                const data = await response.json();
+                debateLibrary = data.debates || [];
+                displayDebateLibrary();
+            } catch (error) {
+                console.error('Error loading debate library:', error);
+                const debateList = document.getElementById('debateList');
+                if (debateList) {
+                    debateList.innerHTML = '<div style="text-align: center; padding: 20px; color: #c55a11;">Failed to load debate library</div>';
+                }
+            }
+        }
+
+        function displayDebateLibrary() {
+            const debateList = document.getElementById('debateList');
+            if (!debateList || debateLibrary.length === 0) return;
+
+            debateList.innerHTML = '';
+
+            debateLibrary.forEach((debate, index) => {
+                const debateItem = document.createElement('div');
+                debateItem.style.cssText = 'padding: 10px; margin-bottom: 8px; border: 1px solid #d0d0d0; border-radius: 4px; background: #f9f9f9; cursor: pointer; transition: background 0.2s;';
+                debateItem.onmouseover = () => debateItem.style.background = '#e7f3ff';
+                debateItem.onmouseout = () => debateItem.style.background = '#f9f9f9';
+
+                debateItem.innerHTML = `
+                    <div style="display: flex; align-items: start; gap: 10px;">
+                        <input type="checkbox" id="debate-${debate.id}" class="debate-checkbox" onchange="updateDebateSelectionCount()" style="margin-top: 3px; width: 18px; height: 18px; cursor: pointer;">
+                        <label for="debate-${debate.id}" style="flex: 1; cursor: pointer; margin: 0;">
+                            <div style="font-weight: 600; color: #1f4e78; margin-bottom: 4px;">${debate.name}</div>
+                            <div style="font-size: 12px; color: #808080;">${debate.description}</div>
+                        </label>
+                    </div>
+                `;
+
+                debateList.appendChild(debateItem);
+            });
+
+            updateDebateSelectionCount();
+        }
+
+        function toggleDebateLibrary() {
+            const section = document.getElementById('debateLibrarySection');
+            const toggle = document.getElementById('debateLibraryToggle');
+
+            if (section.style.display === 'none') {
+                section.style.display = 'block';
+                toggle.textContent = '▼';
+                // Load debate library if not already loaded
+                if (debateLibrary.length === 0) {
+                    loadDebateLibrary();
+                }
+            } else {
+                section.style.display = 'none';
+                toggle.textContent = '▶';
+            }
+        }
+
+        function selectAllDebates() {
+            const checkboxes = document.querySelectorAll('.debate-checkbox');
+            checkboxes.forEach(cb => cb.checked = true);
+            updateDebateSelectionCount();
+        }
+
+        function deselectAllDebates() {
+            const checkboxes = document.querySelectorAll('.debate-checkbox');
+            checkboxes.forEach(cb => cb.checked = false);
+            updateDebateSelectionCount();
+        }
+
+        function updateDebateSelectionCount() {
+            const checkboxes = document.querySelectorAll('.debate-checkbox:checked');
+            const count = checkboxes.length;
+            const countEl = document.getElementById('debateSelectionCount');
+            if (countEl) {
+                countEl.textContent = `${count} debate${count !== 1 ? 's' : ''} selected`;
+                countEl.style.color = count > 0 ? '#4472c4' : '#808080';
+            }
+        }
+
+        function loadSelectedDebates() {
+            const checkboxes = document.querySelectorAll('.debate-checkbox:checked');
+            if (checkboxes.length === 0) {
+                showStatus('Please select at least one debate', 'error');
+                return;
+            }
+
+            // Get selected debates
+            debateQueue = [];
+            checkboxes.forEach(cb => {
+                const debateId = cb.id.replace('debate-', '');
+                const debate = debateLibrary.find(d => d.id === debateId);
+                if (debate) {
+                    debateQueue.push(debate);
+                }
+            });
+
+            // Start queue
+            startDebateQueue();
+        }
+
+        function startDebateQueue() {
+            if (debateQueue.length === 0) return;
+
+            isQueueRunning = true;
+            queueCancelled = false;
+            currentDebateIndex = 0;
+
+            // Show progress indicator
+            const progressEl = document.getElementById('debateQueueProgress');
+            if (progressEl) {
+                progressEl.style.display = 'block';
+            }
+
+            // Update progress display
+            updateQueueProgress();
+
+            // Start first debate
+            runNextDebateInQueue();
+        }
+
+        function updateQueueProgress() {
+            const completed = currentDebateIndex;
+            const remaining = debateQueue.length - currentDebateIndex - (dialogActive ? 1 : 0);
+            const total = debateQueue.length;
+            const current = dialogActive && currentDebateIndex < debateQueue.length
+                ? (currentDebateIndex + 1)
+                : '-';
+
+            document.getElementById('queueCompleted').textContent = completed;
+            document.getElementById('queueCurrent').textContent = current;
+            document.getElementById('queueRemaining').textContent = remaining;
+            document.getElementById('queueTotal').textContent = total;
+
+            const progress = (completed / total) * 100;
+            document.getElementById('queueProgressBar').style.width = `${progress}%`;
+
+            if (currentDebateIndex < debateQueue.length) {
+                const currentDebate = debateQueue[currentDebateIndex];
+                document.getElementById('queueCurrentDebate').textContent =
+                    `Current: ${currentDebate.name}`;
+            }
+        }
+
+        function runNextDebateInQueue() {
+            if (queueCancelled) {
+                endDebateQueue('Queue cancelled by user');
+                return;
+            }
+
+            if (currentDebateIndex >= debateQueue.length) {
+                endDebateQueue('All debates completed!');
+                return;
+            }
+
+            const debate = debateQueue[currentDebateIndex];
+
+            // Load debate into form fields
+            document.getElementById('intermediator-pre-prompt').value = debate.intermediator_pre_prompt || '';
+            document.getElementById('intermediator-topic-prompt').value = debate.intermediator_topic_prompt || '';
+            document.getElementById('participant-pre-prompt').value = debate.participant_pre_prompt || '';
+            document.getElementById('participant1-mid-prompt').value = debate.participant1_mid_prompt || '';
+            document.getElementById('participant2-mid-prompt').value = debate.participant2_mid_prompt || '';
+            document.getElementById('participant-post-prompt').value = debate.participant_post_prompt || '';
+            document.getElementById('maxTurns').value = debate.max_turns || 3;
+
+            // Update progress
+            updateQueueProgress();
+
+            // Start the dialog
+            setTimeout(() => {
+                startDialog();
+            }, 500);
+        }
+
+        function cancelDebateQueue() {
+            if (confirm('Are you sure you want to cancel the debate queue?')) {
+                queueCancelled = true;
+                isQueueRunning = false;
+
+                // Hide progress indicator
+                const progressEl = document.getElementById('debateQueueProgress');
+                if (progressEl) {
+                    progressEl.style.display = 'none';
+                }
+
+                showStatus('Debate queue cancelled', 'info');
+            }
+        }
+
+        function endDebateQueue(message) {
+            isQueueRunning = false;
+            queueCancelled = false;
+
+            // Hide progress indicator after a delay
+            setTimeout(() => {
+                const progressEl = document.getElementById('debateQueueProgress');
+                if (progressEl) {
+                    progressEl.style.display = 'none';
+                }
+            }, 3000);
+
+            showStatus(message, 'success');
+        }
+
+        async function exportToPdf() {
+            if (!currentDialogId) {
+                showStatus('No dialog available for export', 'error');
+                return;
+            }
+
+            const pdfBtn = document.getElementById('pdfExportBtn');
+            const originalText = pdfBtn.textContent;
+            pdfBtn.disabled = true;
+            pdfBtn.textContent = 'Generating PDF...';
+
+            try {
+                const response = await fetch(`/generate_pdf/${currentDialogId}`);
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to generate PDF');
+                }
+
+                // Get the PDF blob
+                const blob = await response.blob();
+
+                // Create download link
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `dialog_${currentDialogId}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+
+                showStatus('PDF exported successfully', 'success');
+            } catch (error) {
+                console.error('Error exporting PDF:', error);
+                showStatus(`Error: ${error.message}`, 'error');
+            } finally {
+                pdfBtn.disabled = false;
+                pdfBtn.textContent = originalText;
+            }
+        }
+
+        // Audio playback functionality
+        let audioPlayer = null;
+        let audioPlaylist = [];
+        let currentAudioIndex = 0;
+        let isAudioPlaying = false;
+
+        async function playAudioDebate() {
+            if (!currentDialogId) {
+                showStatus('No dialog available for audio playback', 'error');
+                return;
+            }
+
+            const audioPlayBtn = document.getElementById('audioPlayBtn');
+            const audioStopBtn = document.getElementById('audioStopBtn');
+            const audioStatus = document.getElementById('audioStatus');
+
+            try {
+                // Fetch audio files list
+                audioStatus.textContent = 'Loading audio files...';
+                const response = await fetch(`/audio_files/${currentDialogId}`);
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'No audio files found');
+                }
+
+                const data = await response.json();
+
+                if (!data.audio_files || data.audio_files.length === 0) {
+                    throw new Error('No audio files available for this dialog');
+                }
+
+                audioPlaylist = data.audio_files;
+                currentAudioIndex = 0;
+                isAudioPlaying = true;
+
+                // Hide play button, show stop button
+                audioPlayBtn.style.display = 'none';
+                audioStopBtn.style.display = 'inline-block';
+
+                // Start playing
+                playNextAudio();
+
+            } catch (error) {
+                console.error('Error loading audio files:', error);
+                showStatus(`Error: ${error.message}`, 'error');
+                audioStatus.textContent = '';
+            }
+        }
+
+        function playNextAudio() {
+            if (!isAudioPlaying || currentAudioIndex >= audioPlaylist.length) {
+                // Playback complete
+                stopAudioDebate();
+                const audioStatus = document.getElementById('audioStatus');
+                audioStatus.textContent = 'Audio playback complete';
+                audioStatus.style.color = '#70ad47';
+                setTimeout(() => {
+                    audioStatus.textContent = '';
+                }, 3000);
+                return;
+            }
+
+            const filename = audioPlaylist[currentAudioIndex];
+            const audioUrl = `/audio/${currentDialogId}/${filename}`;
+            const audioStatus = document.getElementById('audioStatus');
+
+            // Extract speaker name from filename (e.g., "intermediator_turn001.mp3")
+            const speakerMatch = filename.match(/^([^_]+)_turn(\d+)/);
+            let displayName = filename;
+            if (speakerMatch) {
+                const speaker = speakerMatch[1];
+                const turn = parseInt(speakerMatch[2]);
+                const speakerNames = {
+                    'intermediator': 'Moderator',
+                    'participant1': 'Participant 1',
+                    'participant2': 'Participant 2'
+                };
+                displayName = `${speakerNames[speaker] || speaker} (Turn ${turn})`;
+            }
+
+            audioStatus.textContent = `Playing: ${displayName} (${currentAudioIndex + 1}/${audioPlaylist.length})`;
+            audioStatus.style.color = '#4472c4';
+
+            // Create or reuse audio element
+            if (audioPlayer) {
+                audioPlayer.pause();
+                audioPlayer.src = '';
+            }
+
+            audioPlayer = new Audio(audioUrl);
+
+            // Handle audio events
+            audioPlayer.addEventListener('ended', () => {
+                currentAudioIndex++;
+                playNextAudio();
+            });
+
+            audioPlayer.addEventListener('error', (e) => {
+                console.error('Audio playback error:', e);
+                audioStatus.textContent = `Error playing ${displayName}`;
+                audioStatus.style.color = '#c55a11';
+                // Try to continue with next audio after a short delay
+                setTimeout(() => {
+                    currentAudioIndex++;
+                    playNextAudio();
+                }, 1000);
+            });
+
+            // Start playback
+            audioPlayer.play().catch(error => {
+                console.error('Error starting audio playback:', error);
+                audioStatus.textContent = 'Error: Unable to play audio. User interaction may be required.';
+                audioStatus.style.color = '#c55a11';
+                stopAudioDebate();
+            });
+        }
+
+        function stopAudioDebate() {
+            isAudioPlaying = false;
+
+            if (audioPlayer) {
+                audioPlayer.pause();
+                audioPlayer.src = '';
+                audioPlayer = null;
+            }
+
+            const audioPlayBtn = document.getElementById('audioPlayBtn');
+            const audioStopBtn = document.getElementById('audioStopBtn');
+            const audioStatus = document.getElementById('audioStatus');
+
+            audioPlayBtn.style.display = 'inline-block';
+            audioStopBtn.style.display = 'none';
+
+            if (currentAudioIndex > 0 && currentAudioIndex < audioPlaylist.length) {
+                audioStatus.textContent = 'Audio playback stopped';
+                audioStatus.style.color = '#808080';
+                setTimeout(() => {
+                    audioStatus.textContent = '';
+                }, 3000);
+            }
+        }
+    </script>
+</body>
+</html>
