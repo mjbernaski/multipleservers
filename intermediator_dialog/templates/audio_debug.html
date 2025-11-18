@@ -168,9 +168,9 @@
             border-left-color: #ffc000;
         }
 
-        .log-entry.audio-playing {
-            border-left-color: #70ad47;
-            background: #2d3528;
+        .log-entry.debug-log {
+            border-left-color: #808080;
+            color: #b0b0b0;
         }
 
         .controls {
@@ -618,6 +618,16 @@
             addTTSLog(`Audio file ready: ${data.filename}`, 'tts-success');
             // Queue the audio for playback
             queueAudio(data.dialog_id, data.filename);
+        });
+
+        socket.on('debug_log', (data) => {
+            // Display debug logs in the TTS log for visibility
+            let message = data.message;
+            if (data.server) {
+                message = `[${data.server}] ${message}`;
+            }
+            const type = data.level === 'error' ? 'tts-error' : 'debug-log';
+            addTTSLog(message, type);
         });
 
         // Initialize
