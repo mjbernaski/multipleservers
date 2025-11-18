@@ -746,11 +746,19 @@ def generate_tts_audio(text: str, speaker: str, dialog_id: str, turn: int, enabl
     })
 
     try:
+        # OpenAI TTS has a 4096 character limit - truncate if necessary
+        max_length = 4000  # Leave some margin
+        if len(text) > max_length:
+            truncated_text = text[:max_length] + "... [Content truncated due to length]"
+            debug_log('warning', f"TTS text truncated from {len(text)} to {max_length} characters", server=speaker)
+        else:
+            truncated_text = text
+
         # Generate speech using OpenAI TTS
         response = openai_client.audio.speech.create(
             model="tts-1",
             voice=voice,
-            input=text
+            input=truncated_text
         )
 
         # Save audio file

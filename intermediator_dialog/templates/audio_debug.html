@@ -225,7 +225,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>🔊 Audio Debug Monitor</h1>
+        <h1>🔊 Audio Player & Monitor</h1>
 
         <div class="panel">
             <h2>Statistics</h2>
@@ -250,8 +250,13 @@
         </div>
 
         <div class="panel">
-            <h2>Auto-Play Queue</h2>
+            <h2>Playback Queue</h2>
             <div class="controls">
+                <label style="display: inline-flex; align-items: center; margin-right: 16px; cursor: pointer;">
+                    <input type="checkbox" id="autoPlayToggle" checked onchange="toggleAutoPlay()" style="margin-right: 6px;">
+                    <span>Auto-play (enabled by default)</span>
+                </label>
+                <button onclick="playNextAudio()">▶ Play Next</button>
                 <button onclick="clearQueue()">Clear Queue</button>
                 <button class="danger" onclick="clearLogs()">Clear Logs</button>
             </div>
@@ -286,9 +291,12 @@
             errors: 0
         };
 
-        // Queue tracking
-        let currentQueue = [];
+        // Queue tracking and playback
+        let audioQueue = [];
         let currentlyPlaying = null;
+        let audioPlayer = null;
+        let isPlaying = false;
+        let autoPlayEnabled = true; // Auto-play by default
 
         // Log entries
         let ttsLogs = [];
@@ -296,15 +304,16 @@
 
         function updateStats() {
             document.getElementById('statGenerated').textContent = stats.generated;
-            document.getElementById('statQueued').textContent = stats.queued;
+            document.getElementById('statQueued').textContent = audioQueue.length;
             document.getElementById('statPlayed').textContent = stats.played;
             document.getElementById('statErrors').textContent = stats.errors;
+            stats.queued = audioQueue.length;
         }
 
         function updateQueue() {
             const container = document.getElementById('queueContainer');
 
-            if (currentQueue.length === 0 && !currentlyPlaying) {
+            if (audioQueue.length === 0 && !currentlyPlaying) {
                 container.innerHTML = '<div class="empty-state">Queue is empty</div>';
                 return;
             }
@@ -322,7 +331,7 @@
             }
 
             // Show queued items
-            currentQueue.forEach((item, index) => {
+            audioQueue.forEach((item, index) => {
                 html += `
                     <div class="queue-item">
                         <div class="queue-number">${index + 1}</div>
@@ -332,8 +341,156 @@
             });
 
             container.innerHTML = html;
-            stats.queued = currentQueue.length;
             updateStats();
+        }
+
+        function playNextAudio(retryCount = 0, failedAudio = null) {
+            // If retrying, put the failed audio back at the front of the queue
+            if (failedAudio && retryCount > 0 && retryCount < 3) {
+                audioQueue.unshift(failedAudio);
+            }
+
+            if (audioQueue.length === 0) {
+                isPlaying = false;
+                currentlyPlaying = null;
+                if (audioPlayer) {
+                    audioPlayer = null;
+                }
+                updateQueue();
+                addAudioLog('Queue empty - playback stopped', 'info');
+                return;
+            }
+
+            isPlaying = true;
+            const nextAudio = audioQueue.shift();
+            currentlyPlaying = nextAudio;
+            updateQueue();
+
+            // Clean up previous player
+            if (audioPlayer) {
+                audioPlayer.pause();
+                audioPlayer.src = '';
+            }
+
+            audioPlayer = new Audio(nextAudio.url);
+
+            // Event: Audio ended successfully
+            audioPlayer.addEventListener('ended', () => {
+                addAudioLog(`✓ Finished: ${nextAudio.filename}`, 'tts-success');
+                socket.emit('audio_ended', { filename: nextAudio.filename });
+                stats.played++;
+                updateStats();
+
+                // Play next
+                playNextAudio(0, null);
+            });
+
+            // Event: Audio error
+            audioPlayer.addEventListener('error', (e) => {
+                let errorDetail = 'Unknown error';
+                if (audioPlayer.error) {
+                    switch(audioPlayer.error.code) {
+                        case 1: errorDetail = 'Audio loading aborted'; break;
+                        case 2: errorDetail = 'Network error'; break;
+                        case 3: errorDetail = 'Audio decoding failed'; break;
+                        case 4: errorDetail = 'Audio format not supported'; break;
+                    }
+                }
+
+                console.error('Audio playback error:', {
+                    filename: nextAudio.filename,
+                    error: e,
+                    errorDetail: errorDetail,
+                    retryCount: retryCount
+                });
+
+                socket.emit('audio_error', {
+                    filename: nextAudio.filename,
+                    error: errorDetail,
+                    retryCount: retryCount
+                });
+
+                // Retry up to 3 times
+                if (retryCount < 3) {
+                    const retryDelay = Math.pow(2, retryCount) * 500;
+                    addAudioLog(`⚠ Error: ${errorDetail}. Retrying ${nextAudio.filename} in ${retryDelay/1000}s (attempt ${retryCount + 1}/3)`, 'tts-error');
+                    stats.errors++;
+                    updateStats();
+                    setTimeout(() => {
+                        playNextAudio(retryCount + 1, nextAudio);
+                    }, retryDelay);
+                } else {
+                    addAudioLog(`✗ Failed: ${nextAudio.filename} after 3 attempts (${errorDetail}). Skipping...`, 'tts-error');
+                    stats.errors++;
+                    updateStats();
+                    // Skip to next
+                    setTimeout(() => {
+                        playNextAudio(0, null);
+                    }, 1000);
+                }
+            });
+
+            // Start playback
+            audioPlayer.play()
+                .then(() => {
+                    addAudioLog(`▶ Playing: ${nextAudio.filename}`, 'audio-playing');
+                    socket.emit('audio_playing', {
+                        filename: nextAudio.filename,
+                        url: nextAudio.url
+                    });
+                })
+                .catch(error => {
+                    console.error('Error starting playback:', error);
+
+                    socket.emit('audio_error', {
+                        filename: nextAudio.filename,
+                        error: 'Failed to start playback: ' + error.message,
+                        retryCount: retryCount
+                    });
+
+                    // Retry or skip
+                    if (retryCount < 3) {
+                        const retryDelay = Math.pow(2, retryCount) * 500;
+                        addAudioLog(`⚠ Failed to start: ${nextAudio.filename}. Retrying in ${retryDelay/1000}s (attempt ${retryCount + 1}/3)`, 'tts-error');
+                        stats.errors++;
+                        updateStats();
+                        setTimeout(() => {
+                            playNextAudio(retryCount + 1, nextAudio);
+                        }, retryDelay);
+                    } else {
+                        addAudioLog(`✗ Cannot play: ${nextAudio.filename} after 3 attempts. Skipping...`, 'tts-error');
+                        stats.errors++;
+                        updateStats();
+                        setTimeout(() => {
+                            playNextAudio(0, null);
+                        }, 1000);
+                    }
+                });
+        }
+
+        function queueAudio(dialogId, filename) {
+            const audioUrl = `/audio/${dialogId}/${filename}`;
+
+            audioQueue.push({
+                filename: filename,
+                url: audioUrl,
+                dialogId: dialogId
+            });
+
+            addAudioLog(`Queued: ${filename}`, 'audio-queued');
+            updateQueue();
+
+            // Emit queued event
+            socket.emit('audio_queued', {
+                filename: filename,
+                url: audioUrl,
+                queueLength: audioQueue.length
+            });
+
+            // Start playing if not already playing and auto-play is enabled
+            if (!isPlaying && autoPlayEnabled) {
+                playNextAudio();
+            }
         }
 
         function addTTSLog(message, type = 'info') {
@@ -401,9 +558,21 @@
         }
 
         function clearQueue() {
-            currentQueue = [];
+            // Stop current playback
+            if (audioPlayer) {
+                audioPlayer.pause();
+                audioPlayer.src = '';
+                audioPlayer = null;
+            }
+
+            // Clear queue
+            audioQueue = [];
+            currentlyPlaying = null;
+            isPlaying = false;
+
             updateQueue();
-            addAudioLog('Queue cleared manually', 'info');
+            updateStats();
+            addAudioLog('Queue cleared and playback stopped', 'info');
         }
 
         function clearLogs() {
@@ -411,6 +580,16 @@
             audioLogs = [];
             updateTTSLog();
             updateAudioLog();
+        }
+
+        function toggleAutoPlay() {
+            autoPlayEnabled = document.getElementById('autoPlayToggle').checked;
+            addAudioLog(`Auto-play ${autoPlayEnabled ? 'enabled' : 'disabled'}`, 'info');
+
+            // If enabling and there's queue but not playing, start playing
+            if (autoPlayEnabled && !isPlaying && audioQueue.length > 0) {
+                playNextAudio();
+            }
         }
 
         // Socket event listeners
@@ -436,45 +615,9 @@
         });
 
         socket.on('audio_ready', (data) => {
-            addAudioLog(`Audio ready: ${data.filename}`, 'audio-queued');
-        });
-
-        socket.on('audio_queued', (data) => {
-            currentQueue.push({
-                filename: data.filename,
-                url: data.url
-            });
-            updateQueue();
-            addAudioLog(`Queued: ${data.filename}`, 'audio-queued');
-        });
-
-        socket.on('audio_playing', (data) => {
-            // Remove from queue
-            const index = currentQueue.findIndex(item => item.filename === data.filename);
-            if (index !== -1) {
-                currentQueue.splice(index, 1);
-            }
-
-            currentlyPlaying = {
-                filename: data.filename
-            };
-
-            stats.played++;
-            updateQueue();
-            updateStats();
-            addAudioLog(`▶ Playing: ${data.filename}`, 'audio-playing');
-        });
-
-        socket.on('audio_ended', (data) => {
-            currentlyPlaying = null;
-            updateQueue();
-            addAudioLog(`✓ Finished: ${data.filename}`, 'tts-success');
-        });
-
-        socket.on('audio_error', (data) => {
-            stats.errors++;
-            updateStats();
-            addAudioLog(`✗ Playback error: ${data.filename} - ${data.error}`, 'tts-error');
+            addTTSLog(`Audio file ready: ${data.filename}`, 'tts-success');
+            // Queue the audio for playback
+            queueAudio(data.dialog_id, data.filename);
         });
 
         // Initialize
