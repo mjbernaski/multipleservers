@@ -481,9 +481,14 @@
     <div class="container">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
             <h1 style="margin: 0;">Intermediated Dialog <span style="font-size: 20px; color: #808080; font-weight: 400;">(IDi)</span></h1>
-            <button id="darkModeToggle" onclick="toggleDarkMode()" style="background: #4472c4; color: #ffffff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 500;">
-                🌙 Dark Mode
-            </button>
+            <div style="display: flex; gap: 8px;">
+                <button onclick="window.open('/audio_debug', 'AudioDebug', 'width=1400,height=900')" style="background: #ffc000; color: #000000; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 500;">
+                    🔧 Audio Debug
+                </button>
+                <button id="darkModeToggle" onclick="toggleDarkMode()" style="background: #4472c4; color: #ffffff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 500;">
+                    🌙 Dark Mode
+                </button>
+            </div>
         </div>
 
         <div class="controls">
@@ -1556,6 +1561,13 @@ You follow the instructions of the intermediator, review the responses of your a
                 filename: filename
             });
 
+            // Emit queued event for debug monitor
+            socket.emit('audio_queued', {
+                filename: filename,
+                url: audioUrl,
+                queueLength: autoPlayQueue.length
+            });
+
             // Start playing if not already playing
             if (!isAutoPlaying) {
                 playNextInQueue();
@@ -1586,7 +1598,17 @@ You follow the instructions of the intermediator, review the responses of your a
 
             autoPlayPlayer = new Audio(nextAudio.url);
 
+            // Emit playing event for debug monitor
+            socket.emit('audio_playing', {
+                filename: nextAudio.filename,
+                url: nextAudio.url
+            });
+
             autoPlayPlayer.addEventListener('ended', () => {
+                // Emit ended event for debug monitor
+                socket.emit('audio_ended', {
+                    filename: nextAudio.filename
+                });
                 playNextInQueue(0, null);
             });
 
@@ -1610,6 +1632,13 @@ You follow the instructions of the intermediator, review the responses of your a
                     }
                 }
 
+                // Emit error event for debug monitor
+                socket.emit('audio_error', {
+                    filename: nextAudio.filename,
+                    error: errorDetail,
+                    retryCount: retryCount
+                });
+
                 // Retry up to 3 times with exponential backoff
                 if (retryCount < 3) {
                     const retryDelay = Math.pow(2, retryCount) * 500; // 500ms, 1s, 2s
@@ -1626,6 +1655,14 @@ You follow the instructions of the intermediator, review the responses of your a
 
             autoPlayPlayer.play().catch(error => {
                 console.error('Error starting auto-play:', error);
+
+                // Emit error event for debug monitor
+                socket.emit('audio_error', {
+                    filename: nextAudio.filename,
+                    error: 'Failed to start playback: ' + error.message,
+                    retryCount: retryCount
+                });
+
                 // Retry or continue to next audio
                 if (retryCount < 3) {
                     const retryDelay = Math.pow(2, retryCount) * 500;

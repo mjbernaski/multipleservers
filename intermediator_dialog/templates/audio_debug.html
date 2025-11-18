@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Debug Monitor - IDi</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #1a1a1a;
+            color: #e0e0e0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #6ba3d8;
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+
+        .panel {
+            background: #2d2d2d;
+            border: 1px solid #404040;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+
+        .panel h2 {
+            color: #6ba3d8;
+            font-size: 18px;
+            margin-bottom: 12px;
+            border-bottom: 1px solid #404040;
+            padding-bottom: 8px;
+        }
+
+        .status-item {
+            padding: 8px 12px;
+            background: #252525;
+            border-left: 4px solid #4472c4;
+            margin-bottom: 8px;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .status-item.success {
+            border-left-color: #70ad47;
+        }
+
+        .status-item.error {
+            border-left-color: #c55a11;
+        }
+
+        .status-item.warning {
+            border-left-color: #ffc000;
+        }
+
+        .timestamp {
+            color: #808080;
+            font-size: 11px;
+            margin-right: 8px;
+        }
+
+        .queue-item {
+            display: flex;
+            align-items: center;
+            padding: 10px 12px;
+            background: #252525;
+            border: 1px solid #404040;
+            border-radius: 4px;
+            margin-bottom: 6px;
+        }
+
+        .queue-item.playing {
+            border-left: 4px solid #70ad47;
+            background: #2d3528;
+        }
+
+        .queue-number {
+            background: #4472c4;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-weight: 600;
+            margin-right: 12px;
+            min-width: 40px;
+            text-align: center;
+        }
+
+        .queue-item.playing .queue-number {
+            background: #70ad47;
+        }
+
+        .queue-filename {
+            flex: 1;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #808080;
+            font-style: italic;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .stat-box {
+            background: #252525;
+            padding: 12px;
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 600;
+            color: #6ba3d8;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            color: #808080;
+            margin-top: 4px;
+        }
+
+        .log-entry {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            padding: 6px 10px;
+            background: #252525;
+            border-left: 3px solid #404040;
+            margin-bottom: 4px;
+            border-radius: 2px;
+        }
+
+        .log-entry.tts-start {
+            border-left-color: #4472c4;
+        }
+
+        .log-entry.tts-success {
+            border-left-color: #70ad47;
+        }
+
+        .log-entry.tts-error {
+            border-left-color: #c55a11;
+        }
+
+        .log-entry.audio-queued {
+            border-left-color: #ffc000;
+        }
+
+        .log-entry.audio-playing {
+            border-left-color: #70ad47;
+            background: #2d3528;
+        }
+
+        .controls {
+            margin-bottom: 16px;
+        }
+
+        button {
+            background: #4472c4;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            margin-right: 8px;
+        }
+
+        button:hover {
+            background: #365899;
+        }
+
+        button.danger {
+            background: #c55a11;
+        }
+
+        button.danger:hover {
+            background: #833c0c;
+        }
+
+        .scroll-container {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .scroll-container::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .scroll-container::-webkit-scrollbar-track {
+            background: #252525;
+        }
+
+        .scroll-container::-webkit-scrollbar-thumb {
+            background: #404040;
+            border-radius: 4px;
+        }
+
+        .scroll-container::-webkit-scrollbar-thumb:hover {
+            background: #555555;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔊 Audio Debug Monitor</h1>
+
+        <div class="panel">
+            <h2>Statistics</h2>
+            <div class="stats">
+                <div class="stat-box">
+                    <div class="stat-value" id="statGenerated">0</div>
+                    <div class="stat-label">TTS Generated</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value" id="statQueued">0</div>
+                    <div class="stat-label">In Queue</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value" id="statPlayed">0</div>
+                    <div class="stat-label">Played</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value" id="statErrors">0</div>
+                    <div class="stat-label">Errors</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2>Auto-Play Queue</h2>
+            <div class="controls">
+                <button onclick="clearQueue()">Clear Queue</button>
+                <button class="danger" onclick="clearLogs()">Clear Logs</button>
+            </div>
+            <div id="queueContainer">
+                <div class="empty-state">Queue is empty</div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2>TTS Generation Log</h2>
+            <div class="scroll-container" id="ttsLog">
+                <div class="empty-state">No TTS activity yet</div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2>Audio Playback Log</h2>
+            <div class="scroll-container" id="audioLog">
+                <div class="empty-state">No audio playback yet</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+
+        // Statistics
+        let stats = {
+            generated: 0,
+            queued: 0,
+            played: 0,
+            errors: 0
+        };
+
+        // Queue tracking
+        let currentQueue = [];
+        let currentlyPlaying = null;
+
+        // Log entries
+        let ttsLogs = [];
+        let audioLogs = [];
+
+        function updateStats() {
+            document.getElementById('statGenerated').textContent = stats.generated;
+            document.getElementById('statQueued').textContent = stats.queued;
+            document.getElementById('statPlayed').textContent = stats.played;
+            document.getElementById('statErrors').textContent = stats.errors;
+        }
+
+        function updateQueue() {
+            const container = document.getElementById('queueContainer');
+
+            if (currentQueue.length === 0 && !currentlyPlaying) {
+                container.innerHTML = '<div class="empty-state">Queue is empty</div>';
+                return;
+            }
+
+            let html = '';
+
+            // Show currently playing
+            if (currentlyPlaying) {
+                html += `
+                    <div class="queue-item playing">
+                        <div class="queue-number">▶</div>
+                        <div class="queue-filename">${currentlyPlaying.filename}</div>
+                    </div>
+                `;
+            }
+
+            // Show queued items
+            currentQueue.forEach((item, index) => {
+                html += `
+                    <div class="queue-item">
+                        <div class="queue-number">${index + 1}</div>
+                        <div class="queue-filename">${item.filename}</div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+            stats.queued = currentQueue.length;
+            updateStats();
+        }
+
+        function addTTSLog(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = {
+                timestamp,
+                message,
+                type
+            };
+
+            ttsLogs.unshift(logEntry);
+            if (ttsLogs.length > 100) ttsLogs.pop();
+
+            updateTTSLog();
+        }
+
+        function addAudioLog(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = {
+                timestamp,
+                message,
+                type
+            };
+
+            audioLogs.unshift(logEntry);
+            if (audioLogs.length > 100) audioLogs.pop();
+
+            updateAudioLog();
+        }
+
+        function updateTTSLog() {
+            const container = document.getElementById('ttsLog');
+
+            if (ttsLogs.length === 0) {
+                container.innerHTML = '<div class="empty-state">No TTS activity yet</div>';
+                return;
+            }
+
+            const html = ttsLogs.map(log => `
+                <div class="log-entry ${log.type}">
+                    <span class="timestamp">${log.timestamp}</span>
+                    ${log.message}
+                </div>
+            `).join('');
+
+            container.innerHTML = html;
+        }
+
+        function updateAudioLog() {
+            const container = document.getElementById('audioLog');
+
+            if (audioLogs.length === 0) {
+                container.innerHTML = '<div class="empty-state">No audio playback yet</div>';
+                return;
+            }
+
+            const html = audioLogs.map(log => `
+                <div class="log-entry ${log.type}">
+                    <span class="timestamp">${log.timestamp}</span>
+                    ${log.message}
+                </div>
+            `).join('');
+
+            container.innerHTML = html;
+        }
+
+        function clearQueue() {
+            currentQueue = [];
+            updateQueue();
+            addAudioLog('Queue cleared manually', 'info');
+        }
+
+        function clearLogs() {
+            ttsLogs = [];
+            audioLogs = [];
+            updateTTSLog();
+            updateAudioLog();
+        }
+
+        // Socket event listeners
+        socket.on('connect', () => {
+            addTTSLog('Connected to server', 'tts-success');
+            addAudioLog('Connected to server', 'audio-playing');
+        });
+
+        socket.on('tts_start', (data) => {
+            addTTSLog(`Starting TTS: ${data.speaker} Turn ${data.turn}`, 'tts-start');
+        });
+
+        socket.on('tts_complete', (data) => {
+            stats.generated++;
+            updateStats();
+            addTTSLog(`✓ Generated: ${data.filename} (${data.speaker})`, 'tts-success');
+        });
+
+        socket.on('tts_error', (data) => {
+            stats.errors++;
+            updateStats();
+            addTTSLog(`✗ Error: ${data.error}`, 'tts-error');
+        });
+
+        socket.on('audio_ready', (data) => {
+            addAudioLog(`Audio ready: ${data.filename}`, 'audio-queued');
+        });
+
+        socket.on('audio_queued', (data) => {
+            currentQueue.push({
+                filename: data.filename,
+                url: data.url
+            });
+            updateQueue();
+            addAudioLog(`Queued: ${data.filename}`, 'audio-queued');
+        });
+
+        socket.on('audio_playing', (data) => {
+            // Remove from queue
+            const index = currentQueue.findIndex(item => item.filename === data.filename);
+            if (index !== -1) {
+                currentQueue.splice(index, 1);
+            }
+
+            currentlyPlaying = {
+                filename: data.filename
+            };
+
+            stats.played++;
+            updateQueue();
+            updateStats();
+            addAudioLog(`▶ Playing: ${data.filename}`, 'audio-playing');
+        });
+
+        socket.on('audio_ended', (data) => {
+            currentlyPlaying = null;
+            updateQueue();
+            addAudioLog(`✓ Finished: ${data.filename}`, 'tts-success');
+        });
+
+        socket.on('audio_error', (data) => {
+            stats.errors++;
+            updateStats();
+            addAudioLog(`✗ Playback error: ${data.filename} - ${data.error}`, 'tts-error');
+        });
+
+        // Initialize
+        updateStats();
+        updateQueue();
+    </script>
+</body>
+</html>

@@ -737,6 +737,14 @@ def generate_tts_audio(text: str, speaker: str, dialog_id: str, turn: int, enabl
     filename = f"{turn:03d}_{speaker}.mp3"
     filepath = os.path.join(audio_dir, filename)
 
+    # Emit TTS start event
+    socketio.emit('tts_start', {
+        'speaker': speaker,
+        'turn': turn,
+        'filename': filename,
+        'dialog_id': dialog_id
+    })
+
     try:
         # Generate speech using OpenAI TTS
         response = openai_client.audio.speech.create(
@@ -749,10 +757,30 @@ def generate_tts_audio(text: str, speaker: str, dialog_id: str, turn: int, enabl
         response.stream_to_file(filepath)
 
         debug_log('info', f"Generated TTS audio: {filename}", server=speaker)
+
+        # Emit TTS complete event
+        socketio.emit('tts_complete', {
+            'speaker': speaker,
+            'turn': turn,
+            'filename': filename,
+            'dialog_id': dialog_id,
+            'filepath': filepath
+        })
+
         return filepath
 
     except Exception as e:
         debug_log('error', f"Failed to generate TTS audio: {str(e)}", server=speaker)
+
+        # Emit TTS error event
+        socketio.emit('tts_error', {
+            'speaker': speaker,
+            'turn': turn,
+            'filename': filename,
+            'dialog_id': dialog_id,
+            'error': str(e)
+        })
+
         return None
 
 
@@ -1317,6 +1345,12 @@ def index():
     return render_template('intermediator_dialog.html')
 
 
+@app.route('/audio_debug')
+def audio_debug():
+    """Serve the audio debug monitor page."""
+    return render_template('audio_debug.html')
+
+
 @app.route('/debate_library', methods=['GET'])
 def get_debate_library():
     """Serve the debate library JSON."""
@@ -1427,6 +1461,30 @@ def reset_cache():
         return jsonify({'message': f'Reset cache for {reset_count} clients', 'reset_count': reset_count})
     else:
         return jsonify({'error': 'No clients specified'}), 400
+
+
+@socketio.on('audio_queued')
+def handle_audio_queued(data):
+    """Relay audio queued event to all clients (including debug monitor)."""
+    socketio.emit('audio_queued', data)
+
+
+@socketio.on('audio_playing')
+def handle_audio_playing(data):
+    """Relay audio playing event to all clients (including debug monitor)."""
+    socketio.emit('audio_playing', data)
+
+
+@socketio.on('audio_ended')
+def handle_audio_ended(data):
+    """Relay audio ended event to all clients (including debug monitor)."""
+    socketio.emit('audio_ended', data)
+
+
+@socketio.on('audio_error')
+def handle_audio_error(data):
+    """Relay audio error event to all clients (including debug monitor)."""
+    socketio.emit('audio_error', data)
 
 
 @socketio.on('reset_dialog_cache')
