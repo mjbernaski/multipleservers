@@ -674,7 +674,6 @@ You follow the instructions of the intermediator, review the responses of your a
             <div style="display: flex; gap: 10px; align-items: center; margin-top: 10px;">
                 <button id="startBtn" onclick="startDialog()">Start Dialog</button>
                 <button onclick="resetCache()" style="background: #ffc000; color: #000000;">Reset Cache</button>
-                <button onclick="loadTestCase()" style="background: #70ad47; color: #ffffff;">Load Test Case</button>
                 <button onclick="clearAll()" style="background: #c55a11; margin-left: auto;">Clear All</button>
             </div>
             <div id="status" class="status"></div>
@@ -834,38 +833,6 @@ You follow the instructions of the intermediator, review the responses of your a
 
         // Default participant post-prompt
         const DEFAULT_PARTICIPANT_POST_PROMPT = `You bottom line your response in 1 sentence.`;
-
-        // Load test case function
-        function loadTestCase() {
-            // Pre-populate all fields with an interesting test case
-            document.getElementById('intermediator-topic-prompt').value =
-                "Should AI systems be allowed to make final hiring decisions without human oversight?";
-
-            document.getElementById('intermediator-pre-prompt').value = DEFAULT_INTERMEDIATOR_PRE_PROMPT;
-
-            document.getElementById('participant-pre-prompt').value = DEFAULT_PARTICIPANT_PRE_PROMPT;
-
-            document.getElementById('participant1-mid-prompt').value =
-                "You are optimistic about AI capabilities and believe technology can improve hiring fairness.";
-
-            document.getElementById('participant2-mid-prompt').value =
-                "You are cautious about AI bias and emphasize the importance of human judgment in hiring decisions.";
-
-            document.getElementById('participant-post-prompt').value = DEFAULT_PARTICIPANT_POST_PROMPT;
-
-            document.getElementById('maxTurns').value = "4";
-
-            // Show confirmation
-            const status = document.getElementById('status');
-            status.textContent = '✓ Test case loaded! Review the fields and click "Start Dialog" when ready.';
-            status.style.color = '#70ad47';
-            status.style.display = 'block';
-
-            // Clear status after 3 seconds
-            setTimeout(() => {
-                status.style.display = 'none';
-            }, 3000);
-        }
 
         // Load persisted prompt fields
         function loadPersistedFields() {
