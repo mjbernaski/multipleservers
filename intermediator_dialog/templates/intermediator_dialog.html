@@ -501,7 +501,7 @@
                     </div>
                     <div class="form-group">
                         <label for="intermediator-host">Host:</label>
-                        <input type="text" id="intermediator-host" value="http://localhost:11434" placeholder="http://host:port" onchange="checkServerStatus('intermediator'); loadModels('intermediator')">
+                        <input type="text" id="intermediator-host" value="http://192.168.6.40:11434" placeholder="http://host:port" onchange="checkServerStatus('intermediator'); loadModels('intermediator')">
                     </div>
                     <div class="form-group">
                         <label for="intermediator-model">Model:</label>
@@ -523,7 +523,7 @@
                     </div>
                     <div class="form-group">
                         <label for="participant1-host">Host:</label>
-                        <input type="text" id="participant1-host" value="http://localhost:11434" placeholder="http://host:port" onchange="checkServerStatus('participant1'); loadModels('participant1')">
+                        <input type="text" id="participant1-host" value="http://192.168.5.40:11434" placeholder="http://host:port" onchange="checkServerStatus('participant1'); loadModels('participant1')">
                     </div>
                     <div class="form-group">
                         <label style="display: flex; align-items: center; gap: 8px;">
@@ -548,7 +548,7 @@
                     </div>
                     <div class="form-group">
                         <label for="participant2-host">Host:</label>
-                        <input type="text" id="participant2-host" value="http://localhost:11434" placeholder="http://host:port" onchange="checkServerStatus('participant2'); loadModels('participant2')">
+                        <input type="text" id="participant2-host" value="http://192.168.5.46:11434" placeholder="http://host:port" onchange="checkServerStatus('participant2'); loadModels('participant2')">
                     </div>
                     <div class="form-group">
                         <label style="display: flex; align-items: center; gap: 8px;">
@@ -748,6 +748,13 @@ You follow the instructions of the intermediator, review the responses of your a
             </div>
             <div id="audioStatus" style="margin-top: 12px; font-size: 14px; color: #808080; min-height: 20px;"></div>
         </div>
+
+        <div id="gpuMonitoringSection" style="display: none; margin-top: 20px; padding: 20px; background: #f8f8f8; border: 1px solid #d0d0d0; border-radius: 8px;">
+            <h3 style="margin-top: 0; color: #1f4e78; font-size: 18px;">GPU Power Consumption History</h3>
+            <canvas id="gpuChart" width="800" height="300" style="background: white; border: 1px solid #d0d0d0; border-radius: 4px;"></canvas>
+            <div id="gpuLegend" style="margin-top: 12px; display: flex; gap: 20px; justify-content: center; font-size: 13px;"></div>
+            <div id="gpuStats" style="margin-top: 12px; font-size: 13px; color: #666; text-align: center;"></div>
+        </div>
     </div>
 
     <div id="statusBar" class="status-bar idle" style="display: none;">
@@ -779,6 +786,11 @@ You follow the instructions of the intermediator, review the responses of your a
         let autoPlayQueue = [];
         let autoPlayPlayer = null;
         let isAutoPlaying = false;
+
+        // GPU monitoring
+        let gpuMonitoringData = [];
+        let gpuChart = null;
+        let gpuChartContext = null;
 
         // Dark mode functionality
         function toggleDarkMode() {
@@ -1179,6 +1191,9 @@ You follow the instructions of the intermediator, review the responses of your a
             // Hide PDF export button
             hidePdfButton();
 
+            // Initialize GPU monitoring
+            initGPUChart();
+
             // Show status bar
             const statusBar = document.getElementById('statusBar');
             statusBar.style.display = 'flex';
@@ -1208,6 +1223,142 @@ You follow the instructions of the intermediator, review the responses of your a
             const filename = data.txt_path ? data.txt_path.split('/').pop() : 'dialog files';
             showStatus(`Dialog saved: ${filename}`, 'success');
         });
+
+        // GPU monitoring
+        socket.on('gpu_status_update', (data) => {
+            if (data.dialog_id === currentDialogId) {
+                gpuMonitoringData.push(data.sample);
+                updateGPUChart();
+            }
+        });
+
+        function initGPUChart() {
+            const canvas = document.getElementById('gpuChart');
+            if (!canvas) return;
+
+            gpuChartContext = canvas.getContext('2d');
+            gpuMonitoringData = [];
+
+            // Show GPU monitoring section
+            document.getElementById('gpuMonitoringSection').style.display = 'block';
+        }
+
+        function updateGPUChart() {
+            if (!gpuChartContext || gpuMonitoringData.length === 0) return;
+
+            const canvas = document.getElementById('gpuChart');
+            const ctx = gpuChartContext;
+            const width = canvas.width;
+            const height = canvas.height;
+
+            // Clear canvas
+            ctx.clearRect(0, 0, width, height);
+
+            // Chart dimensions
+            const padding = 40;
+            const chartWidth = width - 2 * padding;
+            const chartHeight = height - 2 * padding;
+
+            // Find max wattage for scaling
+            let maxWattage = 0;
+            gpuMonitoringData.forEach(sample => {
+                Object.values(sample.servers || {}).forEach(server => {
+                    (server.gpus || []).forEach(gpu => {
+                        maxWattage = Math.max(maxWattage, gpu.power_draw_watts || 0);
+                    });
+                });
+            });
+            maxWattage = Math.ceil(maxWattage / 50) * 50; // Round up to nearest 50W
+
+            // Draw axes
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(padding, padding);
+            ctx.lineTo(padding, height - padding);
+            ctx.lineTo(width - padding, height - padding);
+            ctx.stroke();
+
+            // Y-axis labels (wattage)
+            ctx.fillStyle = '#333';
+            ctx.font = '11px sans-serif';
+            ctx.textAlign = 'right';
+            for (let i = 0; i <= 5; i++) {
+                const watts = (maxWattage / 5) * i;
+                const y = height - padding - (chartHeight / 5) * i;
+                ctx.fillText(watts.toFixed(0) + 'W', padding - 5, y + 3);
+
+                // Grid lines
+                ctx.strokeStyle = '#e0e0e0';
+                ctx.beginPath();
+                ctx.moveTo(padding, y);
+                ctx.lineTo(width - padding, y);
+                ctx.stroke();
+            }
+
+            // X-axis label
+            ctx.fillStyle = '#333';
+            ctx.textAlign = 'center';
+            ctx.fillText('Time (seconds)', width / 2, height - 10);
+
+            // Plot data
+            const colors = {
+                'intermediator': '#4472c4',
+                'participant1': '#70ad47',
+                'participant2': '#ed7d31'
+            };
+
+            const serverStats = {
+                'intermediator': { maxWatts: 0, avgWatts: 0, samples: 0 },
+                'participant1': { maxWatts: 0, avgWatts: 0, samples: 0 },
+                'participant2': { maxWatts: 0, avgWatts: 0, samples: 0 }
+            };
+
+            Object.keys(colors).forEach(serverRole => {
+                ctx.strokeStyle = colors[serverRole];
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+
+                let started = false;
+                gpuMonitoringData.forEach((sample, index) => {
+                    const server = sample.servers[serverRole];
+                    if (server && server.gpus && server.gpus.length > 0) {
+                        const watts = server.gpus[0].power_draw_watts || 0;
+                        const x = padding + (index / Math.max(1, gpuMonitoringData.length - 1)) * chartWidth;
+                        const y = height - padding - (watts / maxWattage) * chartHeight;
+
+                        if (!started) {
+                            ctx.moveTo(x, y);
+                            started = true;
+                        } else {
+                            ctx.lineTo(x, y);
+                        }
+
+                        // Update stats
+                        serverStats[serverRole].maxWatts = Math.max(serverStats[serverRole].maxWatts, watts);
+                        serverStats[serverRole].avgWatts += watts;
+                        serverStats[serverRole].samples++;
+                    }
+                });
+
+                ctx.stroke();
+            });
+
+            // Update legend
+            const legendDiv = document.getElementById('gpuLegend');
+            legendDiv.innerHTML = Object.keys(colors).map(role => {
+                const stats = serverStats[role];
+                const avg = stats.samples > 0 ? (stats.avgWatts / stats.samples).toFixed(1) : '0.0';
+                return `<div style="display: flex; align-items: center; gap: 6px;">
+                    <div style="width: 20px; height: 3px; background: ${colors[role]};"></div>
+                    <span>${role.charAt(0).toUpperCase() + role.slice(1)}: ${avg}W avg, ${stats.maxWatts.toFixed(1)}W peak</span>
+                </div>`;
+            }).join('');
+
+            // Update stats
+            const duration = gpuMonitoringData.length > 0 ? gpuMonitoringData[gpuMonitoringData.length - 1].elapsed.toFixed(1) : '0';
+            document.getElementById('gpuStats').textContent = `Duration: ${duration}s | Samples: ${gpuMonitoringData.length}`;
+        }
 
         function handleDialogUpdate(data) {
             const dialogDiv = document.getElementById('dialog');

@@ -64,6 +64,31 @@ class OllamaClient:
         """Set a callback function to receive streaming updates."""
         self.stream_callback = callback
 
+    def preload_model(self) -> bool:
+        """Preload the model into memory by sending a minimal request."""
+        try:
+            url = f"{self.host}/api/generate"
+
+            payload = {
+                "model": self.model,
+                "prompt": "Hi",
+                "stream": False,
+                "keep_alive": self.keep_alive,
+                "options": {
+                    "num_predict": 1  # Only generate 1 token to minimize time
+                }
+            }
+
+            response = requests.post(url, json=payload, timeout=30)
+            response.raise_for_status()
+
+            print(f"✓ Preloaded model '{self.model}' on {self.host}")
+            return True
+
+        except Exception as e:
+            print(f"Warning: Failed to preload model '{self.model}' on {self.host}: {e}")
+            return False
+
     def check_server_available(self) -> bool:
         """Check if the Ollama server is available and the model exists."""
         try:
@@ -245,6 +270,7 @@ class IntermediatorDialog:
         self.end_time: Optional[float] = None
         self.dialog_id = dialog_id or str(uuid.uuid4())
         self.enable_tts = enable_tts
+        self.audio_sequence = 0  # Global sequence counter for audio files
 
     def set_stream_callback(self, callback: Callable):
         """Set a callback function to receive streaming updates."""
@@ -347,6 +373,27 @@ Please use this context to inform your responses."""
             'participant2': self.participant2.name
         })
 
+        # Preload all models in parallel to avoid delays on first turns
+        self._emit('status_update', {
+            'message': 'Preloading models on all servers...'
+        })
+
+        preload_threads = []
+        for client, name in [(self.intermediator, 'Intermediator'),
+                             (self.participant1, 'Participant 1'),
+                             (self.participant2, 'Participant 2')]:
+            thread = threading.Thread(target=client.preload_model, daemon=True)
+            thread.start()
+            preload_threads.append(thread)
+
+        # Wait for all preloads to complete (with timeout)
+        for thread in preload_threads:
+            thread.join(timeout=30)
+
+        self._emit('status_update', {
+            'message': 'All models loaded. Starting dialog...'
+        })
+
         # Start with intermediator introducing the topic/starting the conversation
         # The topic is already in the system prompt, so just ask to begin
         intro_prompt = """Please introduce the topic to the two participants and start the conversation. Address both participants and set the stage for a productive discussion."""
@@ -369,7 +416,7 @@ Please use this context to inform your responses."""
         })
 
         # Generate TTS for intro
-        audio_path = generate_tts_audio(intro_response, 'intermediator', self.dialog_id, 0, self.enable_tts)
+        audio_path = generate_tts_audio(intro_response, 'intermediator', self.dialog_id, self.audio_sequence, self.enable_tts)
         if audio_path and self.enable_tts:
             self._emit('audio_ready', {
                 'dialog_id': self.dialog_id,
@@ -377,6 +424,7 @@ Please use this context to inform your responses."""
                 'speaker': 'intermediator',
                 'turn': 0
             })
+        self.audio_sequence += 1
 
         # Continue dialog for max_turns * 2 (so each participant goes max_turns times)
         for turn in range(1, (max_turns * 2) + 1):
@@ -427,7 +475,7 @@ Please respond thoughtfully. Engage with the points raised and contribute your p
                 })
 
                 # Generate TTS for participant 1
-                audio_path = generate_tts_audio(p1_response, 'participant1', self.dialog_id, turn, self.enable_tts)
+                audio_path = generate_tts_audio(p1_response, 'participant1', self.dialog_id, self.audio_sequence, self.enable_tts)
                 if audio_path and self.enable_tts:
                     self._emit('audio_ready', {
                         'dialog_id': self.dialog_id,
@@ -435,6 +483,7 @@ Please respond thoughtfully. Engage with the points raised and contribute your p
                         'speaker': 'participant1',
                         'turn': turn
                     })
+                self.audio_sequence += 1
 
                 # Update intermediator's context with participant 1's response
                 self.intermediator.messages.append({
@@ -479,7 +528,7 @@ Provide a brief moderation comment (2-3 sentences) that keeps the dialog product
                 })
 
                 # Generate TTS for intermediator moderation
-                audio_path = generate_tts_audio(mod_response, 'intermediator', self.dialog_id, turn, self.enable_tts)
+                audio_path = generate_tts_audio(mod_response, 'intermediator', self.dialog_id, self.audio_sequence, self.enable_tts)
                 if audio_path and self.enable_tts:
                     self._emit('audio_ready', {
                         'dialog_id': self.dialog_id,
@@ -487,6 +536,7 @@ Provide a brief moderation comment (2-3 sentences) that keeps the dialog product
                         'speaker': 'intermediator',
                         'turn': turn
                     })
+                self.audio_sequence += 1
 
                 # Update participants' context
                 self.participant1.messages.append({
@@ -535,7 +585,7 @@ Please respond thoughtfully. Engage with the points raised and contribute your p
                 })
 
                 # Generate TTS for participant 2
-                audio_path = generate_tts_audio(p2_response, 'participant2', self.dialog_id, turn, self.enable_tts)
+                audio_path = generate_tts_audio(p2_response, 'participant2', self.dialog_id, self.audio_sequence, self.enable_tts)
                 if audio_path and self.enable_tts:
                     self._emit('audio_ready', {
                         'dialog_id': self.dialog_id,
@@ -543,6 +593,7 @@ Please respond thoughtfully. Engage with the points raised and contribute your p
                         'speaker': 'participant2',
                         'turn': turn
                     })
+                self.audio_sequence += 1
 
                 # Update intermediator's context with participant 2's response
                 self.intermediator.messages.append({
@@ -587,7 +638,7 @@ Provide a brief moderation comment (2-3 sentences) that keeps the dialog product
                 })
 
                 # Generate TTS for intermediator moderation
-                audio_path = generate_tts_audio(mod_response, 'intermediator', self.dialog_id, turn, self.enable_tts)
+                audio_path = generate_tts_audio(mod_response, 'intermediator', self.dialog_id, self.audio_sequence, self.enable_tts)
                 if audio_path and self.enable_tts:
                     self._emit('audio_ready', {
                         'dialog_id': self.dialog_id,
@@ -595,6 +646,7 @@ Provide a brief moderation comment (2-3 sentences) that keeps the dialog product
                         'speaker': 'intermediator',
                         'turn': turn
                     })
+                self.audio_sequence += 1
 
                 # Update participants' context
                 self.participant1.messages.append({
@@ -649,7 +701,7 @@ Be thorough but concise. This summary should help anyone understand the essence 
         })
 
         # Generate TTS for final summary
-        audio_path = generate_tts_audio(summary_response, 'intermediator', self.dialog_id, summary_turn, self.enable_tts)
+        audio_path = generate_tts_audio(summary_response, 'intermediator', self.dialog_id, self.audio_sequence, self.enable_tts)
         if audio_path and self.enable_tts:
             self._emit('audio_ready', {
                 'dialog_id': self.dialog_id,
@@ -657,6 +709,7 @@ Be thorough but concise. This summary should help anyone understand the essence 
                 'speaker': 'intermediator',
                 'turn': summary_turn
             })
+        self.audio_sequence += 1
 
         # Share the summary with both participants
         self.participant1.messages.append({
@@ -711,6 +764,13 @@ complete_dialog_data = {}
 # Key format: "{host}:{model}:{name}"
 client_instances = {}
 
+# Store GPU monitoring data per dialog
+# Key format: "{dialog_id}"
+gpu_monitoring_data = {}
+
+# Store GPU monitoring thread control
+gpu_monitoring_threads = {}
+
 
 def generate_tts_audio(text: str, speaker: str, dialog_id: str, turn: int, enable_tts: bool = True) -> Optional[str]:
     """Generate TTS audio using OpenAI and save to file.
@@ -749,13 +809,18 @@ def generate_tts_audio(text: str, speaker: str, dialog_id: str, turn: int, enabl
     filename = f"{turn:03d}_{speaker}.mp3"
     filepath = os.path.join(audio_dir, filename)
 
-    # Emit TTS start event
+    # Emit TTS start event with detailed information
     socketio.emit('tts_start', {
         'speaker': speaker,
         'turn': turn,
         'filename': filename,
-        'dialog_id': dialog_id
+        'dialog_id': dialog_id,
+        'text_length': len(text),
+        'text_preview': text[:100] + ('...' if len(text) > 100 else ''),
+        'voice': voice
     })
+
+    debug_log('info', f"TTS START: {speaker} turn {turn}, text length: {len(text)} chars, voice: {voice}")
 
     try:
         # OpenAI TTS has a 4096 character limit - truncate if necessary
@@ -782,15 +847,20 @@ def generate_tts_audio(text: str, speaker: str, dialog_id: str, turn: int, enabl
             with open(filepath, 'wb') as f:
                 f.write(response.content)
 
-        debug_log('info', f"Generated TTS audio: {filename}", server=speaker)
+        file_size = os.path.getsize(filepath)
+        debug_log('info', f"TTS COMPLETE: Generated {filename}, size: {file_size} bytes", server=speaker)
 
-        # Emit TTS complete event
+        # Emit TTS complete event with detailed information
         socketio.emit('tts_complete', {
             'speaker': speaker,
             'turn': turn,
             'filename': filename,
             'dialog_id': dialog_id,
-            'filepath': filepath
+            'filepath': filepath,
+            'file_size': file_size,
+            'text_length': len(text),
+            'voice': voice,
+            'was_truncated': len(text) > max_length
         })
 
         return filepath
@@ -827,6 +897,117 @@ def debug_log(level, message, server=None, data=None):
     
     server_prefix = f"[{server}] " if server else ""
     print(f"[{timestamp}] [{level.upper()}] {server_prefix}{message}", flush=True)
+
+
+def fetch_gpu_status(host: str) -> Optional[Dict]:
+    """Fetch GPU status from a server's monitoring endpoint.
+
+    Args:
+        host: The host URL (e.g., 'http://192.168.5.40:11434')
+
+    Returns:
+        Dictionary with GPU status data or None if unavailable
+    """
+    try:
+        # Extract base host without port 11434, use port 9999 for GPU monitoring
+        base_host = host.split(':11434')[0]
+        gpu_status_url = f"{base_host}:9999/gpu-status"
+
+        response = requests.get(gpu_status_url, timeout=2)
+        if response.status_code == 200:
+            return response.json()
+        return None
+    except Exception as e:
+        # Silently fail - GPU monitoring is optional
+        return None
+
+
+def gpu_monitoring_thread(dialog_id: str, server_configs: Dict, poll_interval: float = 1.0):
+    """Background thread to poll GPU status during dialog execution.
+
+    Args:
+        dialog_id: The dialog ID to track
+        server_configs: Dictionary with 'intermediator', 'participant1', 'participant2' host configs
+        poll_interval: How often to poll in seconds
+    """
+    if dialog_id not in gpu_monitoring_data:
+        gpu_monitoring_data[dialog_id] = {
+            'start_time': time.time(),
+            'samples': [],
+            'server_configs': server_configs
+        }
+
+    # Flag to control thread execution
+    gpu_monitoring_threads[dialog_id] = {'running': True}
+
+    while gpu_monitoring_threads[dialog_id].get('running', False):
+        timestamp = time.time()
+        sample = {
+            'timestamp': timestamp,
+            'elapsed': timestamp - gpu_monitoring_data[dialog_id]['start_time'],
+            'servers': {}
+        }
+
+        # Poll each server
+        for role, config in server_configs.items():
+            if config and 'host' in config:
+                gpu_data = fetch_gpu_status(config['host'])
+                if gpu_data:
+                    sample['servers'][role] = {
+                        'hostname': gpu_data.get('hostname'),
+                        'gpus': gpu_data.get('gpus', [])
+                    }
+
+        # Store sample
+        gpu_monitoring_data[dialog_id]['samples'].append(sample)
+
+        # Emit to frontend
+        socketio.emit('gpu_status_update', {
+            'dialog_id': dialog_id,
+            'sample': sample
+        })
+
+        # Sleep until next poll
+        time.sleep(poll_interval)
+
+    # Mark end time when monitoring stops
+    gpu_monitoring_data[dialog_id]['end_time'] = time.time()
+
+
+def start_gpu_monitoring(dialog_id: str, intermediator_config: Dict,
+                         participant1_config: Dict, participant2_config: Dict):
+    """Start GPU monitoring for a dialog.
+
+    Args:
+        dialog_id: The dialog ID
+        intermediator_config: Intermediator server configuration
+        participant1_config: Participant 1 server configuration
+        participant2_config: Participant 2 server configuration
+    """
+    server_configs = {
+        'intermediator': intermediator_config,
+        'participant1': participant1_config,
+        'participant2': participant2_config
+    }
+
+    thread = threading.Thread(
+        target=gpu_monitoring_thread,
+        args=(dialog_id, server_configs),
+        daemon=True
+    )
+    thread.start()
+    debug_log('info', f"Started GPU monitoring for dialog {dialog_id}")
+
+
+def stop_gpu_monitoring(dialog_id: str):
+    """Stop GPU monitoring for a dialog.
+
+    Args:
+        dialog_id: The dialog ID
+    """
+    if dialog_id in gpu_monitoring_threads:
+        gpu_monitoring_threads[dialog_id]['running'] = False
+        debug_log('info', f"Stopped GPU monitoring for dialog {dialog_id}")
 
 
 def generate_filename_from_topic(topic_prompt: str, max_length: int = 60) -> str:
@@ -1490,6 +1671,24 @@ def reset_cache():
         return jsonify({'error': 'No clients specified'}), 400
 
 
+@app.route('/gpu_monitoring/<dialog_id>', methods=['GET'])
+def get_gpu_monitoring_data(dialog_id):
+    """Retrieve GPU monitoring data for a dialog."""
+    if dialog_id not in gpu_monitoring_data:
+        return jsonify({'error': 'GPU monitoring data not found for this dialog'}), 404
+
+    data = gpu_monitoring_data[dialog_id]
+    return jsonify({
+        'dialog_id': dialog_id,
+        'start_time': data.get('start_time'),
+        'end_time': data.get('end_time'),
+        'duration': data.get('end_time', time.time()) - data.get('start_time', 0),
+        'sample_count': len(data.get('samples', [])),
+        'samples': data.get('samples', []),
+        'server_configs': data.get('server_configs', {})
+    })
+
+
 @socketio.on('audio_queued')
 def handle_audio_queued(data):
     """Relay audio queued event to all clients (including debug monitor)."""
@@ -1658,7 +1857,14 @@ def run_dialog_thread(intermediator_client, participant1_client, participant2_cl
             return callback
 
         dialog.set_stream_callback(lambda data: socketio.emit('dialog_update', data))
+
+        # Start GPU monitoring
+        start_gpu_monitoring(dialog_id, intermediator_config, participant1_config, participant2_config)
+
         dialog_result = dialog.run_dialog(max_turns=max_turns, context_file=context_file)
+
+        # Stop GPU monitoring
+        stop_gpu_monitoring(dialog_id)
         
         # Save dialog to files
         if dialog_result and intermediator_config and participant1_config and participant2_config:

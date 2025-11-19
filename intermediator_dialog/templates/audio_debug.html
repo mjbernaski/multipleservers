@@ -266,6 +266,13 @@
         </div>
 
         <div class="panel">
+            <h2>Dialog Turn Tracker</h2>
+            <div class="scroll-container" id="turnTracker">
+                <div class="empty-state">No dialog turns yet</div>
+            </div>
+        </div>
+
+        <div class="panel">
             <h2>TTS Generation Log</h2>
             <div class="scroll-container" id="ttsLog">
                 <div class="empty-state">No TTS activity yet</div>
@@ -301,6 +308,10 @@
         // Log entries
         let ttsLogs = [];
         let audioLogs = [];
+
+        // Turn tracking
+        let dialogTurns = [];
+        let turnTTSStatus = {}; // Maps turn key to TTS status
 
         function updateStats() {
             document.getElementById('statGenerated').textContent = stats.generated;
@@ -592,26 +603,117 @@
             }
         }
 
+        function addDialogTurn(speaker, turn, type) {
+            const turnKey = `${turn}_${speaker}`;
+            const turnData = {
+                turn: turn,
+                speaker: speaker,
+                type: type,
+                timestamp: new Date().toLocaleTimeString(),
+                ttsStatus: 'pending'
+            };
+
+            dialogTurns.push(turnData);
+            turnTTSStatus[turnKey] = turnData;
+            updateTurnTracker();
+        }
+
+        function updateTurnTTSStatus(speaker, turn, status, details = '') {
+            const turnKey = `${turn}_${speaker}`;
+            if (turnTTSStatus[turnKey]) {
+                turnTTSStatus[turnKey].ttsStatus = status;
+                turnTTSStatus[turnKey].ttsDetails = details;
+                updateTurnTracker();
+            }
+        }
+
+        function updateTurnTracker() {
+            const container = document.getElementById('turnTracker');
+
+            if (dialogTurns.length === 0) {
+                container.innerHTML = '<div class="empty-state">No dialog turns yet</div>';
+                return;
+            }
+
+            const html = dialogTurns.map((turn, index) => {
+                let statusIcon = '⏳';
+                let statusColor = '#ffc000';
+                let statusText = 'Waiting';
+
+                if (turn.ttsStatus === 'started') {
+                    statusIcon = '🎤';
+                    statusColor = '#4472c4';
+                    statusText = 'Generating TTS...';
+                } else if (turn.ttsStatus === 'complete') {
+                    statusIcon = '✓';
+                    statusColor = '#70ad47';
+                    statusText = 'TTS Ready';
+                } else if (turn.ttsStatus === 'error') {
+                    statusIcon = '✗';
+                    statusColor = '#c55a11';
+                    statusText = 'TTS Error';
+                } else if (turn.ttsStatus === 'skipped') {
+                    statusIcon = '⊘';
+                    statusColor = '#808080';
+                    statusText = 'Skipped (TTS disabled)';
+                }
+
+                const details = turn.ttsDetails ? `<br><span style="font-size:10px; color:#808080;">${turn.ttsDetails}</span>` : '';
+
+                return `
+                    <div class="log-entry" style="border-left-color: ${statusColor};">
+                        <span class="timestamp">${turn.timestamp}</span>
+                        <strong>Turn ${turn.turn}</strong> - ${turn.speaker} (${turn.type})
+                        <span style="margin-left: 10px; color: ${statusColor};">${statusIcon} ${statusText}</span>
+                        ${details}
+                    </div>
+                `;
+            }).join('');
+
+            container.innerHTML = html;
+        }
+
         // Socket event listeners
         socket.on('connect', () => {
             addTTSLog('Connected to server', 'tts-success');
             addAudioLog('Connected to server', 'audio-playing');
         });
 
+        socket.on('dialog_update', (data) => {
+            // Track all dialog turns
+            if (data.type === 'intermediator_response' || data.type === 'participant1_response' || data.type === 'participant2_response') {
+                addDialogTurn(data.speaker, data.turn || 0, data.type);
+            }
+        });
+
         socket.on('tts_start', (data) => {
-            addTTSLog(`Starting TTS: ${data.speaker} Turn ${data.turn}`, 'tts-start');
+            const details = `${data.speaker} Turn ${data.turn} | ${data.text_length} chars | Voice: ${data.voice}`;
+            const preview = data.text_preview ? `<br><span style="color:#808080; font-size:11px;">"${data.text_preview}"</span>` : '';
+            addTTSLog(`🎤 TTS START: ${details}${preview}`, 'tts-start');
+
+            // Update turn tracker
+            updateTurnTTSStatus(data.speaker, data.turn, 'started', `${data.text_length} chars, voice: ${data.voice}`);
         });
 
         socket.on('tts_complete', (data) => {
             stats.generated++;
             updateStats();
-            addTTSLog(`✓ Generated: ${data.filename} (${data.speaker})`, 'tts-success');
+            const sizeKB = (data.file_size / 1024).toFixed(1);
+            const truncated = data.was_truncated ? ' [TRUNCATED]' : '';
+            const details = `${data.filename} | ${sizeKB} KB | ${data.text_length} chars${truncated}`;
+            addTTSLog(`✓ TTS COMPLETE: ${details}`, 'tts-success');
+
+            // Update turn tracker
+            updateTurnTTSStatus(data.speaker, data.turn, 'complete', `${sizeKB} KB${truncated}`);
         });
 
         socket.on('tts_error', (data) => {
             stats.errors++;
             updateStats();
             addTTSLog(`✗ Error: ${data.error}`, 'tts-error');
+
+            // Update turn tracker
+            updateTurnTTSStatus(data.speaker, data.turn, 'error', data.error);
         });
 
         socket.on('audio_ready', (data) => {

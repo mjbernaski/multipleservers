@@ -50,7 +50,7 @@ echo "Starting Intermediated Dialog (IDi) server..."
 echo "URL: $URL"
 
 # Run the Python script in the background
-python intermediator_dialog.py --host "$HOST" --port "$PORT" &
+python3 intermediator_dialog.py --host "$HOST" --port "$PORT" &
 SERVER_PID=$!
 
 # Wait a moment for the server to start
