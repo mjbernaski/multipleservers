@@ -635,7 +635,7 @@
                 <div class="ai-panel participant1">
                     <div class="ai-panel-title">
                         <span class="status-indicator checking" id="participant1-status-indicator"></span>
-                        <span>Participant 1 (Spark 1)</span>
+                        <span>Participant A (Spark 1)</span>
                         <span class="status-text checking" id="participant1-status-text" style="margin-left: auto;">Checking...</span>
                     </div>
                     <div class="form-group">
@@ -653,14 +653,14 @@
                     </div>
                     <div class="form-group">
                         <label for="participant1-name">Name:</label>
-                        <input type="text" id="participant1-name" value="NVIDIA DGX Spark 1" placeholder="Display name">
+                        <input type="text" id="participant1-name" value="NVIDIA DGX Spark A" placeholder="Display name">
                     </div>
                 </div>
 
                 <div class="ai-panel participant2">
                     <div class="ai-panel-title">
                         <span class="status-indicator checking" id="participant2-status-indicator"></span>
-                        <span>Participant 2 (Spark 2)</span>
+                        <span>Participant B (Spark 2)</span>
                         <span class="status-text checking" id="participant2-status-text" style="margin-left: auto;">Checking...</span>
                     </div>
                     <div class="form-group">
@@ -678,7 +678,7 @@
                     </div>
                     <div class="form-group">
                         <label for="participant2-name">Name:</label>
-                        <input type="text" id="participant2-name" value="NVIDIA DGX Spark 2" placeholder="Display name">
+                        <input type="text" id="participant2-name" value="NVIDIA DGX Spark B" placeholder="Display name">
                     </div>
                 </div>
             </div>
@@ -853,20 +853,12 @@ You follow the instructions of the intermediator, review the responses of your a
         <!-- Summary Generation Progress -->
         <div id="summaryProgressSection" style="display: none; margin-top: 20px; padding: 16px; background: #e7f3ff; border: 2px solid #4472c4; border-radius: 8px; text-align: center;">
             <div style="font-size: 16px; font-weight: 600; color: #1f4e78; margin-bottom: 8px;">
-                📝 Generating Argument Summaries...
+                📝 Saving Participant Transcripts...
             </div>
             <div style="font-size: 13px; color: #4472c4;">
-                Analyzing participant arguments and creating structure diagrams
+                Creating consolidated text files for each participant
             </div>
             <div class="spinner" style="margin: 12px auto;"></div>
-        </div>
-
-        <!-- Argument Structure Diagrams -->
-        <div id="argumentDiagramsSection" style="display: none; margin-top: 20px; padding: 20px; background: #f8f8f8; border: 1px solid #d0d0d0; border-radius: 8px;">
-            <h3 style="margin-top: 0; color: #1f4e78; font-size: 18px; text-align: center;">📊 Argument Structure Diagrams</h3>
-            <div id="diagramsContainer" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; margin-top: 20px;">
-                <!-- Diagrams will be inserted here -->
-            </div>
         </div>
 
         <div id="gpuMonitoringSection" style="display: none; margin-top: 20px; padding: 20px; background: #f8f8f8; border: 1px solid #d0d0d0; border-radius: 8px;">
@@ -1757,13 +1749,12 @@ You follow the instructions of the intermediator, review the responses of your a
                     // Hide progress indicator
                     document.getElementById('summaryProgressSection').style.display = 'none';
 
-                    // Display the diagrams
-                    displayArgumentDiagrams(data);
-
                     // Calculate and display total energy consumption
                     calculateAndDisplayEnergyEstimate();
 
                     // Update status
+                    updateStatusBar('idle', 'Transcripts saved successfully', null);
+
                     if (isQueueRunning && !queueCancelled) {
                         // Small delay before starting next debate
                         setTimeout(() => {
@@ -2109,63 +2100,6 @@ You follow the instructions of the intermediator, review the responses of your a
             if (pdfSection) {
                 pdfSection.style.display = 'none';
             }
-        }
-
-        function displayArgumentDiagrams(data) {
-            const diagramsSection = document.getElementById('argumentDiagramsSection');
-            const diagramsContainer = document.getElementById('diagramsContainer');
-
-            if (!diagramsSection || !diagramsContainer) return;
-
-            // Clear any existing diagrams
-            diagramsContainer.innerHTML = '';
-
-            // Get participant names from the config
-            const participant1Name = document.getElementById('participant1-name').value || 'Participant 1';
-            const participant2Name = document.getElementById('participant2-name').value || 'Participant 2';
-
-            // Create diagram cards
-            const diagrams = [
-                {
-                    name: participant1Name,
-                    summaryPath: data.participant1_summary,
-                    diagramPath: data.participant1_diagram,
-                    color: '#70ad47'
-                },
-                {
-                    name: participant2Name,
-                    summaryPath: data.participant2_summary,
-                    diagramPath: data.participant2_diagram,
-                    color: '#c55a11'
-                }
-            ];
-
-            diagrams.forEach(diagram => {
-                if (diagram.diagramPath) {
-                    const card = document.createElement('div');
-                    card.style.cssText = 'background: white; border: 2px solid ' + diagram.color + '; border-radius: 8px; padding: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);';
-
-                    card.innerHTML = `
-                        <h4 style="margin: 0 0 12px 0; color: ${diagram.color}; font-size: 16px; text-align: center;">
-                            ${diagram.name}
-                        </h4>
-                        <img src="${diagram.diagramPath}"
-                             alt="${diagram.name} Argument Structure"
-                             style="width: 100%; height: auto; border-radius: 4px; border: 1px solid #d0d0d0;"
-                             onerror="this.parentElement.innerHTML='<div style=\\'text-align: center; padding: 20px; color: #c55a11;\\'>Diagram not available</div>'">
-                        <div style="margin-top: 12px; text-align: center;">
-                            <a href="${diagram.summaryPath}" target="_blank" style="color: ${diagram.color}; text-decoration: none; font-size: 13px;">
-                                📄 View Full Summary
-                            </a>
-                        </div>
-                    `;
-
-                    diagramsContainer.appendChild(card);
-                }
-            });
-
-            // Show the section
-            diagramsSection.style.display = 'block';
         }
 
         // Debate Library Functions
