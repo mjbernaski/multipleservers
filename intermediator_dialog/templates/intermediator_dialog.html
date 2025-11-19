@@ -452,6 +452,46 @@
             background: #555555;
         }
 
+        /* Dark mode support for inline-styled elements */
+        body.dark-mode select,
+        body.dark-mode #debateList,
+        body.dark-mode #saveToLibraryModal > div,
+        body.dark-mode #saveToLibraryModal input,
+        body.dark-mode #saveToLibraryModal textarea {
+            background: #2a2a2a !important;
+            color: #e0e0e0 !important;
+            border-color: #444444 !important;
+        }
+
+        body.dark-mode #saveToLibraryModal h3,
+        body.dark-mode #saveToLibraryModal label {
+            color: #7bb3ff !important;
+        }
+
+        body.dark-mode [style*="background: #ffffff"],
+        body.dark-mode [style*="background:#ffffff"] {
+            background: #2a2a2a !important;
+        }
+
+        body.dark-mode [style*="color: #1f4e78"],
+        body.dark-mode [style*="color:#1f4e78"] {
+            color: #7bb3ff !important;
+        }
+
+        body.dark-mode [style*="color: #808080"],
+        body.dark-mode [style*="color:#808080"] {
+            color: #b0b0b0 !important;
+        }
+
+        body.dark-mode #debateList > div {
+            background: #2a2a2a !important;
+            border-color: #444444 !important;
+        }
+
+        body.dark-mode #debateList > div:hover {
+            background: #1f3a52 !important;
+        }
+
         .status-bar-indicator {
             width: 12px;
             height: 12px;
