@@ -869,10 +869,171 @@ def generate_tts_audio(text: str, speaker: str, dialog_id: str, topic: str, sequ
         return None
 
 
+def generate_participant_summaries(dialog_data: Dict, participant1_client: 'OllamaClient',
+                                  participant2_client: 'OllamaClient', dialog_id: str,
+                                  topic: str, intermediator_config: Dict,
+                                  participant1_config: Dict, participant2_config: Dict):
+    """Generate argument summaries for each participant and create diagram.
+
+    Args:
+        dialog_data: The complete dialog data
+        participant1_client: OllamaClient for participant 1
+        participant2_client: OllamaClient for participant 2
+        dialog_id: The dialog ID
+        topic: The debate topic
+        intermediator_config: Configuration for intermediator
+        participant1_config: Configuration for participant 1
+        participant2_config: Configuration for participant 2
+    """
+    try:
+        conversation_history = dialog_data.get('conversation_history', [])
+
+        # Aggregate turns for each participant
+        participant1_turns = []
+        participant2_turns = []
+
+        for entry in conversation_history:
+            speaker = entry.get('speaker')
+            message = entry.get('message', '')
+            if speaker == 'participant1':
+                participant1_turns.append(message)
+            elif speaker == 'participant2':
+                participant2_turns.append(message)
+
+        # Get participant names
+        p1_name = participant1_config.get('name', 'Participant 1')
+        p2_name = participant2_config.get('name', 'Participant 2')
+
+        # Create summary prompts
+        summary_prompt_p1 = f"""Review all of the following turns from a debate participant and create a comprehensive summary of their argument:
+
+{chr(10).join([f"Turn {i+1}: {turn}" for i, turn in enumerate(participant1_turns)])}
+
+Create a structured summary that includes:
+1. Main thesis/position
+2. Key arguments (bullet points)
+3. Supporting evidence or reasoning
+4. Counter-arguments addressed
+
+Be thorough but concise."""
+
+        summary_prompt_p2 = f"""Review all of the following turns from a debate participant and create a comprehensive summary of their argument:
+
+{chr(10).join([f"Turn {i+1}: {turn}" for i, turn in enumerate(participant2_turns)])}
+
+Create a structured summary that includes:
+1. Main thesis/position
+2. Key arguments (bullet points)
+3. Supporting evidence or reasoning
+4. Counter-arguments addressed
+
+Be thorough but concise."""
+
+        # Generate summaries using the participants' own clients
+        debug_log('info', f"Generating argument summary for {p1_name}")
+        p1_summary = participant1_client.generate_response(summary_prompt_p1)
+
+        debug_log('info', f"Generating argument summary for {p2_name}")
+        p2_summary = participant2_client.generate_response(summary_prompt_p2)
+
+        # Create sanitized topic for folder name
+        sanitized_topic = re.sub(r'[^\w\s-]', '', topic)[:50]
+        sanitized_topic = re.sub(r'[-\s]+', '_', sanitized_topic)
+        folder_name = f"Debate_{sanitized_topic}" if sanitized_topic else f"Debate_{dialog_id[:8]}"
+
+        # Create summary directory
+        audio_dir = os.path.join('output', 'audio', folder_name)
+        os.makedirs(audio_dir, exist_ok=True)
+
+        # Save summary files
+        p1_summary_path = os.path.join(audio_dir, f"summary_{p1_name.replace(' ', '_')}.txt")
+        p2_summary_path = os.path.join(audio_dir, f"summary_{p2_name.replace(' ', '_')}.txt")
+
+        with open(p1_summary_path, 'w', encoding='utf-8') as f:
+            f.write(f"Argument Summary: {p1_name}\n")
+            f.write(f"Topic: {topic}\n")
+            f.write("=" * 80 + "\n\n")
+            f.write(p1_summary)
+
+        with open(p2_summary_path, 'w', encoding='utf-8') as f:
+            f.write(f"Argument Summary: {p2_name}\n")
+            f.write(f"Topic: {topic}\n")
+            f.write("=" * 80 + "\n\n")
+            f.write(p2_summary)
+
+        debug_log('info', f"Saved summaries to {audio_dir}")
+
+        # Generate argument structure diagrams
+        diagram1_path = generate_argument_diagram(p1_summary, p1_name, audio_dir)
+        diagram2_path = generate_argument_diagram(p2_summary, p2_name, audio_dir)
+
+        socketio.emit('summaries_generated', {
+            'dialog_id': dialog_id,
+            'participant1_summary': p1_summary_path,
+            'participant2_summary': p2_summary_path,
+            'participant1_diagram': diagram1_path,
+            'participant2_diagram': diagram2_path
+        })
+
+        debug_log('info', "Participant summaries and diagrams generated successfully")
+
+    except Exception as e:
+        debug_log('error', f"Failed to generate participant summaries: {str(e)}")
+
+
+def generate_argument_diagram(summary_text: str, participant_name: str, output_dir: str) -> Optional[str]:
+    """Generate argument structure diagram by posting to diagram endpoint.
+
+    Args:
+        summary_text: The summary text to visualize
+        participant_name: Name of the participant
+        output_dir: Directory to save the diagram
+
+    Returns:
+        Path to saved diagram file, or None if failed
+    """
+    try:
+        diagram_endpoint = "http://192.168.6.202:7777"
+
+        debug_log('info', f"Generating diagram for {participant_name} at {diagram_endpoint}")
+
+        # POST the summary to the diagram endpoint
+        response = requests.post(
+            diagram_endpoint,
+            json={
+                'text': summary_text,
+                'participant': participant_name,
+                'orientation': 'horizontal'
+            },
+            timeout=30
+        )
+
+        if response.status_code == 200:
+            # Save the diagram
+            diagram_filename = f"diagram_{participant_name.replace(' ', '_')}.png"
+            diagram_path = os.path.join(output_dir, diagram_filename)
+
+            with open(diagram_path, 'wb') as f:
+                f.write(response.content)
+
+            debug_log('info', f"Saved diagram to {diagram_path}")
+            return diagram_path
+        else:
+            debug_log('error', f"Diagram endpoint returned status {response.status_code}")
+            return None
+
+    except requests.exceptions.Timeout:
+        debug_log('error', f"Diagram endpoint timed out for {participant_name}")
+        return None
+    except Exception as e:
+        debug_log('error', f"Failed to generate diagram for {participant_name}: {str(e)}")
+        return None
+
+
 def debug_log(level, message, server=None, data=None):
     """Emit debug log event via WebSocket and also print to console."""
     timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
-    
+
     log_entry = {
         'timestamp': timestamp,
         'level': level,
@@ -881,9 +1042,9 @@ def debug_log(level, message, server=None, data=None):
     }
     if data:
         log_entry['data'] = data
-    
+
     socketio.emit('debug_log', log_entry)
-    
+
     server_prefix = f"[{server}] " if server else ""
     print(f"[{timestamp}] [{level.upper()}] {server_prefix}{message}", flush=True)
 
@@ -1821,6 +1982,16 @@ def run_dialog_thread(intermediator_client, participant1_client, participant2_cl
                 'participant1_config': participant1_config,
                 'participant2_config': participant2_config
             }
+
+            # Generate participant summaries and diagrams in background
+            topic = prompt_config.get('intermediator_topic_prompt', 'Debate')
+            summary_thread = threading.Thread(
+                target=generate_participant_summaries,
+                args=(dialog_result, participant1_client, participant2_client, dialog_id,
+                      topic, intermediator_config, participant1_config, participant2_config),
+                daemon=True
+            )
+            summary_thread.start()
 
     except Exception as e:
         socketio.emit('error', {

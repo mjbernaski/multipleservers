@@ -169,5 +169,29 @@ When `max_turns` is set to N, each participant will speak N times (total of 2N p
 - Plus intermediator intro and moderation after each response
 - Plus final summary
 
-The `generate_tts_audio()` function (intermediator_dialog.py:642) handles all TTS generation and file management.
-- todo add a textual summary by participant of their argument by reviewing their aggregated turns.   create a summary file for each.    pass that to http://192.168.6.202:7777 endpoint to create an argument structure diagram (horizontal) that is saved with the audio files.
+The `generate_tts_audio()` function (intermediator_dialog.py:784) handles all TTS generation and file management.
+
+### Participant Argument Summaries and Diagrams
+
+After each dialog completes, the system automatically generates comprehensive argument summaries for each participant:
+
+**Summary Generation:**
+- Aggregates all turns for each participant
+- Uses the participant's own Ollama client to generate a structured summary including:
+  - Main thesis/position
+  - Key arguments (bullet points)
+  - Supporting evidence or reasoning
+  - Counter-arguments addressed
+- Saves summaries as text files in the audio directory: `summary_{participant_name}.txt`
+
+**Argument Structure Diagrams:**
+- POSTs each summary to diagram service at `http://192.168.6.202:7777`
+- Generates horizontal argument structure visualizations
+- Saves diagrams as PNG files: `diagram_{participant_name}.png`
+- All files stored in: `output/audio/Debate_{topic}/`
+
+**Implementation:**
+- `generate_participant_summaries()` (intermediator_dialog.py:872) orchestrates the summary generation
+- `generate_argument_diagram()` (intermediator_dialog.py:984) handles diagram creation
+- Runs asynchronously in background thread after dialog completes
+- Emits `summaries_generated` WebSocket event when complete
