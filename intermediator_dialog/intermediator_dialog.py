@@ -1732,6 +1732,64 @@ def get_debate_library():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/save_debate', methods=['POST'])
+def save_debate():
+    """Save a new debate to the library."""
+    try:
+        debate_data = request.json
+
+        # Validate required fields
+        required_fields = ['id', 'name', 'description', 'intermediator_topic_prompt']
+        for field in required_fields:
+            if not debate_data.get(field):
+                return jsonify({'error': f'Missing required field: {field}'}), 400
+
+        # Validate ID format
+        debate_id = debate_data['id']
+        if not re.match(r'^[a-z0-9_]+$', debate_id):
+            return jsonify({'error': 'ID must contain only lowercase letters, numbers, and underscores'}), 400
+
+        library_path = Path(__file__).parent / 'debate_library.json'
+
+        # Load existing library
+        if library_path.exists():
+            with open(library_path, 'r', encoding='utf-8') as f:
+                library = json.load(f)
+        else:
+            library = {'debates': []}
+
+        # Check if ID already exists
+        existing_ids = [d['id'] for d in library['debates']]
+        if debate_id in existing_ids:
+            return jsonify({'error': f'A debate with ID "{debate_id}" already exists'}), 400
+
+        # Create new debate entry
+        new_debate = {
+            'id': debate_data['id'],
+            'name': debate_data['name'],
+            'description': debate_data['description'],
+            'intermediator_pre_prompt': debate_data.get('intermediator_pre_prompt', ''),
+            'intermediator_topic_prompt': debate_data['intermediator_topic_prompt'],
+            'participant_pre_prompt': debate_data.get('participant_pre_prompt', ''),
+            'participant1_mid_prompt': debate_data.get('participant1_mid_prompt', ''),
+            'participant2_mid_prompt': debate_data.get('participant2_mid_prompt', ''),
+            'participant_post_prompt': debate_data.get('participant_post_prompt', ''),
+            'max_turns': debate_data.get('max_turns', 4)
+        }
+
+        # Add to library
+        library['debates'].append(new_debate)
+
+        # Save back to file
+        with open(library_path, 'w', encoding='utf-8') as f:
+            json.dump(library, f, indent=2, ensure_ascii=False)
+
+        return jsonify({'success': True, 'message': f'Debate "{new_debate["name"]}" saved successfully', 'debate_count': len(library['debates'])})
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/generate_pdf/<dialog_id>', methods=['GET'])
 def generate_pdf(dialog_id):
     """Generate and serve PDF for a completed dialog."""
