@@ -595,9 +595,10 @@ Please respond thoughtfully. Engage with the points raised and contribute your p
                         args=(p2_response, 'participant2', self.dialog_id,
                               self.intermediator_topic_prompt or 'Dialog', self.audio_sequence),
                         daemon=True
-                )
-                tts_thread.start()
-                self.audio_sequence += 1
+                    )
+                    tts_thread.start()
+                    self.tts_threads.append(tts_thread)
+                    self.audio_sequence += 1
 
                 # Update intermediator's context with participant 2's response
                 self.intermediator.messages.append({
@@ -711,10 +712,10 @@ Be thorough but concise. This summary should help anyone understand the essence 
                 args=(summary_response, 'intermediator', self.dialog_id,
                       self.intermediator_topic_prompt or 'Dialog', self.audio_sequence),
                 daemon=True
-        )
-        tts_thread.start()
-        self.tts_threads.append(tts_thread)
-        self.audio_sequence += 1
+            )
+            tts_thread.start()
+            self.tts_threads.append(tts_thread)
+            self.audio_sequence += 1
 
         # Share the summary with both participants
         self.participant1.messages.append({
