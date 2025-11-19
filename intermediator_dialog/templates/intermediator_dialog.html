@@ -991,6 +991,7 @@ You follow the instructions of the intermediator, review the responses of your a
         let currentDebateIndex = 0;
         let isQueueRunning = false;
         let queueCancelled = false;
+        let waitingForNextDebate = false; // Prevent double-execution of next debate
 
         // Turn tracking for current debate
         let currentDebateTotalTurns = 0;
@@ -1487,9 +1488,17 @@ You follow the instructions of the intermediator, review the responses of your a
         });
 
         socket.on('pdf_ready', (data) => {
-            // PDF data is ready, show the export button
+            // PDF data is ready
             if (data.dialog_id === currentDialogId) {
                 showPdfButton();
+
+                // Auto-generate PDF if queue is running
+                if (isQueueRunning && !queueCancelled) {
+                    // Small delay to ensure UI updates, then auto-export
+                    setTimeout(() => {
+                        exportToPdf();
+                    }, 500);
+                }
             }
         });
 
@@ -1838,6 +1847,14 @@ You follow the instructions of the intermediator, review the responses of your a
                         if (progressSection && progressSection.style.display !== 'none') {
                             progressSection.style.display = 'none';
                             updateStatusBar('idle', 'Dialog completed (transcripts saved)', null);
+
+                            // If queue is running, continue to next debate even if summaries timed out
+                            if (isQueueRunning && !queueCancelled && !waitingForNextDebate) {
+                                waitingForNextDebate = true;
+                                setTimeout(() => {
+                                    runNextDebateInQueue();
+                                }, 2000);
+                            }
                         }
                     }, 30000);
 
@@ -1872,7 +1889,8 @@ You follow the instructions of the intermediator, review the responses of your a
                     // Update status
                     updateStatusBar('idle', 'Transcripts saved successfully', null);
 
-                    if (isQueueRunning && !queueCancelled) {
+                    if (isQueueRunning && !queueCancelled && !waitingForNextDebate) {
+                        waitingForNextDebate = true;
                         // Small delay before starting next debate
                         setTimeout(() => {
                             runNextDebateInQueue();
@@ -2381,6 +2399,7 @@ You follow the instructions of the intermediator, review the responses of your a
 
             isQueueRunning = true;
             queueCancelled = false;
+            waitingForNextDebate = false;
             currentDebateIndex = 0;
 
             // Show progress indicator
@@ -2432,6 +2451,9 @@ You follow the instructions of the intermediator, review the responses of your a
         }
 
         function runNextDebateInQueue() {
+            // Reset the flag
+            waitingForNextDebate = false;
+
             if (queueCancelled) {
                 endDebateQueue('Queue cancelled by user');
                 return;
@@ -2490,6 +2512,7 @@ You follow the instructions of the intermediator, review the responses of your a
         function endDebateQueue(message) {
             isQueueRunning = false;
             queueCancelled = false;
+            waitingForNextDebate = false;
 
             // Update status bar to show queue completion
             updateStatusBar('idle', message, null);
