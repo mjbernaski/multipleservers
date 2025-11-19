@@ -502,10 +502,9 @@ Please respond thoughtfully. Engage with the points raised and contribute your p
                 })
 
                 # Intermediator moderates after each participant response to keep dialog on track
-                # The intermediator has access to the full conversation through self.intermediator.messages
-                # which contains all previous messages. We just need to provide a clear moderation prompt.
-                
-                mod_prompt = f"""Participant 1 just said: "{p1_response[:400]}"
+                # Skip moderation on the final turn since we go straight to summary
+                if turn < (max_turns * 2):
+                    mod_prompt = f"""Participant 1 just said: "{p1_response[:400]}"
 
 You have access to the entire conversation history through your message context. As the moderator, please:
 1. Ensure the conversation stays focused on the topic
@@ -515,43 +514,43 @@ You have access to the entire conversation history through your message context.
 5. Bridge connections between what different participants have said
 
 Provide a brief moderation comment (2-3 sentences) that keeps the dialog productive and on track."""
-                
-                self._emit('intermediator_turn', {
-                    'turn': turn,
-                    'speaker': 'intermediator',
-                    'message': mod_prompt
-                })
 
-                mod_response, mod_tokens = self.intermediator.ask(mod_prompt, round_num=turn)
+                    self._emit('intermediator_turn', {
+                        'turn': turn,
+                        'speaker': 'intermediator',
+                        'message': mod_prompt
+                    })
 
-                self.conversation_history.append({
-                    'turn': turn,
-                    'speaker': 'intermediator',
-                    'message': mod_response,
-                    'tokens': mod_tokens
-                })
+                    mod_response, mod_tokens = self.intermediator.ask(mod_prompt, round_num=turn)
 
-                # Generate TTS for intermediator moderation (in background thread)
-                if self.enable_tts:
-                    tts_thread = threading.Thread(
-                        target=generate_tts_audio,
-                        args=(mod_response, 'intermediator', self.dialog_id,
-                              self.intermediator_topic_prompt or 'Dialog', self.audio_sequence),
-                        daemon=True
-                )
-                tts_thread.start()
-                self.tts_threads.append(tts_thread)
-                self.audio_sequence += 1
+                    self.conversation_history.append({
+                        'turn': turn,
+                        'speaker': 'intermediator',
+                        'message': mod_response,
+                        'tokens': mod_tokens
+                    })
 
-                # Update participants' context
-                self.participant1.messages.append({
-                    "role": "user",
-                    "content": f"Moderator said: {mod_response}"
-                })
-                self.participant2.messages.append({
-                    "role": "user",
-                    "content": f"Moderator said: {mod_response}"
-                })
+                    # Generate TTS for intermediator moderation (in background thread)
+                    if self.enable_tts:
+                        tts_thread = threading.Thread(
+                            target=generate_tts_audio,
+                            args=(mod_response, 'intermediator', self.dialog_id,
+                                  self.intermediator_topic_prompt or 'Dialog', self.audio_sequence),
+                            daemon=True
+                        )
+                        tts_thread.start()
+                        self.tts_threads.append(tts_thread)
+                        self.audio_sequence += 1
+
+                    # Update participants' context
+                    self.participant1.messages.append({
+                        "role": "user",
+                        "content": f"Moderator said: {mod_response}"
+                    })
+                    self.participant2.messages.append({
+                        "role": "user",
+                        "content": f"Moderator said: {mod_response}"
+                    })
 
             else:
                 # Participant 2's turn
@@ -613,10 +612,9 @@ Please respond thoughtfully. Engage with the points raised and contribute your p
                 })
 
                 # Intermediator moderates after each participant response to keep dialog on track
-                # The intermediator has access to the full conversation through self.intermediator.messages
-                # which contains all previous messages. We just need to provide a clear moderation prompt.
-                
-                mod_prompt = f"""Participant 2 just said: "{p2_response[:400]}"
+                # Skip moderation on the final turn since we go straight to summary
+                if turn < (max_turns * 2):
+                    mod_prompt = f"""Participant 2 just said: "{p2_response[:400]}"
 
 You have access to the entire conversation history through your message context. As the moderator, please:
 1. Ensure the conversation stays focused on the topic
@@ -626,43 +624,43 @@ You have access to the entire conversation history through your message context.
 5. Bridge connections between what different participants have said
 
 Provide a brief moderation comment (2-3 sentences) that keeps the dialog productive and on track."""
-                
-                self._emit('intermediator_turn', {
-                    'turn': turn,
-                    'speaker': 'intermediator',
-                    'message': mod_prompt
-                })
 
-                mod_response, mod_tokens = self.intermediator.ask(mod_prompt, round_num=turn)
+                    self._emit('intermediator_turn', {
+                        'turn': turn,
+                        'speaker': 'intermediator',
+                        'message': mod_prompt
+                    })
 
-                self.conversation_history.append({
-                    'turn': turn,
-                    'speaker': 'intermediator',
-                    'message': mod_response,
-                    'tokens': mod_tokens
-                })
+                    mod_response, mod_tokens = self.intermediator.ask(mod_prompt, round_num=turn)
 
-                # Generate TTS for intermediator moderation (in background thread)
-                if self.enable_tts:
-                    tts_thread = threading.Thread(
-                        target=generate_tts_audio,
-                        args=(mod_response, 'intermediator', self.dialog_id,
-                              self.intermediator_topic_prompt or 'Dialog', self.audio_sequence),
-                        daemon=True
-                )
-                tts_thread.start()
-                self.tts_threads.append(tts_thread)
-                self.audio_sequence += 1
+                    self.conversation_history.append({
+                        'turn': turn,
+                        'speaker': 'intermediator',
+                        'message': mod_response,
+                        'tokens': mod_tokens
+                    })
 
-                # Update participants' context
-                self.participant1.messages.append({
-                    "role": "user",
-                    "content": f"Moderator said: {mod_response}"
-                })
-                self.participant2.messages.append({
-                    "role": "user",
-                    "content": f"Moderator said: {mod_response}"
-                })
+                    # Generate TTS for intermediator moderation (in background thread)
+                    if self.enable_tts:
+                        tts_thread = threading.Thread(
+                            target=generate_tts_audio,
+                            args=(mod_response, 'intermediator', self.dialog_id,
+                                  self.intermediator_topic_prompt or 'Dialog', self.audio_sequence),
+                            daemon=True
+                        )
+                        tts_thread.start()
+                        self.tts_threads.append(tts_thread)
+                        self.audio_sequence += 1
+
+                    # Update participants' context
+                    self.participant1.messages.append({
+                        "role": "user",
+                        "content": f"Moderator said: {mod_response}"
+                    })
+                    self.participant2.messages.append({
+                        "role": "user",
+                        "content": f"Moderator said: {mod_response}"
+                    })
 
         # Intermediator provides final summary
         summary_turn = len(self.conversation_history)
