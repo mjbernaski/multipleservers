@@ -544,7 +544,7 @@
 <body>
     <div class="container">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-            <h1 style="margin: 0;">Intermediated Dialog <span style="font-size: 20px; color: #808080; font-weight: 400;">(IDi)</span> <span style="font-size: 14px; color: #9d60d6; font-weight: 500; background: #f5f0ff; padding: 2px 8px; border-radius: 4px; margin-left: 8px;">v1.6.1</span></h1>
+            <h1 style="margin: 0;">Intermediated Dialog <span style="font-size: 20px; color: #808080; font-weight: 400;">(IDi)</span> <span style="font-size: 14px; color: #9d60d6; font-weight: 500; background: #f5f0ff; padding: 2px 8px; border-radius: 4px; margin-left: 8px;">v1.6.2</span></h1>
             <div style="display: flex; gap: 8px;">
                 <button id="audioToggle" onclick="toggleAudioGeneration()" style="background: #70ad47; color: #ffffff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 500;">
                     🔊 Audio: ON
@@ -2412,11 +2412,6 @@ You follow the instructions of the intermediator, review the responses of your a
 
             if (!name || !description) {
                 alert('Please fill in Name and Description fields');
-                return;
-            }
-
-            if (!topicPrompt) {
-                alert('Please enter an Intermediator Topic Prompt before saving');
                 return;
             }
 

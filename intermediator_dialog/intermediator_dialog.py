@@ -28,6 +28,9 @@ from reportlab.lib import colors
 from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_JUSTIFY
 from openai import OpenAI
 
+# Configuration flags
+ENABLE_DIAGRAM_GENERATION = False  # Set to True to enable argument diagram generation
+
 # Load environment variables from .env file
 load_dotenv()
 
@@ -962,20 +965,23 @@ Be thorough but concise."""
 
         debug_log('info', f"Saved summaries to {audio_dir}")
 
-        # Generate argument structure diagrams (with timeout protection)
+        # Generate argument structure diagrams (if enabled)
         diagram1_path = None
         diagram2_path = None
 
-        try:
-            debug_log('info', "Attempting to generate diagrams...")
-            diagram1_path = generate_argument_diagram(p1_summary, p1_name, audio_dir)
-            diagram2_path = generate_argument_diagram(p2_summary, p2_name, audio_dir)
-            debug_log('info', f"Diagram generation complete: P1={diagram1_path}, P2={diagram2_path}")
-        except Exception as e:
-            debug_log('error', f"Diagram generation failed: {str(e)}")
-            debug_log('info', "Continuing without diagrams")
+        if ENABLE_DIAGRAM_GENERATION:
+            try:
+                debug_log('info', "Attempting to generate diagrams...")
+                diagram1_path = generate_argument_diagram(p1_summary, p1_name, audio_dir)
+                diagram2_path = generate_argument_diagram(p2_summary, p2_name, audio_dir)
+                debug_log('info', f"Diagram generation complete: P1={diagram1_path}, P2={diagram2_path}")
+            except Exception as e:
+                debug_log('error', f"Diagram generation failed: {str(e)}")
+                debug_log('info', "Continuing without diagrams")
+        else:
+            debug_log('info', "Diagram generation disabled (ENABLE_DIAGRAM_GENERATION=False)")
 
-        # Always emit the event, even if diagrams failed
+        # Always emit the event
         socketio.emit('summaries_generated', {
             'dialog_id': dialog_id,
             'participant1_summary': p1_summary_path,
