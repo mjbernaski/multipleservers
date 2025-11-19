@@ -1982,6 +1982,8 @@ You follow the instructions of the intermediator, review the responses of your a
             showStatus(data.message, 'success');
         });
 
+        let statusBarHideTimeout;
+
         function updateStatusBar(speaker, text, turnNum, maxTurns) {
             const statusBar = document.getElementById('statusBar');
             const statusBarText = document.getElementById('statusBarText');
@@ -1990,6 +1992,15 @@ You follow the instructions of the intermediator, review the responses of your a
             const progressBar = document.getElementById('progressBar');
 
             if (!statusBar || !statusBarText) return;
+
+            // Show status bar
+            statusBar.style.display = 'flex';
+
+            // Clear any pending hide timeout
+            if (statusBarHideTimeout) {
+                clearTimeout(statusBarHideTimeout);
+                statusBarHideTimeout = null;
+            }
 
             // Update classes to change color based on speaker
             statusBar.className = 'status-bar ' + speaker;
@@ -2016,6 +2027,13 @@ You follow the instructions of the intermediator, review the responses of your a
                         progressBarContainer.style.display = 'none';
                     }
                 }
+            }
+
+            // Auto-hide after 3 seconds when idle
+            if (speaker === 'idle') {
+                statusBarHideTimeout = setTimeout(() => {
+                    statusBar.style.display = 'none';
+                }, 3000);
             }
         }
 
