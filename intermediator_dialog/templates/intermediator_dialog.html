@@ -695,7 +695,7 @@ You follow the instructions of the intermediator, review the responses of your a
             <div class="form-group" style="border-top: 1px solid #d0d0d0; padding-top: 12px; margin-top: 12px;">
                 <label style="display: flex; align-items: center; cursor: pointer; font-weight: 600; color: #1f4e78; margin-bottom: 8px; font-size: 13px;" onclick="toggleDebateLibrary()">
                     <span id="debateLibraryToggle" style="margin-right: 8px; font-size: 13px;">▶</span>
-                    <span>Debate Library (25 debates available)</span>
+                    <span id="debateLibraryCount">Debate Library (loading...)</span>
                 </label>
 
                 <div id="debateLibrarySection" style="display: none;">
@@ -1037,9 +1037,13 @@ You follow the instructions of the intermediator, review the responses of your a
         
         // Set it immediately if DOM is already loaded, otherwise wait for DOMContentLoaded
         if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', ensureMaxTurnsDefault);
+            document.addEventListener('DOMContentLoaded', () => {
+                ensureMaxTurnsDefault();
+                loadDebateCount();
+            });
         } else {
             ensureMaxTurnsDefault();
+            loadDebateCount();
         }
 
         // Auto-save prompt fields when they change
@@ -1990,6 +1994,27 @@ You follow the instructions of the intermediator, review the responses of your a
         }
 
         // Debate Library Functions
+        function updateDebateCount(count) {
+            const countLabel = document.getElementById('debateLibraryCount');
+            if (countLabel) {
+                countLabel.textContent = `Debate Library (${count} debate${count !== 1 ? 's' : ''} available)`;
+            }
+        }
+
+        async function loadDebateCount() {
+            try {
+                const response = await fetch('/debate_library');
+                if (response.ok) {
+                    const data = await response.json();
+                    const count = (data.debates || []).length;
+                    updateDebateCount(count);
+                }
+            } catch (error) {
+                console.error('Error loading debate count:', error);
+                updateDebateCount(0);
+            }
+        }
+
         async function loadDebateLibrary() {
             try {
                 const response = await fetch('/debate_library');
@@ -2000,10 +2025,7 @@ You follow the instructions of the intermediator, review the responses of your a
                 debateLibrary = data.debates || [];
 
                 // Update debate count in the header
-                const countLabel = document.querySelector('#debateLibrarySection').previousElementSibling.querySelector('span:last-child');
-                if (countLabel) {
-                    countLabel.textContent = `Debate Library (${debateLibrary.length} debates available)`;
-                }
+                updateDebateCount(debateLibrary.length);
 
                 displayDebateLibrary();
             } catch (error) {

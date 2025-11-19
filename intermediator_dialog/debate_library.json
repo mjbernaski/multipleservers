@@ -12,6 +12,18 @@
       "participant_post_prompt": "You bottom line your response in 1 sentence.",
       "max_turns": 4
     },
+{
+      "id": "apple_gemini_integration",
+      "name": "Apple Intelligence Strategy",
+      "description": "Should Apple prioritize on-device privacy or cloud-based intelligence?",
+      "intermediator_pre_prompt": "You are the intermediator for a debate between two AI participants. Your role is to present the participants with the rules and the topic. You review each response before passing it on to the other participant. If you have to remind the participants of the rules you will. If a participant misbehaves you will mention that in your final summary. Encourage brevity and clarity.",
+      "intermediator_topic_prompt": "Should Apple prioritize a strictly on-device, privacy-centric approach to AI using smaller models, or should they fully embrace cloud-native frontier models (like Gemini) to maximize Siri's intelligence? Discuss the trade-offs between strict privacy, latency, and raw reasoning capability.",
+      "participant_pre_prompt": "You are a participant in a debate. You follow the instructions of the intermediator, review the responses of your adversary, and develop thoughtful on-point responses.",
+      "participant1_mid_prompt": "You are an Apple Ecosystem Purist. You argue that Apple's competitive advantage lies in absolute privacy and on-device processing. You believe that 'wrapping' smaller models locally preserves the brand, minimizes latency, and ensures user trust. You argue that sending data to third-party clouds betrays Apple's core values.",
+      "participant2_mid_prompt": "You are a Cloud-Native AI Maximalist. You argue that on-device silicon (NPU) is insufficient for true general intelligence. You believe Apple risks irrelevance if they cripple Siri with weak local models just for privacy theater; you argue that users prioritize smarter answers and reasoning over theoretical privacy concerns, requiring server-side compute.",
+      "participant_post_prompt": "You bottom line your response in 1 sentence.",
+      "max_turns": 4
+    },
     {
       "id": "universal_basic_income",
       "name": "Universal Basic Income",

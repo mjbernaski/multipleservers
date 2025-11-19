@@ -102,6 +102,11 @@ class OllamaClient:
             models = response.json().get('models', [])
             model_names = [m.get('name') for m in models]
 
+            # If no model is specified, just check server connectivity
+            if not self.model:
+                print(f"✓ Connected to Ollama server at {self.host}")
+                return True
+
             if self.model not in model_names:
                 print(f"Error: Model '{self.model}' not found on server {self.host}")
                 print(f"Available models: {', '.join(model_names) if model_names else 'None'}")
@@ -933,10 +938,10 @@ Be thorough but concise."""
 
         # Generate summaries using the participants' own clients
         debug_log('info', f"Generating argument summary for {p1_name}")
-        p1_summary = participant1_client.generate_response(summary_prompt_p1)
+        p1_summary, _ = participant1_client.ask(summary_prompt_p1)
 
         debug_log('info', f"Generating argument summary for {p2_name}")
-        p2_summary = participant2_client.generate_response(summary_prompt_p2)
+        p2_summary, _ = participant2_client.ask(summary_prompt_p2)
 
         # Create sanitized topic for folder name
         sanitized_topic = re.sub(r'[^\w\s-]', '', topic)[:50]
