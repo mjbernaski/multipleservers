@@ -962,10 +962,20 @@ Be thorough but concise."""
 
         debug_log('info', f"Saved summaries to {audio_dir}")
 
-        # Generate argument structure diagrams
-        diagram1_path = generate_argument_diagram(p1_summary, p1_name, audio_dir)
-        diagram2_path = generate_argument_diagram(p2_summary, p2_name, audio_dir)
+        # Generate argument structure diagrams (with timeout protection)
+        diagram1_path = None
+        diagram2_path = None
 
+        try:
+            debug_log('info', "Attempting to generate diagrams...")
+            diagram1_path = generate_argument_diagram(p1_summary, p1_name, audio_dir)
+            diagram2_path = generate_argument_diagram(p2_summary, p2_name, audio_dir)
+            debug_log('info', f"Diagram generation complete: P1={diagram1_path}, P2={diagram2_path}")
+        except Exception as e:
+            debug_log('error', f"Diagram generation failed: {str(e)}")
+            debug_log('info', "Continuing without diagrams")
+
+        # Always emit the event, even if diagrams failed
         socketio.emit('summaries_generated', {
             'dialog_id': dialog_id,
             'participant1_summary': p1_summary_path,
@@ -974,7 +984,7 @@ Be thorough but concise."""
             'participant2_diagram': diagram2_path
         })
 
-        debug_log('info', "Participant summaries and diagrams generated successfully")
+        debug_log('info', "Participant summaries generated successfully")
 
     except Exception as e:
         debug_log('error', f"Failed to generate participant summaries: {str(e)}")
@@ -994,9 +1004,11 @@ def generate_argument_diagram(summary_text: str, participant_name: str, output_d
     try:
         diagram_endpoint = "http://192.168.6.202:7777"
 
-        debug_log('info', f"Generating diagram for {participant_name} at {diagram_endpoint}")
+        debug_log('info', f"Starting diagram generation for {participant_name}")
+        debug_log('info', f"Diagram endpoint: {diagram_endpoint}")
+        debug_log('info', f"Summary length: {len(summary_text)} characters")
 
-        # POST the summary to the diagram endpoint
+        # POST the summary to the diagram endpoint with reduced timeout
         response = requests.post(
             diagram_endpoint,
             json={
@@ -1004,7 +1016,7 @@ def generate_argument_diagram(summary_text: str, participant_name: str, output_d
                 'participant': participant_name,
                 'orientation': 'horizontal'
             },
-            timeout=30
+            timeout=15  # Reduced from 30 to 15 seconds
         )
 
         if response.status_code == 200:

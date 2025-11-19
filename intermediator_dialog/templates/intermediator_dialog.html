@@ -508,6 +508,14 @@
             color: #7bb3ff !important;
         }
 
+        body.dark-mode [style*="background: #f5f0ff"] {
+            background: #3a2a4a !important;
+        }
+
+        body.dark-mode [style*="color: #9d60d6"] {
+            color: #c084fc !important;
+        }
+
         .status-bar-indicator {
             width: 12px;
             height: 12px;
@@ -536,7 +544,7 @@
 <body>
     <div class="container">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-            <h1 style="margin: 0;">Intermediated Dialog <span style="font-size: 20px; color: #808080; font-weight: 400;">(IDi)</span></h1>
+            <h1 style="margin: 0;">Intermediated Dialog <span style="font-size: 20px; color: #808080; font-weight: 400;">(IDi)</span> <span style="font-size: 14px; color: #9d60d6; font-weight: 500; background: #f5f0ff; padding: 2px 8px; border-radius: 4px; margin-left: 8px;">v1.6.1</span></h1>
             <div style="display: flex; gap: 8px;">
                 <button id="audioToggle" onclick="toggleAudioGeneration()" style="background: #70ad47; color: #ffffff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 500;">
                     🔊 Audio: ON
@@ -821,6 +829,9 @@ You follow the instructions of the intermediator, review the responses of your a
                 🎙️ <span id="ttsStatus">TTS</span> <span id="ttsCount" style="background: rgba(255,255,255,0.2); padding: 2px 6px; border-radius: 3px; margin-left: 4px;">0</span>
             </span>
         </div>
+        <div id="progressBarContainer" style="position: absolute; bottom: 0; left: 0; right: 0; height: 4px; background: rgba(0,0,0,0.2); overflow: hidden; display: none;">
+            <div id="progressBar" style="height: 100%; width: 0%; background: rgba(255,255,255,0.8); transition: width 0.3s ease;"></div>
+        </div>
     </div>
 
     <script>
@@ -839,6 +850,7 @@ You follow the instructions of the intermediator, review the responses of your a
         // Turn tracking for current debate
         let currentDebateTotalTurns = 0;
         let currentDebateTurnsDone = 0;
+        let currentMaxTurns = 0; // Max turns for current dialog
 
         // Auto-play audio management
 
@@ -1257,7 +1269,7 @@ You follow the instructions of the intermediator, review the responses of your a
             // Show status bar
             const statusBar = document.getElementById('statusBar');
             statusBar.style.display = 'flex';
-            updateStatusBar('intermediator', 'Starting dialog...', 0);
+            updateStatusBar('intermediator', 'Starting dialog...', 0, currentMaxTurns);
 
             const dialogDiv = document.getElementById('dialog');
             dialogDiv.style.display = 'block';
@@ -1494,7 +1506,7 @@ You follow the instructions of the intermediator, review the responses of your a
                     } else {
                         statusText = isSummary ? 'Summarizing dialog...' : `${speakerName} is speaking...`;
                     }
-                    updateStatusBar(speaker || role, statusText, turnNum);
+                    updateStatusBar(speaker || role, statusText, turnNum, currentMaxTurns);
                     
                     turnDiv.innerHTML = `
                         <div class="turn-header ${speaker || role}">${turnLabel}</div>
@@ -1666,6 +1678,12 @@ You follow the instructions of the intermediator, review the responses of your a
                 };
 
                 const maxTurns = parseInt(document.getElementById('maxTurns').value) || 3;
+                currentMaxTurns = maxTurns; // Store for progress tracking
+
+                // Show status bar immediately to provide feedback
+                const statusBar = document.getElementById('statusBar');
+                statusBar.style.display = 'flex';
+                updateStatusBar('intermediator', 'Preparing dialog...', 0, maxTurns);
 
                 // Get shared model and override flags
                 const sharedSparkModel = document.getElementById('shared-spark-model').value.trim();
@@ -1803,25 +1821,39 @@ You follow the instructions of the intermediator, review the responses of your a
             showStatus(data.message, 'success');
         });
 
-        function updateStatusBar(speaker, text, turnNum) {
+        function updateStatusBar(speaker, text, turnNum, maxTurns) {
             const statusBar = document.getElementById('statusBar');
             const statusBarText = document.getElementById('statusBarText');
             const statusBarTurn = document.getElementById('statusBarTurn');
-            
+            const progressBarContainer = document.getElementById('progressBarContainer');
+            const progressBar = document.getElementById('progressBar');
+
             if (!statusBar || !statusBarText) return;
-            
+
             // Update classes to change color based on speaker
             statusBar.className = 'status-bar ' + speaker;
-            
+
             // Update text
             statusBarText.textContent = text;
-            
-            // Update turn number
+
+            // Update turn number and progress
             if (statusBarTurn) {
-                if (turnNum !== null && turnNum !== undefined) {
-                    statusBarTurn.textContent = `(Turn ${turnNum})`;
+                if (turnNum !== null && turnNum !== undefined && maxTurns) {
+                    const totalTurns = maxTurns * 2; // Each participant speaks maxTurns times
+                    const progress = Math.min(100, Math.round((turnNum / totalTurns) * 100));
+                    statusBarTurn.textContent = `(Turn ${turnNum}/${totalTurns} - ${progress}%)`;
+
+                    // Update progress bar
+                    if (progressBarContainer && progressBar) {
+                        progressBarContainer.style.display = 'block';
+                        progressBar.style.width = progress + '%';
+                    }
                 } else {
                     statusBarTurn.textContent = '';
+                    // Hide progress bar when no turn info
+                    if (progressBarContainer) {
+                        progressBarContainer.style.display = 'none';
+                    }
                 }
             }
         }
@@ -2367,28 +2399,37 @@ You follow the instructions of the intermediator, review the responses of your a
             const dialog = document.getElementById('saveToLibraryModal');
             dialog.style.display = 'none';
             // Clear form
-            document.getElementById('debateId').value = '';
             document.getElementById('debateName').value = '';
             document.getElementById('debateDescription').value = '';
         }
 
         async function saveToLibrary() {
             // Get debate details
-            const id = document.getElementById('debateId').value.trim();
             const name = document.getElementById('debateName').value.trim();
             const description = document.getElementById('debateDescription').value.trim();
             const maxTurns = parseInt(document.getElementById('max-turns').value) || 4;
+            const topicPrompt = document.getElementById('intermediator-topic-prompt').value.trim();
 
-            if (!id || !name || !description) {
-                alert('Please fill in all fields');
+            if (!name || !description) {
+                alert('Please fill in Name and Description fields');
                 return;
             }
 
-            // Validate ID format (alphanumeric and underscores only)
-            if (!/^[a-z0-9_]+$/.test(id)) {
-                alert('ID must contain only lowercase letters, numbers, and underscores');
+            if (!topicPrompt) {
+                alert('Please enter an Intermediator Topic Prompt before saving');
                 return;
             }
+
+            // Auto-generate ID from name
+            // Convert to lowercase, replace spaces and special chars with underscores
+            let id = name.toLowerCase()
+                .replace(/[^a-z0-9]+/g, '_')  // Replace non-alphanumeric with underscore
+                .replace(/^_+|_+$/g, '')      // Remove leading/trailing underscores
+                .substring(0, 50);             // Limit length
+
+            // Add timestamp suffix to ensure uniqueness
+            const timestamp = Date.now().toString().slice(-6);
+            id = `${id}_${timestamp}`;
 
             // Collect all prompt data
             const debateData = {
@@ -2396,13 +2437,15 @@ You follow the instructions of the intermediator, review the responses of your a
                 name: name,
                 description: description,
                 intermediator_pre_prompt: document.getElementById('intermediator-pre-prompt').value.trim(),
-                intermediator_topic_prompt: document.getElementById('intermediator-topic-prompt').value.trim(),
+                intermediator_topic_prompt: topicPrompt,
                 participant_pre_prompt: document.getElementById('participant-pre-prompt').value.trim(),
                 participant1_mid_prompt: document.getElementById('participant1-mid-prompt').value.trim(),
                 participant2_mid_prompt: document.getElementById('participant2-mid-prompt').value.trim(),
                 participant_post_prompt: document.getElementById('participant-post-prompt').value.trim(),
                 max_turns: maxTurns
             };
+
+            console.log('Saving debate data:', debateData);
 
             try {
                 const response = await fetch('/save_debate', {
@@ -2414,6 +2457,8 @@ You follow the instructions of the intermediator, review the responses of your a
                 });
 
                 const result = await response.json();
+                console.log('Server response:', result);
+
                 if (response.ok) {
                     alert(`Debate "${name}" saved to library successfully!`);
                     closeSaveToLibraryDialog();
@@ -2424,7 +2469,7 @@ You follow the instructions of the intermediator, review the responses of your a
                 }
             } catch (error) {
                 console.error('Error saving debate:', error);
-                alert('Failed to save debate to library');
+                alert('Failed to save debate to library: ' + error.message);
             }
         }
 
@@ -2434,12 +2479,6 @@ You follow the instructions of the intermediator, review the responses of your a
     <div id="saveToLibraryModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center;">
         <div style="background: #ffffff; padding: 24px; border-radius: 8px; max-width: 500px; width: 90%; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
             <h3 style="margin-top: 0; color: #1f4e78;">Save Debate to Library</h3>
-
-            <div style="margin-bottom: 16px;">
-                <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #1f4e78;">Debate ID <span style="color: #c55a11;">*</span></label>
-                <input type="text" id="debateId" placeholder="e.g., my_custom_debate" style="width: 100%; padding: 8px; border: 1px solid #d0d0d0; border-radius: 4px; box-sizing: border-box;">
-                <div style="font-size: 11px; color: #808080; margin-top: 4px;">Unique identifier (lowercase, numbers, underscores only)</div>
-            </div>
 
             <div style="margin-bottom: 16px;">
                 <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #1f4e78;">Debate Name <span style="color: #c55a11;">*</span></label>
