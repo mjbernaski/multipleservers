@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -28,7 +29,8 @@
         .container {
             max-width: 1600px;
             margin: 0 auto;
-            padding-bottom: 60px; /* Space for status bar */
+            padding-bottom: 60px;
+            /* Space for status bar */
         }
 
         h1 {
@@ -78,7 +80,9 @@
             color: #6ba3d8;
         }
 
-        input[type="text"], textarea, select {
+        input[type="text"],
+        textarea,
+        select {
             width: 100%;
             padding: 7px 10px;
             border: 1px solid #d0d0d0;
@@ -97,7 +101,9 @@
             border-color: #404040;
         }
 
-        input[type="text"]:focus, textarea:focus, select:focus {
+        input[type="text"]:focus,
+        textarea:focus,
+        select:focus {
             outline: none;
             border-color: #4472c4;
             box-shadow: 0 0 0 2px rgba(68, 114, 196, 0.1);
@@ -291,8 +297,15 @@
         }
 
         @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
         }
 
         .status-text {
@@ -320,7 +333,8 @@
             overflow: hidden;
             border: 1px solid #d0d0d0;
             transition: background-color 0.3s ease, border-color 0.3s ease;
-            max-height: calc(80vh - 60px); /* Account for status bar */
+            max-height: calc(80vh - 60px);
+            /* Account for status bar */
             overflow-y: auto;
         }
 
@@ -447,8 +461,13 @@
         }
 
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
         }
 
         .status-bar {
@@ -508,7 +527,7 @@
         /* Dark mode support for inline-styled elements */
         body.dark-mode select,
         body.dark-mode #debateList,
-        body.dark-mode #saveToLibraryModal > div,
+        body.dark-mode #saveToLibraryModal>div,
         body.dark-mode #saveToLibraryModal input,
         body.dark-mode #saveToLibraryModal textarea {
             background: #2a2a2a !important;
@@ -536,12 +555,12 @@
             color: #b0b0b0 !important;
         }
 
-        body.dark-mode #debateList > div {
+        body.dark-mode #debateList>div {
             background: #2a2a2a !important;
             border-color: #444444 !important;
         }
 
-        body.dark-mode #debateList > div:hover {
+        body.dark-mode #debateList>div:hover {
             background: #1f3a52 !important;
         }
 
@@ -579,8 +598,17 @@
         }
 
         @keyframes pulse {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.7; transform: scale(1.1); }
+
+            0%,
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+
+            50% {
+                opacity: 0.7;
+                transform: scale(1.1);
+            }
         }
 
         .status-bar-content {
@@ -594,14 +622,20 @@
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <div class="flex-between" style="margin-bottom: 10px;">
-            <h1 style="margin: 0; font-size: 24px;">Intermediated Dialog <span style="font-size: 16px; color: #808080; font-weight: 400;">(IDi)</span> <span style="font-size: 11px; color: #9d60d6; font-weight: 500; background: #f5f0ff; padding: 2px 6px; border-radius: 3px; margin-left: 6px;">v1.6.2</span></h1>
+            <h1 style="margin: 0; font-size: 24px;">Intermediated Dialog <span
+                    style="font-size: 16px; color: #808080; font-weight: 400;">(IDi)</span> <span
+                    style="font-size: 11px; color: #9d60d6; font-weight: 500; background: #f5f0ff; padding: 2px 6px; border-radius: 3px; margin-left: 6px;">v1.6.2</span>
+            </h1>
             <div class="flex-center" style="gap: 6px;">
-                <button id="audioToggle" onclick="toggleAudioGeneration()" class="utility" style="background: #70ad47;">
+                <input type="checkbox" id="enableTTS" onchange="toggleAudioGeneration()">
+                <label for="enableTTS" class="utility"
+                    style="background: #70ad47; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 4px;">
                     🔊
-                </button>
+                </label>
                 <button id="darkModeToggle" onclick="toggleDarkMode()" class="utility" style="background: #4472c4;">
                     🌙
                 </button>
@@ -614,15 +648,19 @@
                     <div class="ai-panel-title">
                         <span class="status-indicator checking" id="intermediator-status-indicator"></span>
                         <span>Intermediator (Moderator)</span>
-                        <span class="status-text checking" id="intermediator-status-text" style="margin-left: auto;">Checking...</span>
+                        <span class="status-text checking" id="intermediator-status-text"
+                            style="margin-left: auto;">Checking...</span>
                     </div>
                     <div class="form-group">
                         <label for="intermediator-host">Host:</label>
-                        <input type="text" id="intermediator-host" value="http://192.168.6.40:11434" placeholder="http://host:port" onchange="checkServerStatus('intermediator'); loadModels('intermediator')">
+                        <input type="text" id="intermediator-host" value="http://192.168.6.40:11434"
+                            placeholder="http://host:port"
+                            onchange="checkServerStatus('intermediator'); loadModels('intermediator')">
                     </div>
                     <div class="form-group">
                         <label for="intermediator-model">Model:</label>
-                        <select id="intermediator-model" onchange="checkServerStatus('intermediator')" style="width: 100%; padding: 7px 10px; border: 1px solid #d0d0d0; border-radius: 4px; font-size: 13px; background: #ffffff; color: #000000;">
+                        <select id="intermediator-model" onchange="checkServerStatus('intermediator')"
+                            style="width: 100%; padding: 7px 10px; border: 1px solid #d0d0d0; border-radius: 4px; font-size: 13px; background: #ffffff; color: #000000;">
                             <option value="gpt-oss:20b" selected>Loading models...</option>
                         </select>
                     </div>
@@ -636,18 +674,24 @@
                     <div class="ai-panel-title">
                         <span class="status-indicator checking" id="participant1-status-indicator"></span>
                         <span>Participant A (Spark 1)</span>
-                        <span class="status-text checking" id="participant1-status-text" style="margin-left: auto;">Checking...</span>
+                        <span class="status-text checking" id="participant1-status-text"
+                            style="margin-left: auto;">Checking...</span>
                     </div>
                     <div class="form-group">
                         <label for="participant1-host">Host:</label>
-                        <input type="text" id="participant1-host" value="http://192.168.5.40:11434" placeholder="http://host:port" onchange="checkServerStatus('participant1'); loadModels('participant1')">
+                        <input type="text" id="participant1-host" value="http://192.168.5.40:11434"
+                            placeholder="http://host:port"
+                            onchange="checkServerStatus('participant1'); loadModels('participant1')">
                     </div>
                     <div class="form-group">
                         <label style="display: flex; align-items: center; gap: 8px;">
-                            <input type="checkbox" id="participant1-override-model" onchange="toggleParticipant1Model()" style="width: auto;">
+                            <input type="checkbox" id="participant1-override-model" onchange="toggleParticipant1Model()"
+                                style="width: auto;">
                             <span>Override shared model</span>
                         </label>
-                        <select id="participant1-model" style="margin-top: 4px; width: 100%; padding: 7px 10px; border: 1px solid #d0d0d0; border-radius: 4px; font-size: 13px; background: #ffffff; color: #000000;" disabled onchange="checkServerStatus('participant1')">
+                        <select id="participant1-model"
+                            style="margin-top: 4px; width: 100%; padding: 7px 10px; border: 1px solid #d0d0d0; border-radius: 4px; font-size: 13px; background: #ffffff; color: #000000;"
+                            disabled onchange="checkServerStatus('participant1')">
                             <option value="gpt-oss:20b" selected>Loading models...</option>
                         </select>
                     </div>
@@ -661,18 +705,24 @@
                     <div class="ai-panel-title">
                         <span class="status-indicator checking" id="participant2-status-indicator"></span>
                         <span>Participant B (Spark 2)</span>
-                        <span class="status-text checking" id="participant2-status-text" style="margin-left: auto;">Checking...</span>
+                        <span class="status-text checking" id="participant2-status-text"
+                            style="margin-left: auto;">Checking...</span>
                     </div>
                     <div class="form-group">
                         <label for="participant2-host">Host:</label>
-                        <input type="text" id="participant2-host" value="http://192.168.5.46:11434" placeholder="http://host:port" onchange="checkServerStatus('participant2'); loadModels('participant2')">
+                        <input type="text" id="participant2-host" value="http://192.168.5.46:11434"
+                            placeholder="http://host:port"
+                            onchange="checkServerStatus('participant2'); loadModels('participant2')">
                     </div>
                     <div class="form-group">
                         <label style="display: flex; align-items: center; gap: 8px;">
-                            <input type="checkbox" id="participant2-override-model" onchange="toggleParticipant2Model()" style="width: auto;">
+                            <input type="checkbox" id="participant2-override-model" onchange="toggleParticipant2Model()"
+                                style="width: auto;">
                             <span>Override shared model</span>
                         </label>
-                        <select id="participant2-model" style="margin-top: 4px; width: 100%; padding: 7px 10px; border: 1px solid #d0d0d0; border-radius: 4px; font-size: 13px; background: #ffffff; color: #000000;" disabled onchange="checkServerStatus('participant2')">
+                        <select id="participant2-model"
+                            style="margin-top: 4px; width: 100%; padding: 7px 10px; border: 1px solid #d0d0d0; border-radius: 4px; font-size: 13px; background: #ffffff; color: #000000;"
+                            disabled onchange="checkServerStatus('participant2')">
                             <option value="gpt-oss:120b" selected>Loading models...</option>
                         </select>
                     </div>
@@ -683,24 +733,31 @@
                 </div>
             </div>
 
-            <div class="form-group" style="background: #f2f2f2; padding: 12px; border-radius: 6px; margin-top: 12px; border: 1px solid #d0d0d0;">
-                <label for="shared-spark-model" style="font-weight: 600; color: #1f4e78;">Shared Model for Spark Servers:</label>
-                <select id="shared-spark-model" onchange="updateSharedModel()" style="width: 100%; padding: 7px 10px; border: 1px solid #d0d0d0; border-radius: 4px; font-size: 13px; background: #ffffff; color: #000000;">
+            <div class="form-group"
+                style="background: #f2f2f2; padding: 12px; border-radius: 6px; margin-top: 12px; border: 1px solid #d0d0d0;">
+                <label for="shared-spark-model" style="font-weight: 600; color: #1f4e78;">Shared Model for Spark
+                    Servers:</label>
+                <select id="shared-spark-model" onchange="updateSharedModel()"
+                    style="width: 100%; padding: 7px 10px; border: 1px solid #d0d0d0; border-radius: 4px; font-size: 13px; background: #ffffff; color: #000000;">
                     <option value="gpt-oss:20b" selected>gpt-oss:20b</option>
                 </select>
-                <div style="font-size: 11px; color: #808080; margin-top: 4px;">This model will be used for both Spark servers unless overridden individually. Models will be populated when servers are checked.</div>
+                <div style="font-size: 11px; color: #808080; margin-top: 4px;">This model will be used for both Spark
+                    servers unless overridden individually. Models will be populated when servers are checked.</div>
             </div>
 
             <div class="form-group" style="border-top: 1px solid #d0d0d0; padding-top: 12px; margin-top: 12px;">
-                <label style="display: flex; align-items: center; cursor: pointer; font-weight: 600; color: #1f4e78; margin-bottom: 8px; font-size: 13px;" onclick="togglePromptConfig()">
+                <label
+                    style="display: flex; align-items: center; cursor: pointer; font-weight: 600; color: #1f4e78; margin-bottom: 8px; font-size: 13px;"
+                    onclick="togglePromptConfig()">
                     <span id="promptConfigToggle" style="margin-right: 8px; font-size: 13px;">▼</span>
                     <span>Prompt Configuration</span>
                 </label>
-                
+
                 <div id="promptConfigSection" style="display: block;">
                     <div class="form-group">
                         <label for="intermediator-pre-prompt">Intermediator Pre-Prompt (static):</label>
-                        <textarea id="intermediator-pre-prompt" placeholder="Static pre-prompt for the intermediator that stays the same across dialogs...">You are the intermediator for a dialog between two AI participants.
+                        <textarea id="intermediator-pre-prompt"
+                            placeholder="Static pre-prompt for the intermediator that stays the same across dialogs...">You are the intermediator for a dialog between two AI participants.
 Your role is to present the participants with the rules and the topic.
 You review each response before passing
 it on to the other participant.
@@ -708,35 +765,44 @@ If you have to remind the participants of the rules you will.
 If a participant misbehaves you will mention that in your final summary.
 encourage brevity and clarity.</textarea>
                     </div>
-                    
+
                     <div class="form-group">
-                        <label for="intermediator-topic-prompt">Intermediator Topic/Instructions Prompt <span style="color: #c55a11;">*</span>:</label>
-                        <textarea id="intermediator-topic-prompt" placeholder="Dynamic prompt that frames the specific topic and instructions for this dialog. This is required and replaces the separate topic field." required></textarea>
-                        <div style="font-size: 11px; color: #808080; margin-top: 4px;">Required: Include the topic and any specific instructions here. This will be combined with the pre-prompt (if provided) to form the intermediator's system prompt.</div>
+                        <label for="intermediator-topic-prompt">Intermediator Topic/Instructions Prompt <span
+                                style="color: #c55a11;">*</span>:</label>
+                        <textarea id="intermediator-topic-prompt"
+                            placeholder="Dynamic prompt that frames the specific topic and instructions for this dialog. This is required and replaces the separate topic field."
+                            required></textarea>
+                        <div style="font-size: 11px; color: #808080; margin-top: 4px;">Required: Include the topic and
+                            any specific instructions here. This will be combined with the pre-prompt (if provided) to
+                            form the intermediator's system prompt.</div>
                     </div>
-                    
+
                     <div class="form-group">
                         <label for="participant-pre-prompt">Participant Pre-Prompt (shared):</label>
-                        <textarea id="participant-pre-prompt" placeholder="Shared prompt that appears before the mid-prompt for both participants...">You are the participant in a debate.
+                        <textarea id="participant-pre-prompt"
+                            placeholder="Shared prompt that appears before the mid-prompt for both participants...">You are the participant in a debate.
 You follow the instructions of the intermediator, review the responses of your adversary, and develop thoughtful on-point responses.</textarea>
                     </div>
-                    
+
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
                         <div class="form-group">
                             <label for="participant1-mid-prompt">Participant 1 Mid-Prompt:</label>
-                            <textarea id="participant1-mid-prompt" placeholder="Custom prompt for Participant 1 (Spark 1)..."></textarea>
+                            <textarea id="participant1-mid-prompt"
+                                placeholder="Custom prompt for Participant 1 (Spark 1)..."></textarea>
                         </div>
                         <div class="form-group">
                             <label for="participant2-mid-prompt">Participant 2 Mid-Prompt:</label>
-                            <textarea id="participant2-mid-prompt" placeholder="Custom prompt for Participant 2 (Spark 2)..."></textarea>
+                            <textarea id="participant2-mid-prompt"
+                                placeholder="Custom prompt for Participant 2 (Spark 2)..."></textarea>
                         </div>
                     </div>
-                    
+
                     <div class="form-group">
                         <label for="participant-post-prompt">Participant Post-Prompt (shared):</label>
-                        <textarea id="participant-post-prompt" placeholder="Shared prompt that appears after the mid-prompt for both participants...">You bottom line your response in 1 sentence.</textarea>
+                        <textarea id="participant-post-prompt"
+                            placeholder="Shared prompt that appears after the mid-prompt for both participants...">You bottom line your response in 1 sentence.</textarea>
                     </div>
-                    
+
                     <div style="font-size: 11px; color: #808080; margin-top: 8px;">
                         <strong>Prompt Structure:</strong><br>
                         Intermediator: pre-prompt (static) + topic/instructions prompt (dynamic)<br>
@@ -746,22 +812,31 @@ You follow the instructions of the intermediator, review the responses of your a
             </div>
 
             <div class="form-group" style="border-top: 1px solid #d0d0d0; padding-top: 12px; margin-top: 12px;">
-                <label style="display: flex; align-items: center; cursor: pointer; font-weight: 600; color: #1f4e78; margin-bottom: 8px; font-size: 13px;" onclick="toggleDebateLibrary()">
+                <label
+                    style="display: flex; align-items: center; cursor: pointer; font-weight: 600; color: #1f4e78; margin-bottom: 8px; font-size: 13px;"
+                    onclick="toggleDebateLibrary()">
                     <span id="debateLibraryToggle" style="margin-right: 8px; font-size: 13px;">▶</span>
                     <span id="debateLibraryCount">Debate Library (loading...)</span>
                 </label>
 
                 <div id="debateLibrarySection" style="display: none;">
-                    <div style="margin-bottom: 12px; padding: 10px; background: #f9f9f9; border-radius: 4px; border: 1px solid #d0d0d0;">
+                    <div
+                        style="margin-bottom: 12px; padding: 10px; background: #f9f9f9; border-radius: 4px; border: 1px solid #d0d0d0;">
                         <div style="display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap;">
-                            <button onclick="selectAllDebates()" style="background: #70ad47; padding: 6px 12px; font-size: 12px;">Select All</button>
-                            <button onclick="deselectAllDebates()" style="background: #808080; padding: 6px 12px; font-size: 12px;">Deselect All</button>
-                            <button onclick="loadSelectedDebates()" style="background: #4472c4; padding: 6px 12px; font-size: 12px;">▶ Load & Run Selected</button>
+                            <button onclick="selectAllDebates()"
+                                style="background: #70ad47; padding: 6px 12px; font-size: 12px;">Select All</button>
+                            <button onclick="deselectAllDebates()"
+                                style="background: #808080; padding: 6px 12px; font-size: 12px;">Deselect All</button>
+                            <button onclick="loadSelectedDebates()"
+                                style="background: #4472c4; padding: 6px 12px; font-size: 12px;">▶ Load & Run
+                                Selected</button>
                         </div>
-                        <div id="debateSelectionCount" style="font-size: 12px; color: #808080; font-style: italic;">0 debates selected</div>
+                        <div id="debateSelectionCount" style="font-size: 12px; color: #808080; font-style: italic;">0
+                            debates selected</div>
                     </div>
 
-                    <div id="debateList" style="max-height: 400px; overflow-y: auto; border: 1px solid #d0d0d0; border-radius: 4px; padding: 8px; background: #ffffff;">
+                    <div id="debateList"
+                        style="max-height: 400px; overflow-y: auto; border: 1px solid #d0d0d0; border-radius: 4px; padding: 8px; background: #ffffff;">
                         <div style="text-align: center; padding: 20px; color: #808080;">Loading debates...</div>
                     </div>
                 </div>
@@ -771,7 +846,8 @@ You follow the instructions of the intermediator, review the responses of your a
                 <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
                     <div class="flex-center">
                         <label for="fileUpload" style="margin: 0; font-size: 12px;">Context File:</label>
-                        <input type="file" id="fileUpload" accept=".txt,.md,.log,.json" onchange="updateFileInfo()" style="font-size: 12px;">
+                        <input type="file" id="fileUpload" accept=".txt,.md,.log,.json" onchange="updateFileInfo()"
+                            style="font-size: 12px;">
                     </div>
                 </div>
                 <div id="fileInfo" class="text-muted" style="margin-top: 4px;"></div>
@@ -782,19 +858,23 @@ You follow the instructions of the intermediator, review the responses of your a
                     <button id="startBtn" onclick="startDialog()" class="primary">▶ Start Dialog</button>
                     <div class="flex-center" style="gap: 4px;">
                         <label for="maxTurns" style="margin: 0; font-size: 12px;">Turns:</label>
-                        <input type="number" id="maxTurns" value="3" min="1" max="50" autocomplete="off" style="width: 60px; padding: 6px; font-size: 13px;">
+                        <input type="number" id="maxTurns" value="3" min="1" max="50" autocomplete="off"
+                            style="width: 60px; padding: 6px; font-size: 13px;">
                     </div>
-                    <button onclick="showSaveToLibraryDialog()" class="secondary" title="Save current prompt configuration to debate library">💾 Save</button>
+                    <button onclick="showSaveToLibraryDialog()" class="secondary"
+                        title="Save current prompt configuration to debate library">💾 Save</button>
                 </div>
                 <div class="flex-center" style="gap: 8px;">
-                    <button onclick="resetCache()" class="utility" title="Clear conversation history from all AI clients">🔄 Reset</button>
+                    <button onclick="resetCache()" class="utility"
+                        title="Clear conversation history from all AI clients">🔄 Reset</button>
                     <button onclick="clearAll()" class="utility" style="background: #c55a11;">✖ Clear</button>
                 </div>
             </div>
             <div id="status" class="status"></div>
         </div>
 
-        <div id="debateQueueProgress" style="display: none; margin-bottom: 20px; padding: 16px; background: #e7f3ff; border: 2px solid #4472c4; border-radius: 8px;">
+        <div id="debateQueueProgress"
+            style="display: none; margin-bottom: 20px; padding: 16px; background: #e7f3ff; border: 2px solid #4472c4; border-radius: 8px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                 <div style="font-weight: 600; font-size: 16px; color: #1f4e78;">
                     🎯 Running Debate Queue
@@ -803,7 +883,8 @@ You follow the instructions of the intermediator, review the responses of your a
                     Cancel Queue
                 </button>
             </div>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 12px;">
+            <div
+                style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 12px;">
                 <div style="text-align: center; padding: 8px; background: #ffffff; border-radius: 4px;">
                     <div style="font-size: 24px; font-weight: 600; color: #4472c4;" id="queueCompleted">0</div>
                     <div style="font-size: 12px; color: #808080;">Completed</div>
@@ -822,13 +903,18 @@ You follow the instructions of the intermediator, review the responses of your a
                 </div>
             </div>
             <div style="background: #d0d0d0; height: 8px; border-radius: 4px; overflow: hidden;">
-                <div id="queueProgressBar" style="background: linear-gradient(90deg, #4472c4, #70ad47); height: 100%; width: 0%; transition: width 0.3s ease;"></div>
+                <div id="queueProgressBar"
+                    style="background: linear-gradient(90deg, #4472c4, #70ad47); height: 100%; width: 0%; transition: width 0.3s ease;">
+                </div>
             </div>
-            <div id="queueCurrentDebate" style="margin-top: 8px; font-size: 13px; color: #1f4e78; font-style: italic; text-align: center;">
+            <div id="queueCurrentDebate"
+                style="margin-top: 8px; font-size: 13px; color: #1f4e78; font-style: italic; text-align: center;">
                 Preparing debates...
             </div>
-            <div id="queueTurnProgress" style="margin-top: 8px; padding: 8px; background: #ffffff; border-radius: 4px; border: 1px solid #d0d0d0; display: none;">
-                <div style="font-size: 11px; color: #808080; margin-bottom: 4px; text-align: center;">Current Debate Turn Progress</div>
+            <div id="queueTurnProgress"
+                style="margin-top: 8px; padding: 8px; background: #ffffff; border-radius: 4px; border: 1px solid #d0d0d0; display: none;">
+                <div style="font-size: 11px; color: #808080; margin-bottom: 4px; text-align: center;">Current Debate
+                    Turn Progress</div>
                 <div style="display: flex; justify-content: center; gap: 16px; font-size: 13px;">
                     <span><strong>Total:</strong> <span id="turnTotal">0</span></span>
                     <span style="color: #70ad47;"><strong>Done:</strong> <span id="turnDone">0</span></span>
@@ -845,13 +931,17 @@ You follow the instructions of the intermediator, review the responses of your a
         </div>
 
         <div id="pdfExportSection" style="display: none; margin-top: 20px; text-align: center;">
-            <button id="pdfExportBtn" onclick="exportToPdf()" style="background: #70ad47; color: #ffffff; border: none; padding: 12px 24px; border-radius: 4px; cursor: pointer; font-size: 15px; font-weight: 500; box-shadow: 0 2px 4px rgba(112, 173, 71, 0.2); transition: all 0.2s;" onmouseover="this.style.background='#548235'; this.style.boxShadow='0 3px 6px rgba(112, 173, 71, 0.3)'; this.style.transform='translateY(-1px)'" onmouseout="this.style.background='#70ad47'; this.style.boxShadow='0 2px 4px rgba(112, 173, 71, 0.2)'; this.style.transform='none'">
+            <button id="pdfExportBtn" onclick="exportToPdf()"
+                style="background: #70ad47; color: #ffffff; border: none; padding: 12px 24px; border-radius: 4px; cursor: pointer; font-size: 15px; font-weight: 500; box-shadow: 0 2px 4px rgba(112, 173, 71, 0.2); transition: all 0.2s;"
+                onmouseover="this.style.background='#548235'; this.style.boxShadow='0 3px 6px rgba(112, 173, 71, 0.3)'; this.style.transform='translateY(-1px)'"
+                onmouseout="this.style.background='#70ad47'; this.style.boxShadow='0 2px 4px rgba(112, 173, 71, 0.2)'; this.style.transform='none'">
                 📄 Export to PDF
             </button>
         </div>
 
         <!-- Summary Generation Progress -->
-        <div id="summaryProgressSection" style="display: none; margin-top: 20px; padding: 16px; background: #e7f3ff; border: 2px solid #4472c4; border-radius: 8px; text-align: center;">
+        <div id="summaryProgressSection"
+            style="display: none; margin-top: 20px; padding: 16px; background: #e7f3ff; border: 2px solid #4472c4; border-radius: 8px; text-align: center;">
             <div style="font-size: 16px; font-weight: 600; color: #1f4e78; margin-bottom: 8px;">
                 📝 Saving Participant Transcripts...
             </div>
@@ -861,10 +951,13 @@ You follow the instructions of the intermediator, review the responses of your a
             <div class="spinner" style="margin: 12px auto;"></div>
         </div>
 
-        <div id="gpuMonitoringSection" style="display: none; margin-top: 20px; padding: 20px; background: #f8f8f8; border: 1px solid #d0d0d0; border-radius: 8px;">
+        <div id="gpuMonitoringSection"
+            style="display: none; margin-top: 20px; padding: 20px; background: #f8f8f8; border: 1px solid #d0d0d0; border-radius: 8px;">
             <h3 style="margin-top: 0; color: #1f4e78; font-size: 18px;">GPU Power Consumption History</h3>
-            <canvas id="gpuChart" width="800" height="300" style="background: white; border: 1px solid #d0d0d0; border-radius: 4px;"></canvas>
-            <div id="gpuLegend" style="margin-top: 12px; display: flex; gap: 20px; justify-content: center; font-size: 13px;"></div>
+            <canvas id="gpuChart" width="800" height="300"
+                style="background: white; border: 1px solid #d0d0d0; border-radius: 4px;"></canvas>
+            <div id="gpuLegend"
+                style="margin-top: 12px; display: flex; gap: 20px; justify-content: center; font-size: 13px;"></div>
             <div id="gpuStats" style="margin-top: 12px; font-size: 13px; color: #666; text-align: center;"></div>
         </div>
     </div>
@@ -875,11 +968,14 @@ You follow the instructions of the intermediator, review the responses of your a
             <span id="statusBarText">Ready</span>
             <span class="status-bar-turn" id="statusBarTurn"></span>
             <span id="ttsIndicator" style="margin-left: 12px; font-size: 12px; opacity: 0; transition: opacity 0.3s;">
-                🎙️ <span id="ttsStatus">TTS</span> <span id="ttsCount" style="background: rgba(255,255,255,0.2); padding: 2px 6px; border-radius: 3px; margin-left: 4px;">0</span>
+                🎙️ <span id="ttsStatus">TTS</span> <span id="ttsCount"
+                    style="background: rgba(255,255,255,0.2); padding: 2px 6px; border-radius: 3px; margin-left: 4px;">0</span>
             </span>
         </div>
-        <div id="progressBarContainer" style="position: absolute; bottom: 0; left: 0; right: 0; height: 4px; background: rgba(0,0,0,0.2); overflow: hidden; display: none;">
-            <div id="progressBar" style="height: 100%; width: 0%; background: rgba(255,255,255,0.8); transition: width 0.3s ease;"></div>
+        <div id="progressBarContainer"
+            style="position: absolute; bottom: 0; left: 0; right: 0; height: 4px; background: rgba(0,0,0,0.2); overflow: hidden; display: none;">
+            <div id="progressBar"
+                style="height: 100%; width: 0%; background: rgba(255,255,255,0.8); transition: width 0.3s ease;"></div>
         </div>
     </div>
 
@@ -1001,7 +1097,7 @@ You follow the instructions of the intermediator, review the responses of your a
             const intermediatorTopicPrompt = localStorage.getItem('idi_intermediator_topic_prompt');
             const participant1MidPrompt = localStorage.getItem('idi_participant1_mid_prompt');
             const participant2MidPrompt = localStorage.getItem('idi_participant2_mid_prompt');
-            
+
             // Use localStorage value if exists, otherwise use default
             const intermediatorPrePromptEl = document.getElementById('intermediator-pre-prompt');
             if (intermediatorPrePrompt) {
@@ -1009,9 +1105,9 @@ You follow the instructions of the intermediator, review the responses of your a
             } else {
                 intermediatorPrePromptEl.value = DEFAULT_INTERMEDIATOR_PRE_PROMPT;
             }
-            
+
             if (intermediatorTopicPrompt) document.getElementById('intermediator-topic-prompt').value = intermediatorTopicPrompt;
-            
+
             // Participant pre-prompt: use localStorage if exists, otherwise use default
             const participantPrePromptEl = document.getElementById('participant-pre-prompt');
             const participantPrePrompt = localStorage.getItem('idi_participant_pre_prompt');
@@ -1020,7 +1116,7 @@ You follow the instructions of the intermediator, review the responses of your a
             } else {
                 participantPrePromptEl.value = DEFAULT_PARTICIPANT_PRE_PROMPT;
             }
-            
+
             // Participant post-prompt: use localStorage if exists, otherwise use default
             const participantPostPromptEl = document.getElementById('participant-post-prompt');
             const participantPostPrompt = localStorage.getItem('idi_participant_post_prompt');
@@ -1031,17 +1127,17 @@ You follow the instructions of the intermediator, review the responses of your a
             }
             if (participant1MidPrompt) document.getElementById('participant1-mid-prompt').value = participant1MidPrompt;
             if (participant2MidPrompt) document.getElementById('participant2-mid-prompt').value = participant2MidPrompt;
-            
+
             // Load other settings (maxTurns always defaults to 3, so don't load it)
             const sharedSparkModel = localStorage.getItem('idi_shared_spark_model');
             const participant1Override = localStorage.getItem('idi_participant1_override') === 'true';
             const participant2Override = localStorage.getItem('idi_participant2_override') === 'true';
             const participant1Model = localStorage.getItem('idi_participant1_model');
             const participant2Model = localStorage.getItem('idi_participant2_model');
-            
+
             // Always set maxTurns to default of 3
             document.getElementById('maxTurns').value = '3';
-            
+
             if (sharedSparkModel) {
                 document.getElementById('shared-spark-model').value = sharedSparkModel;
                 updateSharedModel();
@@ -1070,7 +1166,7 @@ You follow the instructions of the intermediator, review the responses of your a
             localStorage.setItem('idi_participant_post_prompt', document.getElementById('participant-post-prompt').value);
             localStorage.setItem('idi_participant1_mid_prompt', document.getElementById('participant1-mid-prompt').value);
             localStorage.setItem('idi_participant2_mid_prompt', document.getElementById('participant2-mid-prompt').value);
-            
+
             // Save other settings (maxTurns always defaults to 3, so don't save it)
             localStorage.setItem('idi_shared_spark_model', document.getElementById('shared-spark-model').value);
             localStorage.setItem('idi_participant1_override', document.getElementById('participant1-override-model').checked);
@@ -1085,7 +1181,7 @@ You follow the instructions of the intermediator, review the responses of your a
 
         // Load persisted fields on page load
         loadPersistedFields();
-        
+
         // Ensure maxTurns is always set to 3 on page load (override any cached values)
         function ensureMaxTurnsDefault() {
             const maxTurnsInput = document.getElementById('maxTurns');
@@ -1093,7 +1189,7 @@ You follow the instructions of the intermediator, review the responses of your a
                 maxTurnsInput.value = '3';
             }
         }
-        
+
         // Set it immediately if DOM is already loaded, otherwise wait for DOMContentLoaded
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', () => {
@@ -1106,11 +1202,11 @@ You follow the instructions of the intermediator, review the responses of your a
         }
 
         // Auto-save prompt fields when they change
-        document.addEventListener('input', function(e) {
+        document.addEventListener('input', function (e) {
             if (e.target.id && (
-                (e.target.id.includes('prompt') && 
-                 e.target.id !== 'participant-pre-prompt' && 
-                 e.target.id !== 'participant-post-prompt') || 
+                (e.target.id.includes('prompt') &&
+                    e.target.id !== 'participant-pre-prompt' &&
+                    e.target.id !== 'participant-post-prompt') ||
                 e.target.id === 'shared-spark-model' ||
                 e.target.id === 'participant1-model' ||
                 e.target.id === 'participant2-model'
@@ -1120,7 +1216,7 @@ You follow the instructions of the intermediator, review the responses of your a
         });
 
         // Auto-save when checkboxes change
-        document.addEventListener('change', function(e) {
+        document.addEventListener('change', function (e) {
             if (e.target.id && (
                 e.target.id.includes('override') ||
                 e.target.id === 'shared-spark-model'
@@ -1133,12 +1229,12 @@ You follow the instructions of the intermediator, review the responses of your a
         async function loadModels(serverType) {
             const hostInput = document.getElementById(`${serverType}-host`);
             const modelSelect = document.getElementById(`${serverType}-model`);
-            
+
             if (!hostInput || !modelSelect) return;
-            
+
             const host = hostInput.value.trim();
             if (!host) return;
-            
+
             try {
                 const response = await fetch('/check_servers', {
                     method: 'POST',
@@ -1153,9 +1249,9 @@ You follow the instructions of the intermediator, review the responses of your a
                         }]
                     })
                 });
-                
+
                 const result = await response.json();
-                
+
                 if (result.servers && result.servers.length > 0) {
                     const serverStatus = result.servers[0];
                     if (serverStatus.available_models && serverStatus.available_models.length > 0) {
@@ -1193,23 +1289,23 @@ You follow the instructions of the intermediator, review the responses of your a
             const modelSelect = document.getElementById(`${serverType}-model`);
             const statusIndicator = document.getElementById(`${serverType}-status-indicator`);
             const statusText = document.getElementById(`${serverType}-status-text`);
-            
+
             if (!hostInput || !modelSelect || !statusIndicator || !statusText) return;
-            
+
             const host = hostInput.value.trim();
-            
+
             if (!host) {
                 statusIndicator.className = 'status-indicator offline';
                 statusText.className = 'status-text offline';
                 statusText.textContent = 'Not configured';
                 return;
             }
-            
+
             // Show checking state
             statusIndicator.className = 'status-indicator checking';
             statusText.className = 'status-text checking';
             statusText.textContent = 'Checking...';
-            
+
             try {
                 const response = await fetch('/check_servers', {
                     method: 'POST',
@@ -1224,12 +1320,12 @@ You follow the instructions of the intermediator, review the responses of your a
                         }]
                     })
                 });
-                
+
                 const result = await response.json();
-                
+
                 if (result.servers && result.servers.length > 0) {
                     const serverStatus = result.servers[0];
-                    
+
                     // Update model dropdown with available models
                     if (serverStatus.available_models && serverStatus.available_models.length > 0) {
                         const currentModel = modelSelect.value;
@@ -1245,7 +1341,7 @@ You follow the instructions of the intermediator, review the responses of your a
                             modelSelect.appendChild(option);
                         });
                         modelSelect.disabled = isDisabled;
-                        
+
                         // If this is a participant and shared model is enabled, update shared model dropdown too
                         if ((serverType === 'participant1' || serverType === 'participant2') && serverStatus.available_models.length > 0) {
                             const sharedModelSelect = document.getElementById('shared-spark-model');
@@ -1268,7 +1364,7 @@ You follow the instructions of the intermediator, review the responses of your a
                             }
                         }
                     }
-                    
+
                     if (serverStatus.available) {
                         statusIndicator.className = 'status-indicator online';
                         statusText.className = 'status-text online';
@@ -1300,7 +1396,7 @@ You follow the instructions of the intermediator, review the responses of your a
             // Check servers every 30 seconds
             setInterval(checkAllServers, 30000);
         });
-        
+
         // Also check on page load (in case socket connects before DOM is ready)
         window.addEventListener('load', () => {
             setTimeout(() => {
@@ -1342,6 +1438,9 @@ You follow the instructions of the intermediator, review the responses of your a
                     <div class="turn-content">Starting dialog...</div>
                 </div>
             `;
+
+            // Ensure dialog container is visible and scrolled to top
+            dialogDiv.scrollTop = 0;
 
             showStatus('Dialog started', 'info');
         });
@@ -1385,6 +1484,13 @@ You follow the instructions of the intermediator, review the responses of your a
         socket.on('dialog_saved', (data) => {
             const filename = data.txt_path ? data.txt_path.split('/').pop() : 'dialog files';
             showStatus(`Dialog saved: ${filename}`, 'success');
+        });
+
+        socket.on('pdf_ready', (data) => {
+            // PDF data is ready, show the export button
+            if (data.dialog_id === currentDialogId) {
+                showPdfButton();
+            }
         });
 
         // GPU monitoring
@@ -1625,10 +1731,10 @@ You follow the instructions of the intermediator, review the responses of your a
                     const turnDiv = document.createElement('div');
                     turnDiv.className = `dialog-turn ${speaker || role}`;
                     turnDiv.id = `turn-${dialogData.length}`;
-                    
-                    const speakerName = speaker === 'intermediator' ? 'Intermediator' : 
-                                      speaker === 'participant1' ? 'Participant 1' : 'Participant 2';
-                    
+
+                    const speakerName = speaker === 'intermediator' ? 'Intermediator' :
+                        speaker === 'participant1' ? 'Participant 1' : 'Participant 2';
+
                     // Get server name for status display
                     let serverName = speakerName;
                     if (speaker === 'intermediator') {
@@ -1638,15 +1744,15 @@ You follow the instructions of the intermediator, review the responses of your a
                     } else if (speaker === 'participant2') {
                         serverName = data.participant2 || 'Participant 2';
                     }
-                    
+
                     // Check if this is a summary (will be marked in the data)
                     const isSummary = data.is_summary || false;
                     const turnLabel = isSummary ? `${speakerName} - Summary` : speakerName;
-                    
+
                     if (isSummary) {
                         turnDiv.classList.add('summary');
                     }
-                    
+
                     // Update status bar - show "thinking" if thinking flag is set
                     const turnNum = data.turn !== undefined ? data.turn : dialogData.length;
                     const isThinking = data.thinking || false;
@@ -1657,14 +1763,17 @@ You follow the instructions of the intermediator, review the responses of your a
                         statusText = isSummary ? 'Summarizing dialog...' : `${speakerName} is speaking...`;
                     }
                     updateStatusBar(speaker || role, statusText, turnNum, currentMaxTurns);
-                    
+
                     turnDiv.innerHTML = `
                         <div class="turn-header ${speaker || role}">${turnLabel}</div>
                         <div class="turn-content streaming" id="content-${dialogData.length}"></div>
                     `;
-                    
+
                     dialogDiv.appendChild(turnDiv);
                     dialogData.push({ speaker: speaker || role, content: '', is_summary: isSummary });
+
+                    // Auto-scroll to show the new turn
+                    turnDiv.scrollIntoView({ behavior: 'smooth', block: 'end' });
                     break;
 
                 case 'content':
@@ -1678,8 +1787,8 @@ You follow the instructions of the intermediator, review the responses of your a
                             contentEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                         }
                         // Update status bar to show who is currently speaking
-                        const speakerName = lastTurn.speaker === 'intermediator' ? 'Intermediator' : 
-                                          lastTurn.speaker === 'participant1' ? 'Participant 1' : 'Participant 2';
+                        const speakerName = lastTurn.speaker === 'intermediator' ? 'Intermediator' :
+                            lastTurn.speaker === 'participant1' ? 'Participant 1' : 'Participant 2';
                         const statusText = lastTurn.is_summary ? 'Summarizing dialog...' : `${speakerName} is speaking...`;
                         updateStatusBar(lastTurn.speaker, statusText, null);
                     }
@@ -1704,7 +1813,7 @@ You follow the instructions of the intermediator, review the responses of your a
                         const lastTurnData = dialogData[turnIndex];
                         if (lastTurnData) {
                             const speakerName = lastTurnData.speaker === 'intermediator' ? 'Intermediator' :
-                                              lastTurnData.speaker === 'participant1' ? 'Participant 1' : 'Participant 2';
+                                lastTurnData.speaker === 'participant1' ? 'Participant 1' : 'Participant 2';
                             updateStatusBar(lastTurnData.speaker, `${speakerName} finished speaking`, null);
 
                             // Update turn count if this is a participant response (not intermediator/moderation)
@@ -1722,6 +1831,15 @@ You follow the instructions of the intermediator, review the responses of your a
 
                     // Show summary generation progress
                     document.getElementById('summaryProgressSection').style.display = 'block';
+
+                    // Set a timeout to hide the progress section if summaries don't complete in 30 seconds
+                    setTimeout(() => {
+                        const progressSection = document.getElementById('summaryProgressSection');
+                        if (progressSection && progressSection.style.display !== 'none') {
+                            progressSection.style.display = 'none';
+                            updateStatusBar('idle', 'Dialog completed (transcripts saved)', null);
+                        }
+                    }, 30000);
 
                     // If queue is running, keep status bar visible and show transition
                     if (isQueueRunning && !queueCancelled) {
@@ -1741,8 +1859,7 @@ You follow the instructions of the intermediator, review the responses of your a
                     }
 
                     showStatus('Dialog completed - generating summaries...', 'success');
-                    // Show PDF export button
-                    showPdfButton();
+                    // PDF button will be shown when pdf_ready event is received
                     break;
 
                 case 'summaries_generated':
@@ -1763,6 +1880,15 @@ You follow the instructions of the intermediator, review the responses of your a
                     } else {
                         updateStatusBar('idle', 'Dialog completed with summaries', null);
                     }
+                    break;
+
+                case 'summaries_error':
+                    // Hide progress indicator
+                    document.getElementById('summaryProgressSection').style.display = 'none';
+
+                    // Show error
+                    showStatus(`Error saving transcripts: ${data.error}`, 'error');
+                    updateStatusBar('idle', 'Error saving transcripts', null);
                     break;
             }
         }
@@ -1792,21 +1918,21 @@ You follow the instructions of the intermediator, review the responses of your a
                 if (fileInput.files && fileInput.files.length > 0) {
                     const file = fileInput.files[0];
                     showStatus('Uploading file...', 'info');
-                    
+
                     const formData = new FormData();
                     formData.append('file', file);
-                    
+
                     const response = await fetch('/upload', {
                         method: 'POST',
                         body: formData
                     });
-                    
+
                     const result = await response.json();
                     if (!response.ok) {
                         showStatus(`Upload error: ${result.error}`, 'error');
                         return;
                     }
-                    
+
                     sessionId = result.session_id;
                     showStatus(`File "${result.filename}" uploaded`, 'success');
                 }
@@ -1896,7 +2022,7 @@ You follow the instructions of the intermediator, review the responses of your a
             statusEl.textContent = message;
             statusEl.className = `status ${type}`;
             statusEl.style.display = 'block';
-            
+
             if (type === 'success' || type === 'info') {
                 setTimeout(() => {
                     statusEl.style.display = 'none';
@@ -2036,7 +2162,7 @@ You follow the instructions of the intermediator, review the responses of your a
             document.getElementById('participant1-mid-prompt').value = '';
             document.getElementById('participant2-mid-prompt').value = '';
             document.getElementById('participant-post-prompt').value = '';
-            
+
             // Clear other fields (maxTurns always defaults to 3)
             document.getElementById('fileUpload').value = '';
             document.getElementById('fileInfo').textContent = '';
@@ -2047,21 +2173,21 @@ You follow the instructions of the intermediator, review the responses of your a
             toggleParticipant1Model();
             toggleParticipant2Model();
             updateSharedModel();
-            
+
             document.getElementById('dialog').style.display = 'none';
             dialogData = [];
             dialogActive = false;
             currentDialogId = null;
-            
+
             // Hide PDF export button
             hidePdfButton();
-            
+
             // Hide status bar
             const statusBar = document.getElementById('statusBar');
             if (statusBar) {
                 statusBar.style.display = 'none';
             }
-            
+
             // Reset prompt config section
             const promptConfigSection = document.getElementById('promptConfigSection');
             const promptConfigToggle = document.getElementById('promptConfigToggle');
@@ -2071,7 +2197,7 @@ You follow the instructions of the intermediator, review the responses of your a
             if (promptConfigToggle) {
                 promptConfigToggle.textContent = '▶';
             }
-            
+
             // Clear localStorage (excluding pre/post prompts and maxTurns which aren't persisted)
             localStorage.removeItem('idi_intermediator_pre_prompt');
             localStorage.removeItem('idi_intermediator_topic_prompt');
@@ -2084,7 +2210,7 @@ You follow the instructions of the intermediator, review the responses of your a
             localStorage.removeItem('idi_participant2_model');
             // Explicitly remove any old maxTurns value that might exist
             localStorage.removeItem('idi_max_turns');
-            
+
             showStatus('All fields cleared', 'success');
         }
 
@@ -2210,6 +2336,22 @@ You follow the instructions of the intermediator, review the responses of your a
             if (countEl) {
                 countEl.textContent = `${count} debate${count !== 1 ? 's' : ''} selected`;
                 countEl.style.color = count > 0 ? '#4472c4' : '#808080';
+            }
+
+            // Disable Start Dialog button if debates are selected
+            const startBtn = document.getElementById('startBtn');
+            if (startBtn) {
+                if (count > 0) {
+                    startBtn.disabled = true;
+                    startBtn.title = "Cannot start manual dialog while library debates are selected";
+                    startBtn.style.opacity = "0.5";
+                    startBtn.style.cursor = "not-allowed";
+                } else {
+                    startBtn.disabled = false;
+                    startBtn.title = "";
+                    startBtn.style.opacity = "1";
+                    startBtn.style.cursor = "pointer";
+                }
             }
         }
 
@@ -2378,8 +2520,16 @@ You follow the instructions of the intermediator, review the responses of your a
                 const response = await fetch(`/generate_pdf/${currentDialogId}`);
 
                 if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.error || 'Failed to generate PDF');
+                    // Try to parse error as JSON, but fallback to text if it fails
+                    let errorMessage = 'Failed to generate PDF';
+                    try {
+                        const errorData = await response.json();
+                        errorMessage = errorData.error || errorMessage;
+                    } catch (e) {
+                        const errorText = await response.text();
+                        errorMessage = errorText || errorMessage;
+                    }
+                    throw new Error(errorMessage);
                 }
 
                 // Get the PDF blob
@@ -2476,7 +2626,7 @@ You follow the instructions of the intermediator, review the responses of your a
                 // Get detailed error message
                 let errorDetail = 'Unknown error';
                 if (audioPlayer.error) {
-                    switch(audioPlayer.error.code) {
+                    switch (audioPlayer.error.code) {
                         case 1: errorDetail = 'Audio loading aborted'; break;
                         case 2: errorDetail = 'Network error'; break;
                         case 3: errorDetail = 'Audio decoding failed'; break;
@@ -2487,7 +2637,7 @@ You follow the instructions of the intermediator, review the responses of your a
                 // Retry up to 3 times with exponential backoff
                 if (retryCount < 3) {
                     const retryDelay = Math.pow(2, retryCount) * 500; // 500ms, 1s, 2s
-                    audioStatus.textContent = `Error: ${errorDetail}. Retrying ${displayName} in ${retryDelay/1000}s...`;
+                    audioStatus.textContent = `Error: ${errorDetail}. Retrying ${displayName} in ${retryDelay / 1000}s...`;
                     audioStatus.style.color = '#ffc000';
                     setTimeout(() => {
                         playNextAudio(retryCount + 1);
@@ -2602,28 +2752,39 @@ You follow the instructions of the intermediator, review the responses of your a
     </script>
 
     <!-- Save to Library Modal -->
-    <div id="saveToLibraryModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center;">
-        <div style="background: #ffffff; padding: 24px; border-radius: 8px; max-width: 500px; width: 90%; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+    <div id="saveToLibraryModal"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center;">
+        <div
+            style="background: #ffffff; padding: 24px; border-radius: 8px; max-width: 500px; width: 90%; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
             <h3 style="margin-top: 0; color: #1f4e78;">Save Debate to Library</h3>
 
             <div style="margin-bottom: 16px;">
-                <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #1f4e78;">Debate Name <span style="color: #c55a11;">*</span></label>
-                <input type="text" id="debateName" placeholder="e.g., My Custom Debate" style="width: 100%; padding: 8px; border: 1px solid #d0d0d0; border-radius: 4px; box-sizing: border-box;">
+                <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #1f4e78;">Debate Name <span
+                        style="color: #c55a11;">*</span></label>
+                <input type="text" id="debateName" placeholder="e.g., My Custom Debate"
+                    style="width: 100%; padding: 8px; border: 1px solid #d0d0d0; border-radius: 4px; box-sizing: border-box;">
                 <div style="font-size: 11px; color: #808080; margin-top: 4px;">Display name for the debate</div>
             </div>
 
             <div style="margin-bottom: 16px;">
-                <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #1f4e78;">Description <span style="color: #c55a11;">*</span></label>
-                <textarea id="debateDescription" placeholder="Brief description of the debate topic" style="width: 100%; padding: 8px; border: 1px solid #d0d0d0; border-radius: 4px; box-sizing: border-box; min-height: 60px; resize: vertical;"></textarea>
-                <div style="font-size: 11px; color: #808080; margin-top: 4px;">Short summary of what this debate is about</div>
+                <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #1f4e78;">Description <span
+                        style="color: #c55a11;">*</span></label>
+                <textarea id="debateDescription" placeholder="Brief description of the debate topic"
+                    style="width: 100%; padding: 8px; border: 1px solid #d0d0d0; border-radius: 4px; box-sizing: border-box; min-height: 60px; resize: vertical;"></textarea>
+                <div style="font-size: 11px; color: #808080; margin-top: 4px;">Short summary of what this debate is
+                    about</div>
             </div>
 
             <div style="display: flex; gap: 10px; justify-content: flex-end;">
-                <button onclick="closeSaveToLibraryDialog()" style="padding: 8px 16px; background: #808080; color: #ffffff; border: none; border-radius: 4px; cursor: pointer;">Cancel</button>
-                <button onclick="saveToLibrary()" style="padding: 8px 16px; background: #9d60d6; color: #ffffff; border: none; border-radius: 4px; cursor: pointer;">💾 Save</button>
+                <button onclick="closeSaveToLibraryDialog()"
+                    style="padding: 8px 16px; background: #808080; color: #ffffff; border: none; border-radius: 4px; cursor: pointer;">Cancel</button>
+                <button onclick="saveToLibrary()"
+                    style="padding: 8px 16px; background: #9d60d6; color: #ffffff; border: none; border-radius: 4px; cursor: pointer;">💾
+                    Save</button>
             </div>
         </div>
     </div>
 
 </body>
+
 </html>

@@ -379,24 +379,23 @@ Please use this context to inform your responses."""
             'participant2': self.participant2.name
         })
 
-        # NOTE: Model preloading disabled - was causing short/truncated responses
-        # # Preload all models in parallel to avoid delays on first turns
-        # self._emit('status_update', {
-        #     'message': 'Preloading models on all servers...'
-        # })
-        #
-        # preload_threads = []
-        # for client, name in [(self.intermediator, 'Intermediator'),
-        #                      (self.participant1, 'Participant 1'),
-        #                      (self.participant2, 'Participant 2')]:
-        #     thread = threading.Thread(target=client.preload_model, daemon=True)
-        #     thread.start()
-        #     preload_threads.append(thread)
-        #
-        # # Wait for all preloads to complete (with timeout)
+        # Preload all models in parallel to avoid delays on first turns
+        self._emit('status_update', {
+            'message': 'Preloading models on all servers (background)...'
+        })
+
+        preload_threads = []
+        for client, name in [(self.intermediator, 'Intermediator'),
+                             (self.participant1, 'Participant 1'),
+                             (self.participant2, 'Participant 2')]:
+            thread = threading.Thread(target=client.preload_model, daemon=True)
+            thread.start()
+            preload_threads.append(thread)
+
+        # NOTE: We do NOT wait for preloads to complete, so the Intermediator can start immediately
         # for thread in preload_threads:
         #     thread.join(timeout=30)
-        #
+
         # self._emit('status_update', {
         #     'message': 'All models loaded. Starting dialog...'
         # })
@@ -949,7 +948,14 @@ def generate_participant_summaries(dialog_data: Dict, participant1_client: 'Olla
         debug_log('info', "Participant transcripts saved successfully")
 
     except Exception as e:
-        debug_log('error', f"Failed to save participant transcripts: {str(e)}")
+        error_msg = f"Failed to save participant transcripts: {str(e)}"
+        debug_log('error', error_msg)
+        
+        # Emit error event so frontend doesn't hang
+        socketio.emit('summaries_error', {
+            'dialog_id': dialog_id,
+            'error': error_msg
+        })
 
 
 def debug_log(level, message, server=None, data=None):
@@ -1434,6 +1440,55 @@ def generate_pdf_from_dialog(dialog_data: Dict, prompt_config: Dict,
         ]))
         elements.append(participants_table)
         elements.append(Spacer(1, 0.2*inch))
+        
+        # Add Energy Estimate if available
+        # Access global complete_dialog_data to get GPU data
+        gpu_data = {}
+        if dialog_id in complete_dialog_data:
+            gpu_data = complete_dialog_data[dialog_id].get('gpu_data', {})
+
+        if gpu_data and 'samples' in gpu_data:
+            total_energy = 0.0
+
+            # Calculate energy from GPU samples
+            # GPU data structure: {'start_time': ..., 'samples': [...], 'server_configs': ...}
+            samples = gpu_data.get('samples', [])
+
+            # Track energy per server role
+            server_energy = {
+                'intermediator': 0.0,
+                'participant1': 0.0,
+                'participant2': 0.0
+            }
+
+            # Time interval between samples (default 1 second)
+            interval_hours = 1.0 / 3600.0
+
+            for sample in samples:
+                servers = sample.get('servers', {})
+                for role in ['intermediator', 'participant1', 'participant2']:
+                    server_data = servers.get(role, {})
+                    gpus = server_data.get('gpus', [])
+                    for gpu in gpus:
+                        power_draw = gpu.get('power_draw_watts', 0)
+                        if power_draw > 0:
+                            server_energy[role] += power_draw * interval_hours
+
+            # Sum total energy
+            total_energy = sum(server_energy.values())
+
+            if total_energy > 0:
+                elements.append(Paragraph("Estimated Energy Consumption", heading_style))
+
+                # Show breakdown by server
+                energy_text = f"Total Energy: {total_energy:.4f} Wh<br/>"
+                for role, energy in server_energy.items():
+                    if energy > 0:
+                        role_name = role.replace('_', ' ').title()
+                        energy_text += f"{role_name}: {energy:.4f} Wh<br/>"
+
+                elements.append(Paragraph(energy_text, normal_style))
+                elements.append(Spacer(1, 0.2*inch))
         
         # Prompt Configuration Section
         if topic_prompt:
@@ -1955,15 +2010,25 @@ def run_dialog_thread(intermediator_client, participant1_client, participant2_cl
                 })
             
             # Store complete dialog data for PDF generation
+            # Get GPU data for this dialog
+            gpu_data = gpu_monitoring_data.get(dialog_id, {})
+
             complete_dialog_data[dialog_id] = {
                 'dialog_data': dialog_result,
                 'prompt_config': prompt_config,
                 'intermediator_config': intermediator_config,
                 'participant1_config': participant1_config,
-                'participant2_config': participant2_config
+                'participant2_config': participant2_config,
+                'gpu_data': gpu_data
             }
 
-            # Generate participant summaries and diagrams in background
+            # Emit event to notify frontend that PDF is ready
+            socketio.emit('pdf_ready', {
+                'dialog_id': dialog_id
+            })
+            debug_log('info', f"PDF data stored and ready for dialog {dialog_id}")
+
+            # Generate participant summaries in background
             topic = prompt_config.get('intermediator_topic_prompt', 'Debate')
             summary_thread = threading.Thread(
                 target=generate_participant_summaries,
@@ -1974,9 +2039,18 @@ def run_dialog_thread(intermediator_client, participant1_client, participant2_cl
             summary_thread.start()
 
     except Exception as e:
+        error_msg = str(e)
         socketio.emit('error', {
-            'error': str(e)
+            'error': error_msg
         })
+        # Emit summaries_generated event even on error to ensure UI doesn't hang
+        socketio.emit('summaries_generated', {
+            'dialog_id': dialog_id,
+            'summary_path': None,
+            'diagram_path': None
+        })
+        # Don't emit pdf_ready on error since PDF generation would fail anyway
+        debug_log('error', f"Dialog thread error: {error_msg}")
     finally:
         # Clean up uploaded file if needed
         if session_id and session_id in file_usage_count:
@@ -2004,7 +2078,7 @@ def handle_start_dialog(data):
     max_turns = data.get('max_turns', 3)
     thinking_params = data.get('thinking_params', {})
     prompt_config = data.get('prompt_config', {})
-    enable_tts = data.get('enable_tts', True)
+    enable_tts = data.get('enable_tts', False)
 
     # Validate that intermediator topic prompt is provided
     if not prompt_config.get('intermediator_topic_prompt'):
@@ -2144,11 +2218,16 @@ def handle_start_dialog(data):
 
 if __name__ == "__main__":
     import argparse
+    import logging
 
     parser = argparse.ArgumentParser(description='Intermediated Dialog (IDi) System')
     parser.add_argument('--port', type=int, default=5006, help='Port to run web server on')
     parser.add_argument('--host', type=str, default='0.0.0.0', help='Host to bind to')
     args = parser.parse_args()
+
+    # Disable Flask's default access logging
+    log = logging.getLogger('werkzeug')
+    log.setLevel(logging.ERROR)
 
     print(f"Starting Intermediated Dialog (IDi) server on http://{args.host}:{args.port}")
     socketio.run(app, host=args.host, port=args.port, debug=False, allow_unsafe_werkzeug=True)

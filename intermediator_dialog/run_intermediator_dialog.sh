@@ -7,7 +7,9 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd "$SCRIPT_DIR"
 
 # Activate virtual environment if it exists
-if [ -d "../venv" ]; then
+if [ -d ".venv" ]; then
+    source .venv/bin/activate
+elif [ -d "../venv" ]; then
     source ../venv/bin/activate
 fi
 
@@ -49,8 +51,19 @@ fi
 echo "Starting Intermediated Dialog (IDi) server..."
 echo "URL: $URL"
 
+# Determine Python command
+if [ -d ".venv" ]; then
+    PYTHON_CMD=".venv/bin/python3"
+elif [ -d "venv" ]; then
+    PYTHON_CMD="venv/bin/python3"
+elif [ -d "../venv" ]; then
+    PYTHON_CMD="../venv/bin/python3"
+else
+    PYTHON_CMD="python3"
+fi
+
 # Run the Python script in the background
-python3 intermediator_dialog.py --host "$HOST" --port "$PORT" &
+$PYTHON_CMD intermediator_dialog.py --host "$HOST" --port "$PORT" &
 SERVER_PID=$!
 
 # Wait a moment for the server to start
@@ -66,7 +79,12 @@ fi
 echo "Opening web page in browser..."
 if [[ "$OSTYPE" == "darwin"* ]]; then
     # macOS
-    open "$URL"
+    if [[ "$HOST" == "0.0.0.0" ]]; then
+        BROWSER_URL="http://localhost:${PORT}"
+    else
+        BROWSER_URL="$URL"
+    fi
+    open "$BROWSER_URL"
 elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
     # Linux
     xdg-open "$URL" 2>/dev/null || echo "Please open $URL in your browser"
