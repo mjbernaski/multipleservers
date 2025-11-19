@@ -47,10 +47,10 @@
 
         .controls {
             background: #ffffff;
-            padding: 14px;
+            padding: 10px;
             border-radius: 8px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             border: 1px solid #d0d0d0;
             transition: background-color 0.3s ease, border-color 0.3s ease;
         }
@@ -62,7 +62,7 @@
         }
 
         .form-group {
-            margin-bottom: 12px;
+            margin-bottom: 8px;
         }
 
         label {
@@ -104,21 +104,40 @@
         }
 
         textarea {
-            min-height: 80px;
+            min-height: 60px;
             resize: vertical;
+        }
+
+        textarea.short {
+            min-height: 45px;
         }
 
         button {
             background: #4472c4;
             color: #ffffff;
             border: none;
-            padding: 12px 24px;
+            padding: 8px 16px;
             border-radius: 4px;
             cursor: pointer;
-            font-size: 15px;
+            font-size: 14px;
             font-weight: 500;
             transition: all 0.2s;
             box-shadow: 0 2px 4px rgba(68, 114, 196, 0.2);
+        }
+
+        button.primary {
+            padding: 10px 20px;
+            font-size: 15px;
+        }
+
+        button.secondary {
+            background: #70ad47;
+        }
+
+        button.utility {
+            padding: 6px 12px;
+            font-size: 13px;
+            background: #808080;
         }
 
         button:hover {
@@ -164,8 +183,8 @@
         .ai-config {
             display: grid;
             grid-template-columns: 1fr 1fr 1fr;
-            gap: 16px;
-            margin-bottom: 16px;
+            gap: 12px;
+            margin-bottom: 12px;
         }
 
         @media (max-width: 1200px) {
@@ -174,9 +193,20 @@
             }
         }
 
+        .ai-config-row {
+            display: grid;
+            grid-template-columns: 2fr 3fr;
+            gap: 8px;
+            align-items: end;
+        }
+
+        .ai-config-row label {
+            margin-bottom: 2px;
+        }
+
         .ai-panel {
             background: #f2f2f2;
-            padding: 12px;
+            padding: 10px;
             border-radius: 6px;
             border: 1px solid #d0d0d0;
             transition: background-color 0.3s ease, border-color 0.3s ease;
@@ -185,6 +215,29 @@
         body.dark-mode .ai-panel {
             background: #252525;
             border-color: #404040;
+        }
+
+        /* Utility classes */
+        .flex-between {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .flex-center {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .text-muted {
+            color: #808080;
+            font-size: 11px;
+        }
+
+        .compact-card {
+            padding: 8px;
+            border-radius: 4px;
         }
 
         .ai-panel.intermediator {
@@ -543,14 +596,14 @@
 </head>
 <body>
     <div class="container">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-            <h1 style="margin: 0;">Intermediated Dialog <span style="font-size: 20px; color: #808080; font-weight: 400;">(IDi)</span> <span style="font-size: 14px; color: #9d60d6; font-weight: 500; background: #f5f0ff; padding: 2px 8px; border-radius: 4px; margin-left: 8px;">v1.6.2</span></h1>
-            <div style="display: flex; gap: 8px;">
-                <button id="audioToggle" onclick="toggleAudioGeneration()" style="background: #70ad47; color: #ffffff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 500;">
-                    🔊 Audio: ON
+        <div class="flex-between" style="margin-bottom: 10px;">
+            <h1 style="margin: 0; font-size: 24px;">Intermediated Dialog <span style="font-size: 16px; color: #808080; font-weight: 400;">(IDi)</span> <span style="font-size: 11px; color: #9d60d6; font-weight: 500; background: #f5f0ff; padding: 2px 6px; border-radius: 3px; margin-left: 6px;">v1.6.2</span></h1>
+            <div class="flex-center" style="gap: 6px;">
+                <button id="audioToggle" onclick="toggleAudioGeneration()" class="utility" style="background: #70ad47;">
+                    🔊
                 </button>
-                <button id="darkModeToggle" onclick="toggleDarkMode()" style="background: #4472c4; color: #ffffff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 500;">
-                    🌙 Dark Mode
+                <button id="darkModeToggle" onclick="toggleDarkMode()" class="utility" style="background: #4472c4;">
+                    🌙
                 </button>
             </div>
         </div>
@@ -715,24 +768,28 @@ You follow the instructions of the intermediator, review the responses of your a
             </div>
 
             <div class="form-group">
-                <div style="display: flex; align-items: center; gap: 24px; flex-wrap: wrap;">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <label for="fileUpload" style="margin: 0; font-size: 13px;">Upload Context File (optional):</label>
-                        <input type="file" id="fileUpload" accept=".txt,.md,.log,.json" onchange="updateFileInfo()" style="font-size: 13px;">
-                    </div>
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <label for="maxTurns" style="margin: 0; font-size: 13px;">Max Turns:</label>
-                        <input type="number" id="maxTurns" value="3" min="1" max="50" autocomplete="off" style="width: 80px;">
+                <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
+                    <div class="flex-center">
+                        <label for="fileUpload" style="margin: 0; font-size: 12px;">Context File:</label>
+                        <input type="file" id="fileUpload" accept=".txt,.md,.log,.json" onchange="updateFileInfo()" style="font-size: 12px;">
                     </div>
                 </div>
-                <div id="fileInfo" style="margin-top: 4px; font-size: 11px; color: #808080;"></div>
+                <div id="fileInfo" class="text-muted" style="margin-top: 4px;"></div>
             </div>
 
-            <div style="display: flex; gap: 10px; align-items: center; margin-top: 10px;">
-                <button id="startBtn" onclick="startDialog()">Start Dialog</button>
-                <button onclick="showSaveToLibraryDialog()" style="background: #9d60d6; color: #ffffff;" title="Save current prompt configuration to debate library">💾 Save to Library</button>
-                <button onclick="resetCache()" style="background: #ffc000; color: #000000;" title="Clear conversation history from all AI clients. Use this to make AIs start fresh without remembering previous dialogs.">🔄 Reset Cache</button>
-                <button onclick="clearAll()" style="background: #c55a11; margin-left: auto;">Clear All</button>
+            <div class="flex-between" style="margin-top: 8px;">
+                <div class="flex-center" style="gap: 10px;">
+                    <button id="startBtn" onclick="startDialog()" class="primary">▶ Start Dialog</button>
+                    <div class="flex-center" style="gap: 4px;">
+                        <label for="maxTurns" style="margin: 0; font-size: 12px;">Turns:</label>
+                        <input type="number" id="maxTurns" value="3" min="1" max="50" autocomplete="off" style="width: 60px; padding: 6px; font-size: 13px;">
+                    </div>
+                    <button onclick="showSaveToLibraryDialog()" class="secondary" title="Save current prompt configuration to debate library">💾 Save</button>
+                </div>
+                <div class="flex-center" style="gap: 8px;">
+                    <button onclick="resetCache()" class="utility" title="Clear conversation history from all AI clients">🔄 Reset</button>
+                    <button onclick="clearAll()" class="utility" style="background: #c55a11;">✖ Clear</button>
+                </div>
             </div>
             <div id="status" class="status"></div>
         </div>
@@ -870,7 +927,8 @@ You follow the instructions of the intermediator, review the responses of your a
             const toggleBtn = document.getElementById('darkModeToggle');
             localStorage.setItem('darkMode', isDark ? 'enabled' : 'disabled');
             if (toggleBtn) {
-                toggleBtn.textContent = isDark ? '☀️ Light Mode' : '🌙 Dark Mode';
+                toggleBtn.textContent = isDark ? '☀️' : '🌙';
+                toggleBtn.title = isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode';
             }
 
             // Refresh energy estimate display if it exists
@@ -886,7 +944,8 @@ You follow the instructions of the intermediator, review the responses of your a
             if (darkModeEnabled) {
                 document.body.classList.add('dark-mode');
                 if (toggleBtn) {
-                    toggleBtn.textContent = '☀️ Light Mode';
+                    toggleBtn.textContent = '☀️';
+                    toggleBtn.title = 'Switch to Light Mode';
                 }
             }
         }
@@ -906,10 +965,12 @@ You follow the instructions of the intermediator, review the responses of your a
             const toggleBtn = document.getElementById('audioToggle');
             if (toggleBtn) {
                 if (audioEnabled) {
-                    toggleBtn.textContent = '🔊 Audio: ON';
+                    toggleBtn.textContent = '🔊';
+                    toggleBtn.title = 'Audio Generation: ON (click to disable)';
                     toggleBtn.style.background = '#70ad47';
                 } else {
-                    toggleBtn.textContent = '🔇 Audio: OFF';
+                    toggleBtn.textContent = '🔇';
+                    toggleBtn.title = 'Audio Generation: OFF (click to enable)';
                     toggleBtn.style.background = '#808080';
                 }
             }
@@ -1523,23 +1584,25 @@ You follow the instructions of the intermediator, review the responses of your a
             const totalBg = isDarkMode ? '#1a3a4a' : '#e8f4f8';
 
             let totalEnergy = 0;
-            let energyHTML = `<div style="margin-top: 20px; padding: 15px; background: ${bgColor}; border: 2px solid ${borderColor}; border-radius: 8px;"><h3 style="margin-top: 0; color: ${titleColor}; font-size: 18px;">Total Energy Consumption Estimate</h3><div style="display: grid; gap: 10px;">`;
+            let serverStats = [];
 
             Object.keys(serverEnergy).forEach(serverRole => {
                 const data = serverEnergy[serverRole];
                 const energyWh = data.totalWattSeconds / 3600; // Convert to watt-hours
                 totalEnergy += energyWh;
 
-                energyHTML += `<div style="display: flex; align-items: center; gap: 10px; padding: 8px; background: ${cardBg}; border-radius: 4px;">
-                    <div style="width: 4px; height: 30px; background: ${colors[serverRole]}; border-radius: 2px;"></div>
-                    <div style="flex: 1;">
-                        <div style="font-weight: 600; color: ${textColor};">${data.name}</div>
-                        <div style="font-size: 13px; color: ${subtextColor};">Energy: ${energyWh.toFixed(3)} Wh (${(energyWh * 1000).toFixed(1)} mWh)</div>
-                    </div>
-                </div>`;
+                const serverIcon = serverRole === 'intermediator' ? '🔷' : serverRole === 'participant1' ? '🟢' : '🟠';
+                const shortName = serverRole === 'intermediator' ? 'Int' : serverRole === 'participant1' ? 'P1' : 'P2';
+                serverStats.push(`<span style="color: ${colors[serverRole]}; font-weight: 600;">${serverIcon} ${shortName}: ${energyWh.toFixed(2)} Wh</span>`);
             });
 
-            energyHTML += `</div><div style="margin-top: 15px; padding: 10px; background: ${totalBg}; border-radius: 4px; font-weight: 600; text-align: center; color: ${titleColor};">Total: ${totalEnergy.toFixed(3)} Wh (${(totalEnergy * 1000).toFixed(1)} mWh)</div></div>`;
+            let energyHTML = `<div style="margin-top: 15px; padding: 10px; background: ${bgColor}; border: 1px solid ${borderColor}; border-radius: 6px;">
+                <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap; font-size: 13px;">
+                    <span style="font-weight: 600; color: ${titleColor};">⚡ Energy:</span>
+                    ${serverStats.join(' | ')}
+                    <span style="font-weight: 700; color: ${titleColor}; margin-left: auto; padding: 4px 12px; background: ${totalBg}; border-radius: 4px;">Total: ${totalEnergy.toFixed(2)} Wh</span>
+                </div>
+            </div>`;
 
             // Insert energy estimate after GPU monitoring section
             const gpuSection = document.getElementById('gpuMonitoringSection');
