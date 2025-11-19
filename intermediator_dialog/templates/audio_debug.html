@@ -512,8 +512,8 @@
                 type
             };
 
-            ttsLogs.unshift(logEntry);
-            if (ttsLogs.length > 100) ttsLogs.pop();
+            ttsLogs.push(logEntry);
+            if (ttsLogs.length > 100) ttsLogs.shift();
 
             updateTTSLog();
         }
@@ -526,8 +526,8 @@
                 type
             };
 
-            audioLogs.unshift(logEntry);
-            if (audioLogs.length > 100) audioLogs.pop();
+            audioLogs.push(logEntry);
+            if (audioLogs.length > 100) audioLogs.shift();
 
             updateAudioLog();
         }
