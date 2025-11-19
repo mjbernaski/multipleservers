@@ -872,6 +872,12 @@ You follow the instructions of the intermediator, review the responses of your a
             if (toggleBtn) {
                 toggleBtn.textContent = isDark ? '☀️ Light Mode' : '🌙 Dark Mode';
             }
+
+            // Refresh energy estimate display if it exists
+            const energySection = document.getElementById('energyEstimateSection');
+            if (energySection && energySection.style.display !== 'none' && gpuMonitoringData.length > 0) {
+                calculateAndDisplayEnergyEstimate();
+            }
         }
 
         function loadDarkModePreference() {
@@ -1345,6 +1351,12 @@ You follow the instructions of the intermediator, review the responses of your a
 
             // Show GPU monitoring section
             document.getElementById('gpuMonitoringSection').style.display = 'block';
+
+            // Hide energy estimate section until dialog completes
+            const energySection = document.getElementById('energyEstimateSection');
+            if (energySection) {
+                energySection.style.display = 'none';
+            }
         }
 
         function updateGPUChart() {
@@ -1462,6 +1474,85 @@ You follow the instructions of the intermediator, review the responses of your a
             // Update stats
             const duration = gpuMonitoringData.length > 0 ? gpuMonitoringData[gpuMonitoringData.length - 1].elapsed.toFixed(1) : '0';
             document.getElementById('gpuStats').textContent = `Duration: ${duration}s | Samples: ${gpuMonitoringData.length}`;
+        }
+
+        function calculateAndDisplayEnergyEstimate() {
+            if (gpuMonitoringData.length === 0) return;
+
+            // Calculate energy consumption for each server
+            const serverEnergy = {
+                'intermediator': { totalWattSeconds: 0, samples: 0, name: 'Intermediator' },
+                'participant1': { totalWattSeconds: 0, samples: 0, name: 'Participant 1' },
+                'participant2': { totalWattSeconds: 0, samples: 0, name: 'Participant 2' }
+            };
+
+            // Calculate time interval between samples
+            let prevTime = 0;
+            gpuMonitoringData.forEach((sample, index) => {
+                const currentTime = sample.elapsed || 0;
+                const deltaTime = index === 0 ? 0 : currentTime - prevTime;
+
+                Object.keys(serverEnergy).forEach(serverRole => {
+                    const server = sample.servers[serverRole];
+                    if (server && server.gpus && server.gpus.length > 0) {
+                        const watts = server.gpus[0].power_draw_watts || 0;
+                        // Energy = Power × Time (in watt-seconds)
+                        serverEnergy[serverRole].totalWattSeconds += watts * deltaTime;
+                        serverEnergy[serverRole].samples++;
+                    }
+                });
+
+                prevTime = currentTime;
+            });
+
+            // Convert to watt-hours and create display
+            const colors = {
+                'intermediator': '#4472c4',
+                'participant1': '#70ad47',
+                'participant2': '#ed7d31'
+            };
+
+            // Check for dark mode
+            const isDarkMode = document.body.classList.contains('dark-mode');
+            const bgColor = isDarkMode ? '#2d2d2d' : 'white';
+            const borderColor = isDarkMode ? '#404040' : '#1f4e78';
+            const titleColor = isDarkMode ? '#6ba3d8' : '#1f4e78';
+            const cardBg = isDarkMode ? '#1a1a1a' : '#f8f8f8';
+            const textColor = isDarkMode ? '#e0e0e0' : '#333';
+            const subtextColor = isDarkMode ? '#a0a0a0' : '#666';
+            const totalBg = isDarkMode ? '#1a3a4a' : '#e8f4f8';
+
+            let totalEnergy = 0;
+            let energyHTML = `<div style="margin-top: 20px; padding: 15px; background: ${bgColor}; border: 2px solid ${borderColor}; border-radius: 8px;"><h3 style="margin-top: 0; color: ${titleColor}; font-size: 18px;">Total Energy Consumption Estimate</h3><div style="display: grid; gap: 10px;">`;
+
+            Object.keys(serverEnergy).forEach(serverRole => {
+                const data = serverEnergy[serverRole];
+                const energyWh = data.totalWattSeconds / 3600; // Convert to watt-hours
+                totalEnergy += energyWh;
+
+                energyHTML += `<div style="display: flex; align-items: center; gap: 10px; padding: 8px; background: ${cardBg}; border-radius: 4px;">
+                    <div style="width: 4px; height: 30px; background: ${colors[serverRole]}; border-radius: 2px;"></div>
+                    <div style="flex: 1;">
+                        <div style="font-weight: 600; color: ${textColor};">${data.name}</div>
+                        <div style="font-size: 13px; color: ${subtextColor};">Energy: ${energyWh.toFixed(3)} Wh (${(energyWh * 1000).toFixed(1)} mWh)</div>
+                    </div>
+                </div>`;
+            });
+
+            energyHTML += `</div><div style="margin-top: 15px; padding: 10px; background: ${totalBg}; border-radius: 4px; font-weight: 600; text-align: center; color: ${titleColor};">Total: ${totalEnergy.toFixed(3)} Wh (${(totalEnergy * 1000).toFixed(1)} mWh)</div></div>`;
+
+            // Insert energy estimate after GPU monitoring section
+            const gpuSection = document.getElementById('gpuMonitoringSection');
+            let energySection = document.getElementById('energyEstimateSection');
+
+            if (!energySection) {
+                energySection = document.createElement('div');
+                energySection.id = 'energyEstimateSection';
+                gpuSection.parentNode.insertBefore(energySection, gpuSection.nextSibling);
+            }
+
+            energySection.innerHTML = energyHTML;
+            energySection.style.display = 'block';
         }
 
         function handleDialogUpdate(data) {
@@ -1605,6 +1696,9 @@ You follow the instructions of the intermediator, review the responses of your a
 
                     // Display the diagrams
                     displayArgumentDiagrams(data);
+
+                    // Calculate and display total energy consumption
+                    calculateAndDisplayEnergyEstimate();
 
                     // Update status
                     if (isQueueRunning && !queueCancelled) {
