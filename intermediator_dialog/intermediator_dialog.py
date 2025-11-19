@@ -26,9 +26,13 @@ from reportlab.lib.units import inch
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, Table, TableStyle
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_JUSTIFY
+from openai import OpenAI
 
 # Load environment variables from .env file
 load_dotenv()
+
+# Initialize OpenAI client for TTS
+openai_client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
 
 
 class OllamaClient:
@@ -248,7 +252,8 @@ class IntermediatorDialog:
                  participant1_mid_prompt: str = None,
                  participant2_mid_prompt: str = None,
                  participant_post_prompt: str = None,
-                 dialog_id: str = None):
+                 dialog_id: str = None,
+                 enable_tts: bool = True):
         self.intermediator = intermediator
         self.participant1 = participant1
         self.participant2 = participant2
@@ -264,6 +269,9 @@ class IntermediatorDialog:
         self.start_time: Optional[float] = None
         self.end_time: Optional[float] = None
         self.dialog_id = dialog_id or str(uuid.uuid4())
+        self.enable_tts = enable_tts
+        self.audio_sequence = 0  # Global sequence counter for TTS audio files
+        self.tts_threads: List[threading.Thread] = []  # Track TTS threads to ensure they complete
 
     def set_stream_callback(self, callback: Callable):
         """Set a callback function to receive streaming updates."""
@@ -408,6 +416,19 @@ Please use this context to inform your responses."""
             'message': intro_response,
             'tokens': intro_tokens
         })
+
+        # Generate TTS for intro (in background thread)
+        if self.enable_tts:
+            tts_thread = threading.Thread(
+                target=generate_tts_audio,
+                args=(intro_response, 'intermediator', self.dialog_id,
+                      self.intermediator_topic_prompt or 'Dialog', self.audio_sequence),
+                daemon=True
+            )
+            tts_thread.start()
+            self.tts_threads.append(tts_thread)
+            self.audio_sequence += 1
+
         # Continue dialog for max_turns * 2 (so each participant goes max_turns times)
         for turn in range(1, (max_turns * 2) + 1):
             self.current_turn = turn
@@ -455,6 +476,19 @@ Please respond thoughtfully. Engage with the points raised and contribute your p
                     'message': p1_response,
                     'tokens': p1_tokens
                 })
+
+                # Generate TTS for participant 1 (in background thread)
+                if self.enable_tts:
+                    tts_thread = threading.Thread(
+                        target=generate_tts_audio,
+                        args=(p1_response, 'participant1', self.dialog_id,
+                              self.intermediator_topic_prompt or 'Dialog', self.audio_sequence),
+                        daemon=True
+                    )
+                    tts_thread.start()
+                    self.tts_threads.append(tts_thread)
+                    self.audio_sequence += 1
+
                 # Update intermediator's context with participant 1's response
                 self.intermediator.messages.append({
                     "role": "user",
@@ -496,6 +530,19 @@ Provide a brief moderation comment (2-3 sentences) that keeps the dialog product
                     'message': mod_response,
                     'tokens': mod_tokens
                 })
+
+                # Generate TTS for intermediator moderation (in background thread)
+                if self.enable_tts:
+                    tts_thread = threading.Thread(
+                        target=generate_tts_audio,
+                        args=(mod_response, 'intermediator', self.dialog_id,
+                              self.intermediator_topic_prompt or 'Dialog', self.audio_sequence),
+                        daemon=True
+                )
+                tts_thread.start()
+                self.tts_threads.append(tts_thread)
+                self.audio_sequence += 1
+
                 # Update participants' context
                 self.participant1.messages.append({
                     "role": "user",
@@ -541,6 +588,18 @@ Please respond thoughtfully. Engage with the points raised and contribute your p
                     'message': p2_response,
                     'tokens': p2_tokens
                 })
+
+                # Generate TTS for participant 2 (in background thread)
+                if self.enable_tts:
+                    tts_thread = threading.Thread(
+                        target=generate_tts_audio,
+                        args=(p2_response, 'participant2', self.dialog_id,
+                              self.intermediator_topic_prompt or 'Dialog', self.audio_sequence),
+                        daemon=True
+                )
+                tts_thread.start()
+                self.audio_sequence += 1
+
                 # Update intermediator's context with participant 2's response
                 self.intermediator.messages.append({
                     "role": "user",
@@ -582,6 +641,19 @@ Provide a brief moderation comment (2-3 sentences) that keeps the dialog product
                     'message': mod_response,
                     'tokens': mod_tokens
                 })
+
+                # Generate TTS for intermediator moderation (in background thread)
+                if self.enable_tts:
+                    tts_thread = threading.Thread(
+                        target=generate_tts_audio,
+                        args=(mod_response, 'intermediator', self.dialog_id,
+                              self.intermediator_topic_prompt or 'Dialog', self.audio_sequence),
+                        daemon=True
+                )
+                tts_thread.start()
+                self.tts_threads.append(tts_thread)
+                self.audio_sequence += 1
+
                 # Update participants' context
                 self.participant1.messages.append({
                     "role": "user",
@@ -633,6 +705,19 @@ Be thorough but concise. This summary should help anyone understand the essence 
             'tokens': summary_tokens,
             'is_summary': True
         })
+
+        # Generate TTS for final summary (in background thread)
+        if self.enable_tts:
+            tts_thread = threading.Thread(
+                target=generate_tts_audio,
+                args=(summary_response, 'intermediator', self.dialog_id,
+                      self.intermediator_topic_prompt or 'Dialog', self.audio_sequence),
+                daemon=True
+        )
+        tts_thread.start()
+        self.tts_threads.append(tts_thread)
+        self.audio_sequence += 1
+
         # Share the summary with both participants
         self.participant1.messages.append({
             "role": "user",
@@ -642,6 +727,11 @@ Be thorough but concise. This summary should help anyone understand the essence 
             "role": "user",
             "content": f"Moderator's Final Summary: {summary_response}"
         })
+
+        # Wait for all TTS threads to complete before finishing (with timeout)
+        for thread in self.tts_threads:
+            if thread.is_alive():
+                thread.join(timeout=30)  # Wait up to 30 seconds per thread
 
         self.end_time = time.time()
         runtime_seconds = self.end_time - self.start_time if self.start_time else 0
@@ -692,6 +782,91 @@ gpu_monitoring_data = {}
 
 # Store GPU monitoring thread control
 gpu_monitoring_threads = {}
+
+
+def generate_tts_audio(text: str, speaker: str, dialog_id: str, topic: str, sequence: int) -> Optional[str]:
+    """Generate TTS audio using OpenAI and save to file.
+
+    Args:
+        text: The text to convert to speech
+        speaker: 'intermediator', 'participant1', or 'participant2'
+        dialog_id: The dialog ID
+        topic: The debate topic for folder naming
+        sequence: Global sequence number for ordering
+
+    Returns:
+        Path to the saved audio file, or None if TTS fails
+    """
+    try:
+        # Map speakers to OpenAI TTS voices
+        voice_map = {
+            'intermediator': 'alloy',    # Neutral, balanced voice
+            'participant1': 'echo',       # Clear, articulate voice
+            'participant2': 'fable'       # Warm, expressive voice
+        }
+        voice = voice_map.get(speaker, 'alloy')
+
+        # Create folder name: Debate_{sanitized_topic}
+        # Sanitize topic for folder name
+        sanitized_topic = re.sub(r'[^\w\s-]', '', topic)[:50]  # Remove special chars, limit length
+        sanitized_topic = re.sub(r'[-\s]+', '_', sanitized_topic)  # Replace spaces/dashes with underscore
+        folder_name = f"Debate_{sanitized_topic}" if sanitized_topic else f"Debate_{dialog_id[:8]}"
+
+        # Create audio directory
+        audio_dir = os.path.join('output', 'audio', folder_name)
+        os.makedirs(audio_dir, exist_ok=True)
+
+        # Generate filename with sequence number for proper ordering
+        filename = f"{sequence:03d}_{speaker}.mp3"
+        filepath = os.path.join(audio_dir, filename)
+
+        # Emit TTS start event
+        socketio.emit('tts_progress', {
+            'status': 'generating',
+            'speaker': speaker,
+            'sequence': sequence,
+            'filename': filename
+        })
+
+        # OpenAI TTS has a 4096 character limit - truncate if necessary
+        max_length = 4000
+        if len(text) > max_length:
+            truncated_text = text[:max_length] + "..."
+        else:
+            truncated_text = text
+
+        # Generate speech using OpenAI TTS
+        response = openai_client.audio.speech.create(
+            model="tts-1",
+            voice=voice,
+            input=truncated_text
+        )
+
+        # Save audio file
+        with open(filepath, 'wb') as f:
+            f.write(response.content)
+
+        # Emit TTS complete event
+        socketio.emit('tts_progress', {
+            'status': 'complete',
+            'speaker': speaker,
+            'sequence': sequence,
+            'filename': filename,
+            'filepath': filepath
+        })
+
+        return filepath
+
+    except Exception as e:
+        # Emit TTS error event
+        socketio.emit('tts_progress', {
+            'status': 'error',
+            'speaker': speaker,
+            'sequence': sequence,
+            'error': str(e)
+        })
+        print(f"TTS Error for {speaker}: {str(e)}")
+        return None
 
 
 def debug_log(level, message, server=None, data=None):
@@ -1017,8 +1192,17 @@ def clean_text_for_pdf(text: str) -> str:
     text = re.sub(r'(?<=\w)_(?=\w)', '', text)   # Underscore between word chars
     
     # Fix character encoding issues - replace problematic characters
-    # Replace various dash/space-like characters with regular spaces
+    # Replace various dash characters with regular hyphens
+    text = text.replace('\u2010', '-')  # Hyphen
+    text = text.replace('\u2011', '-')  # Non-breaking hyphen
+    text = text.replace('\u2012', '-')  # Figure dash
+    text = text.replace('\u2013', '-')  # En dash
+    text = text.replace('\u2014', '-')  # Em dash
+    text = text.replace('\u2015', '-')  # Horizontal bar
+    text = text.replace('\u2212', '-')  # Minus sign
     text = text.replace('\u25A0', ' ')  # Black square (■)
+
+    # Replace various space-like characters with regular spaces
     text = text.replace('\u00A0', ' ')  # Non-breaking space
     text = text.replace('\u2000', ' ')  # En quad
     text = text.replace('\u2001', ' ')  # Em quad
@@ -1271,7 +1455,10 @@ def generate_pdf_from_dialog(dialog_data: Dict, prompt_config: Dict,
                     spaceBefore=10
                 )
                 elements.append(Paragraph(turn_label, header_style))
-            
+
+            # Add white space before colored box
+            elements.append(Spacer(1, 0.12*inch))
+
             # Message content
             message_style = ParagraphStyle(
                 'Message',
@@ -1282,13 +1469,16 @@ def generate_pdf_from_dialog(dialog_data: Dict, prompt_config: Dict,
                 leftIndent=0.2*inch,
                 rightIndent=0.2*inch,
                 backColor=bg_color,
-                borderPadding=8
+                borderPadding=10
             )
             # Clean text (remove markdown, fix encoding) then escape HTML and preserve line breaks
             cleaned_message = clean_text_for_pdf(message)
             message_escaped = cleaned_message.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace('\n', '<br/>')
             elements.append(Paragraph(message_escaped, message_style))
-            
+
+            # Add white space after colored box
+            elements.append(Spacer(1, 0.12*inch))
+
             # Token information
             if tokens and not is_summary:
                 token_info_parts = []
@@ -1302,7 +1492,7 @@ def generate_pdf_from_dialog(dialog_data: Dict, prompt_config: Dict,
                     token_info_parts.append(f"Speed: {tokens.get('tokens_per_second', 0):.2f} tokens/sec")
                 if tokens.get('time_to_first_token', 0) > 0:
                     token_info_parts.append(f"TTFT: {tokens.get('time_to_first_token', 0):.3f}s")
-                
+
                 if token_info_parts:
                     token_text = " | ".join(token_info_parts)
                     token_style = ParagraphStyle(
@@ -1314,8 +1504,9 @@ def generate_pdf_from_dialog(dialog_data: Dict, prompt_config: Dict,
                         spaceBefore=4
                     )
                     elements.append(Paragraph(f"<i>Tokens: {token_text}</i>", token_style))
-            
-            elements.append(Spacer(1, 0.15*inch))
+
+            # Always add spacing between turns
+            elements.append(Spacer(1, 0.05*inch))
         
         # Summary statistics
         elements.append(PageBreak())
@@ -1562,7 +1753,8 @@ def run_dialog_thread(intermediator_client, participant1_client, participant2_cl
                       context_file: str, dialog_id: str, max_turns: int = 3,
                       session_id: str = None, thinking_params: Dict = None,
                       prompt_config: Dict = None, intermediator_config: Dict = None,
-                      participant1_config: Dict = None, participant2_config: Dict = None):
+                      participant1_config: Dict = None, participant2_config: Dict = None,
+                      enable_tts: bool = True):
     """Run dialog in a separate thread."""
     try:
         # Apply thinking parameters if provided
@@ -1587,7 +1779,8 @@ def run_dialog_thread(intermediator_client, participant1_client, participant2_cl
             participant1_mid_prompt=prompt_config.get('participant1_mid_prompt'),
             participant2_mid_prompt=prompt_config.get('participant2_mid_prompt'),
             participant_post_prompt=prompt_config.get('participant_post_prompt'),
-            dialog_id=dialog_id
+            dialog_id=dialog_id,
+            enable_tts=enable_tts
         )
         dialog_instances[dialog_id] = dialog
 
@@ -1660,7 +1853,8 @@ def handle_start_dialog(data):
     max_turns = data.get('max_turns', 3)
     thinking_params = data.get('thinking_params', {})
     prompt_config = data.get('prompt_config', {})
-    
+    enable_tts = data.get('enable_tts', True)
+
     # Validate that intermediator topic prompt is provided
     if not prompt_config.get('intermediator_topic_prompt'):
         emit('error', {'error': 'Intermediator topic/instructions prompt is required'})
@@ -1790,7 +1984,8 @@ def handle_start_dialog(data):
         target=run_dialog_thread,
         args=(intermediator_client, participant1_client, participant2_client,
               context_file, dialog_id, max_turns, session_id, thinking_params,
-              prompt_config, intermediator_config, participant1_config, participant2_config),
+              prompt_config, intermediator_config, participant1_config, participant2_config,
+              enable_tts),
         daemon=True
     )
     thread.start()

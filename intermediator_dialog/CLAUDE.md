@@ -170,3 +170,4 @@ When `max_turns` is set to N, each participant will speak N times (total of 2N p
 - Plus final summary
 
 The `generate_tts_audio()` function (intermediator_dialog.py:642) handles all TTS generation and file management.
+- todo add a textual summary by participant of their argument by reviewing their aggregated turns.   create a summary file for each.    pass that to http://192.168.6.202:7777 endpoint to create an argument structure diagram (horizontal) that is saved with the audio files.

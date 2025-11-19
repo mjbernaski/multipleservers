@@ -239,6 +239,66 @@
       "participant2_mid_prompt": "You oppose lowering the voting age. You argue that 16-year-olds lack life experience and fully developed judgment, that the brain continues developing into the mid-20s, that 18 is already young, and that there's no evidence of demand for this change.",
       "participant_post_prompt": "You bottom line your response in 1 sentence.",
       "max_turns": 4
+    },
+    {
+      "id": "rent_control",
+      "name": "Rent Control",
+      "description": "Should cities implement strict rent control policies?",
+      "intermediator_pre_prompt": "You are the intermediator for a debate between two AI participants. Your role is to present the participants with the rules and the topic. You review each response before passing it on to the other participant. If you have to remind the participants of the rules you will. If a participant misbehaves you will mention that in your final summary. Encourage brevity and clarity.",
+      "intermediator_topic_prompt": "Should cities implement strict rent control policies that cap how much landlords can charge and limit rent increases? Consider housing affordability, housing supply, property rights, and economic effects on the rental market.",
+      "participant_pre_prompt": "You are a participant in a debate. You follow the instructions of the intermediator, review the responses of your adversary, and develop thoughtful on-point responses.",
+      "participant1_mid_prompt": "You support rent control. You argue that it protects tenants from displacement and price gouging, that housing is a human right not just a commodity, that it provides stability for communities, and that the housing crisis requires government intervention.",
+      "participant2_mid_prompt": "You oppose rent control. You argue that it reduces housing supply by discouraging construction and maintenance, that it creates market distortions and benefits some tenants while harming others seeking housing, and that increasing supply through zoning reform is more effective.",
+      "participant_post_prompt": "You bottom line your response in 1 sentence.",
+      "max_turns": 4
+    },
+    {
+      "id": "mandatory_voting",
+      "name": "Mandatory Voting",
+      "description": "Should voting be compulsory for all citizens?",
+      "intermediator_pre_prompt": "You are the intermediator for a debate between two AI participants. Your role is to present the participants with the rules and the topic. You review each response before passing it on to the other participant. If you have to remind the participants of the rules you will. If a participant misbehaves you will mention that in your final summary. Encourage brevity and clarity.",
+      "intermediator_topic_prompt": "Should countries make voting mandatory for all eligible citizens, with penalties for non-participation? Consider civic duty, representation, voter engagement, freedom of choice, and the quality of democratic outcomes.",
+      "participant_pre_prompt": "You are a participant in a debate. You follow the instructions of the intermediator, review the responses of your adversary, and develop thoughtful on-point responses.",
+      "participant1_mid_prompt": "You support mandatory voting. You argue that it ensures government represents all citizens not just motivated partisans, that voting is a civic duty like jury service or paying taxes, that it reduces the influence of money in politics, and that it works well in countries like Australia.",
+      "participant2_mid_prompt": "You oppose mandatory voting. You argue that freedom includes the right not to participate, that forcing uninformed voters to vote reduces decision quality, that it's unenforceable without authoritarian measures, and that engagement should be earned not coerced.",
+      "participant_post_prompt": "You bottom line your response in 1 sentence.",
+      "max_turns": 4
+    },
+    {
+      "id": "targeted_advertising",
+      "name": "Ban on Targeted Advertising",
+      "description": "Should targeted advertising based on personal data be banned?",
+      "intermediator_pre_prompt": "You are the intermediator for a debate between two AI participants. Your role is to present the participants with the rules and the topic. You review each response before passing it on to the other participant. If you have to remind the participants of the rules you will. If a participant misbehaves you will mention that in your final summary. Encourage brevity and clarity.",
+      "intermediator_topic_prompt": "Should governments ban targeted advertising that uses personal data to show individualized ads? Consider privacy, the business model of free internet services, consumer welfare, manipulation, and economic impacts.",
+      "participant_pre_prompt": "You are a participant in a debate. You follow the instructions of the intermediator, review the responses of your adversary, and develop thoughtful on-point responses.",
+      "participant1_mid_prompt": "You support banning targeted ads. You argue that surveillance capitalism violates privacy, that micro-targeting enables manipulation and discrimination, that contextual advertising is sufficient, and that the current model extracts data without fair compensation.",
+      "participant2_mid_prompt": "You oppose banning targeted ads. You argue that targeted ads fund free internet services, that they're more relevant and useful to consumers, that users consent to data sharing, and that bans would hurt small businesses that rely on efficient advertising.",
+      "participant_post_prompt": "You bottom line your response in 1 sentence.",
+      "max_turns": 4
+    },
+    {
+      "id": "right_to_repair",
+      "name": "Right to Repair",
+      "description": "Should manufacturers be required to allow consumers to repair their products?",
+      "intermediator_pre_prompt": "You are the intermediator for a debate between two AI participants. Your role is to present the participants with the rules and the topic. You review each response before passing it on to the other participant. If you have to remind the participants of the rules you will. If a participant misbehaves you will mention that in your final summary. Encourage brevity and clarity.",
+      "intermediator_topic_prompt": "Should laws require manufacturers to provide repair manuals, tools, and parts so that consumers and independent shops can repair products like phones, tractors, and appliances? Consider consumer rights, environmental sustainability, innovation, and business models.",
+      "participant_pre_prompt": "You are a participant in a debate. You follow the instructions of the intermediator, review the responses of your adversary, and develop thoughtful on-point responses.",
+      "participant1_mid_prompt": "You support right to repair. You argue that consumers should own what they buy, that repair reduces e-waste and environmental damage, that it saves money and creates local jobs, and that manufacturer repair monopolies are anti-competitive.",
+      "participant2_mid_prompt": "You oppose mandating right to repair. You argue that it risks safety and security with untrained repairs, that it threatens intellectual property and trade secrets, that it may increase costs for all consumers, and that manufacturers should control their products' quality.",
+      "participant_post_prompt": "You bottom line your response in 1 sentence.",
+      "max_turns": 4
+    },
+    {
+      "id": "reparations",
+      "name": "Reparations for Historical Injustices",
+      "description": "Should governments pay reparations for historical injustices?",
+      "intermediator_pre_prompt": "You are the intermediator for a debate between two AI participants. Your role is to present the participants with the rules and the topic. You review each response before passing it on to the other participant. If you have to remind the participants of the rules you will. If a participant misbehaves you will mention that in your final summary. Encourage brevity and clarity.",
+      "intermediator_topic_prompt": "Should governments pay financial reparations to groups harmed by historical injustices such as slavery, colonialism, or genocide? Consider justice, practical challenges, intergenerational responsibility, and whether money can address historical wrongs.",
+      "participant_pre_prompt": "You are a participant in a debate. You follow the instructions of the intermediator, review the responses of your adversary, and develop thoughtful on-point responses.",
+      "participant1_mid_prompt": "You support reparations. You argue that historical injustices created wealth gaps that persist today, that society has a moral duty to remedy past wrongs, that reparations acknowledge harm and promote healing, and that we compensate other historical injustices.",
+      "participant2_mid_prompt": "You oppose reparations. You argue that present generations shouldn't pay for ancestors' actions, that determining who qualifies and how much is impossibly complex, that it's divisive rather than healing, and that investments in opportunity are more effective than cash payments.",
+      "participant_post_prompt": "You bottom line your response in 1 sentence.",
+      "max_turns": 4
     }
   ]
 }

@@ -482,6 +482,9 @@
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
             <h1 style="margin: 0;">Intermediated Dialog <span style="font-size: 20px; color: #808080; font-weight: 400;">(IDi)</span></h1>
             <div style="display: flex; gap: 8px;">
+                <button id="audioToggle" onclick="toggleAudioGeneration()" style="background: #70ad47; color: #ffffff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 500;">
+                    🔊 Audio: ON
+                </button>
                 <button id="darkModeToggle" onclick="toggleDarkMode()" style="background: #4472c4; color: #ffffff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 500;">
                     🌙 Dark Mode
                 </button>
@@ -628,7 +631,7 @@ You follow the instructions of the intermediator, review the responses of your a
             <div class="form-group" style="border-top: 1px solid #d0d0d0; padding-top: 12px; margin-top: 12px;">
                 <label style="display: flex; align-items: center; cursor: pointer; font-weight: 600; color: #1f4e78; margin-bottom: 8px; font-size: 13px;" onclick="toggleDebateLibrary()">
                     <span id="debateLibraryToggle" style="margin-right: 8px; font-size: 13px;">▶</span>
-                    <span>Debate Library (20 debates available)</span>
+                    <span>Debate Library (25 debates available)</span>
                 </label>
 
                 <div id="debateLibrarySection" style="display: none;">
@@ -738,6 +741,9 @@ You follow the instructions of the intermediator, review the responses of your a
         <div class="status-bar-content">
             <span id="statusBarText">Ready</span>
             <span class="status-bar-turn" id="statusBarTurn"></span>
+            <span id="ttsIndicator" style="margin-left: 12px; font-size: 12px; opacity: 0; transition: opacity 0.3s;">
+                🎙️ <span id="ttsStatus">TTS</span> <span id="ttsCount" style="background: rgba(255,255,255,0.2); padding: 2px 6px; border-radius: 3px; margin-left: 4px;">0</span>
+            </span>
         </div>
     </div>
 
@@ -759,6 +765,10 @@ You follow the instructions of the intermediator, review the responses of your a
         let currentDebateTurnsDone = 0;
 
         // Auto-play audio management
+
+        // TTS tracking
+        let ttsCount = 0;
+        let ttsGenerating = false;
 
         // GPU monitoring
         let gpuMonitoringData = [];
@@ -788,6 +798,35 @@ You follow the instructions of the intermediator, review the responses of your a
         }
 
         loadDarkModePreference();
+
+        // Audio generation toggle functionality
+        function toggleAudioGeneration() {
+            const audioEnabled = localStorage.getItem('audioGeneration') !== 'disabled';
+            const newState = !audioEnabled;
+            localStorage.setItem('audioGeneration', newState ? 'enabled' : 'disabled');
+            updateAudioToggleButton();
+        }
+
+        function updateAudioToggleButton() {
+            const audioEnabled = localStorage.getItem('audioGeneration') !== 'disabled';
+            const toggleBtn = document.getElementById('audioToggle');
+            if (toggleBtn) {
+                if (audioEnabled) {
+                    toggleBtn.textContent = '🔊 Audio: ON';
+                    toggleBtn.style.background = '#70ad47';
+                } else {
+                    toggleBtn.textContent = '🔇 Audio: OFF';
+                    toggleBtn.style.background = '#808080';
+                }
+            }
+        }
+
+        function isAudioGenerationEnabled() {
+            return localStorage.getItem('audioGeneration') !== 'disabled';
+        }
+
+        // Load audio preference on page load
+        updateAudioToggleButton();
 
         // Initialize shared model sync on page load
         updateSharedModel();
@@ -1160,6 +1199,34 @@ You follow the instructions of the intermediator, review the responses of your a
             handleDialogUpdate(data);
         });
 
+        socket.on('tts_progress', (data) => {
+            const indicator = document.getElementById('ttsIndicator');
+            const status = document.getElementById('ttsStatus');
+            const count = document.getElementById('ttsCount');
+
+            if (data.status === 'generating') {
+                ttsGenerating = true;
+                indicator.style.opacity = '1';
+                status.textContent = 'Generating...';
+            } else if (data.status === 'complete') {
+                ttsCount++;
+                count.textContent = ttsCount;
+                ttsGenerating = false;
+                status.textContent = 'Ready';
+                // Keep indicator visible for a moment
+                setTimeout(() => {
+                    if (!ttsGenerating) {
+                        indicator.style.opacity = '0.7';
+                    }
+                }, 500);
+            } else if (data.status === 'error') {
+                ttsGenerating = false;
+                status.textContent = 'Error';
+                indicator.style.opacity = '0.7';
+                console.error('TTS Error:', data.error);
+            }
+        });
+
         socket.on('error', (data) => {
             showStatus(`Error: ${data.error}`, 'error');
         });
@@ -1458,6 +1525,11 @@ You follow the instructions of the intermediator, review the responses of your a
                     return;
                 }
 
+                // Reset TTS counter for new dialog
+                ttsCount = 0;
+                document.getElementById('ttsCount').textContent = '0';
+                document.getElementById('ttsIndicator').style.opacity = '0';
+
                 const fileInput = document.getElementById('fileUpload');
                 let sessionId = null;
 
@@ -1536,6 +1608,7 @@ You follow the instructions of the intermediator, review the responses of your a
                     participant1_override_model: participant1Override ? participant1.model : null,
                     participant2_override_model: participant2Override ? participant2.model : null,
                     prompt_config: promptConfig,
+                    enable_tts: isAudioGenerationEnabled()
                 });
             } catch (error) {
                 console.error('Error in startDialog:', error);
