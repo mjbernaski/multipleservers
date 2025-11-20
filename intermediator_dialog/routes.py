@@ -23,7 +23,7 @@ import requests
 from clients.ollama_client import OllamaClient
 from models import IntermediatorDialog
 from pdf_generator import generate_pdf_from_dialog
-from utils import debug_log
+from utils import debug_log, generate_filename_from_topic
 
 
 def register_routes(app, socketio, state):
@@ -45,6 +45,11 @@ def register_routes(app, socketio, state):
     def index():
         """Serve the main page."""
         return render_template('intermediator_dialog.html')
+
+    @app.route('/live')
+    def live_viewer():
+        """Serve the live debate viewer page."""
+        return render_template('live_viewer.html')
 
     @app.route('/debate_library', methods=['GET'])
     def get_debate_library():
@@ -118,6 +123,29 @@ def register_routes(app, socketio, state):
         except Exception as e:
             return jsonify({'error': str(e)}), 500
 
+    @app.route('/download_pdf/<path:filename>', methods=['GET'])
+    def download_pdf(filename):
+        """Serve a PDF file from the output directory."""
+        try:
+            output_dir = Path(__file__).parent / 'output'
+            pdf_path = output_dir / filename
+
+            # Security check: ensure the file is within the output directory
+            if not pdf_path.is_relative_to(output_dir):
+                return jsonify({'error': 'Invalid file path'}), 403
+
+            if not pdf_path.exists():
+                return jsonify({'error': 'PDF file not found'}), 404
+
+            return send_file(
+                str(pdf_path),
+                mimetype='application/pdf',
+                as_attachment=True,
+                download_name=filename
+            )
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+
     @app.route('/generate_pdf/<dialog_id>', methods=['GET'])
     def generate_pdf(dialog_id):
         """Generate and serve PDF for a completed dialog."""
@@ -126,14 +154,24 @@ def register_routes(app, socketio, state):
 
         data = state['complete_dialog_data'][dialog_id]
 
+        # Build server_config dict for pdf_generator
+        server_config = {
+            'intermediator': data['intermediator_config'],
+            'participant1': data['participant1_config'],
+            'participant2': data['participant2_config']
+        }
+
+        # Generate filename from topic
+        topic = data['prompt_config'].get('intermediator_topic_prompt', 'Dialog')
+        base_filename = generate_filename_from_topic(topic)
+
         # Generate PDF
         pdf_path = generate_pdf_from_dialog(
             data['dialog_data'],
             data['prompt_config'],
-            data['intermediator_config'],
-            data['participant1_config'],
-            data['participant2_config'],
-            dialog_id
+            server_config,
+            base_filename,
+            data
         )
 
         if not pdf_path or not os.path.exists(pdf_path):

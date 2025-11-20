@@ -12,7 +12,7 @@
       "participant_post_prompt": "You bottom line your response in 1 sentence.",
       "max_turns": 4
     },
-{
+    {
       "id": "apple_gemini_integration",
       "name": "Apple Intelligence Strategy",
       "description": "Should Apple prioritize on-device privacy or cloud-based intelligence?",
@@ -311,6 +311,18 @@
       "participant2_mid_prompt": "You oppose reparations. You argue that present generations shouldn't pay for ancestors' actions, that determining who qualifies and how much is impossibly complex, that it's divisive rather than healing, and that investments in opportunity are more effective than cash payments.",
       "participant_post_prompt": "You bottom line your response in 1 sentence.",
       "max_turns": 4
+    },
+    {
+      "id": "canada_104228",
+      "name": "Canada",
+      "description": "Should Canada be a state?",
+      "intermediator_pre_prompt": "You are the intermediator for a dialog between two AI participants.\nYour role is to present the participants with the rules and the topic.\nYou review each response before passing\nit on to the other participant.\nIf you have to remind the participants of the rules you will.\nIf a participant misbehaves you will mention that in your final summary.\nencourage brevity and clarity.",
+      "intermediator_topic_prompt": "should Canada become the 51st state?",
+      "participant_pre_prompt": "You are the participant in a debate.\nYou follow the instructions of the intermediator, review the responses of your adversary, and develop thoughtful on-point responses.",
+      "participant1_mid_prompt": "No, it is a sovereign proud country.",
+      "participant2_mid_prompt": "Yes, it makes economic sense.",
+      "participant_post_prompt": "You bottom line your response in 1 sentence.",
+      "max_turns": 3
     }
   ]
 }

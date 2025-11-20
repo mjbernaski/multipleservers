@@ -588,6 +588,136 @@
             color: #c084fc !important;
         }
 
+        /* Additional dark mode overrides for common inline styles */
+        body.dark-mode [style*="background: #f9f9f9"],
+        body.dark-mode [style*="background:#f9f9f9"] {
+            background: #2a2a2a !important;
+        }
+
+        body.dark-mode [style*="background: #f2f2f2"],
+        body.dark-mode [style*="background:#f2f2f2"] {
+            background: #2a2a2a !important;
+        }
+
+        body.dark-mode [style*="background: #e7f3ff"],
+        body.dark-mode [style*="background:#e7f3ff"] {
+            background: #1a2a3a !important;
+        }
+
+        body.dark-mode [style*="color: #000000"],
+        body.dark-mode [style*="color:#000000"] {
+            color: #e0e0e0 !important;
+        }
+
+        body.dark-mode [style*="border: 1px solid #d0d0d0"],
+        body.dark-mode [style*="border:1px solid #d0d0d0"],
+        body.dark-mode [style*="border-top: 1px solid #d0d0d0"],
+        body.dark-mode [style*="border-top:1px solid #d0d0d0"],
+        body.dark-mode [style*="border-bottom: 1px solid #d0d0d0"],
+        body.dark-mode [style*="border-bottom:1px solid #d0d0d0"] {
+            border-color: #404040 !important;
+        }
+
+        /* Dark mode for buttons */
+        body.dark-mode button[style*="background: #70ad47"]:hover {
+            background: #548235 !important;
+        }
+
+        body.dark-mode button[style*="background: #4472c4"]:hover {
+            background: #365899 !important;
+        }
+
+        body.dark-mode button[style*="background: #808080"]:hover {
+            background: #666666 !important;
+        }
+
+        body.dark-mode button[style*="background: #c55a11"]:hover {
+            background: #833c0c !important;
+        }
+
+        /* Dark mode for form elements with inline styles */
+        body.dark-mode input[style*="background: #ffffff"],
+        body.dark-mode input[style*="background:#ffffff"],
+        body.dark-mode select[style*="background: #ffffff"],
+        body.dark-mode select[style*="background:#ffffff"],
+        body.dark-mode textarea[style*="background: #ffffff"],
+        body.dark-mode textarea[style*="background:#ffffff"] {
+            background: #1a1a1a !important;
+            color: #e0e0e0 !important;
+        }
+
+        /* Dark mode for debate queue section */
+        body.dark-mode #debateQueueProgress {
+            background: #1a2a3a !important;
+            border-color: #4472c4 !important;
+        }
+
+        body.dark-mode #debateQueueProgress [style*="background: #ffffff"],
+        body.dark-mode #debateQueueProgress [style*="background:#ffffff"] {
+            background: #2a2a2a !important;
+        }
+
+        body.dark-mode #debateQueueProgress [style*="color: #4472c4"],
+        body.dark-mode #debateQueueProgress [style*="color:#4472c4"] {
+            color: #7bb3ff !important;
+        }
+
+        body.dark-mode #debateQueueProgress [style*="color: #70ad47"],
+        body.dark-mode #debateQueueProgress [style*="color:#70ad47"] {
+            color: #8fcc66 !important;
+        }
+
+        /* Dark mode for PDF export section */
+        body.dark-mode #pdfExportSection {
+            background: #2a2a2a !important;
+            border-color: #404040 !important;
+        }
+
+        /* Dark mode for file info */
+        body.dark-mode .text-muted,
+        body.dark-mode #fileInfo {
+            color: #b0b0b0 !important;
+        }
+
+        /* Dark mode for shared spark model section */
+        body.dark-mode [style*="background: #f2f2f2"][style*="padding: 12px"] {
+            background: #2a2a2a !important;
+            border-color: #404040 !important;
+        }
+
+        /* Dark mode for debate library section */
+        body.dark-mode #debateLibrarySection [style*="background: #f9f9f9"] {
+            background: #2a2a2a !important;
+            border-color: #404040 !important;
+        }
+
+        /* Dark mode for checkbox container */
+        body.dark-mode .flex-center[style*="background: #f9f9f9"] {
+            background: #2a2a2a !important;
+            border-color: #404040 !important;
+        }
+
+        /* Dark mode for status messages */
+        body.dark-mode .status-message {
+            color: #e0e0e0 !important;
+        }
+
+        /* Dark mode for all divs with white backgrounds */
+        body.dark-mode div[style*="background: #ffffff"]:not(.dialog-turn):not(.status-bar),
+        body.dark-mode div[style*="background:#ffffff"]:not(.dialog-turn):not(.status-bar) {
+            background: #2a2a2a !important;
+        }
+
+        /* Dark mode for spans with specific colors */
+        body.dark-mode span[style*="color: #808080"] {
+            color: #b0b0b0 !important;
+        }
+
+        /* Dark mode for loading text */
+        body.dark-mode [style*="color: #808080"][style*="text-align: center"] {
+            color: #b0b0b0 !important;
+        }
+
         .status-bar-indicator {
             width: 12px;
             height: 12px;
@@ -861,6 +991,10 @@ You follow the instructions of the intermediator, review the responses of your a
                         <input type="number" id="maxTurns" value="3" min="1" max="50" autocomplete="off"
                             style="width: 60px; padding: 6px; font-size: 13px;">
                     </div>
+                    <div class="flex-center" style="gap: 4px; padding: 4px 8px; background: #f9f9f9; border-radius: 4px; border: 1px solid #d0d0d0;">
+                        <input type="checkbox" id="autoGeneratePdf" checked style="cursor: pointer;">
+                        <label for="autoGeneratePdf" style="margin: 0; font-size: 12px; cursor: pointer;" title="Automatically generate PDF when dialog completes">📄 Auto PDF</label>
+                    </div>
                     <button onclick="showSaveToLibraryDialog()" class="secondary"
                         title="Save current prompt configuration to debate library">💾 Save</button>
                 </div>
@@ -931,6 +1065,14 @@ You follow the instructions of the intermediator, review the responses of your a
         </div>
 
         <div id="pdfExportSection" style="display: none; margin-top: 20px; text-align: center;">
+            <div id="pdfDownloadLink" style="display: none; margin-bottom: 10px;">
+                <a id="pdfDownloadAnchor" href="#" download
+                    style="background: #70ad47; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 4px; font-size: 15px; font-weight: 500; box-shadow: 0 2px 4px rgba(112, 173, 71, 0.2); display: inline-block; transition: all 0.2s;"
+                    onmouseover="this.style.background='#548235'; this.style.boxShadow='0 3px 6px rgba(112, 173, 71, 0.3)'; this.style.transform='translateY(-1px)'"
+                    onmouseout="this.style.background='#70ad47'; this.style.boxShadow='0 2px 4px rgba(112, 173, 71, 0.2)'; this.style.transform='none'">
+                    📄 Download PDF
+                </a>
+            </div>
             <button id="pdfExportBtn" onclick="exportToPdf()"
                 style="background: #70ad47; color: #ffffff; border: none; padding: 12px 24px; border-radius: 4px; cursor: pointer; font-size: 15px; font-weight: 500; box-shadow: 0 2px 4px rgba(112, 173, 71, 0.2); transition: all 0.2s;"
                 onmouseover="this.style.background='#548235'; this.style.boxShadow='0 3px 6px rgba(112, 173, 71, 0.3)'; this.style.transform='translateY(-1px)'"
@@ -1492,12 +1634,39 @@ You follow the instructions of the intermediator, review the responses of your a
             if (data.dialog_id === currentDialogId) {
                 showPdfButton();
 
-                // Auto-generate PDF if queue is running
-                if (isQueueRunning && !queueCancelled) {
+                // Auto-generate PDF if toggle is enabled
+                const autoGenerateCheckbox = document.getElementById('autoGeneratePdf');
+                const shouldAutoGenerate = autoGenerateCheckbox && autoGenerateCheckbox.checked;
+                
+                if (shouldAutoGenerate) {
                     // Small delay to ensure UI updates, then auto-export
                     setTimeout(() => {
                         exportToPdf();
                     }, 500);
+                }
+            }
+        });
+
+        socket.on('pdf_generated', (data) => {
+            // PDF has been generated automatically
+            if (data.dialog_id === currentDialogId) {
+                showPdfButton();
+
+                // Show download link
+                const downloadLink = document.getElementById('pdfDownloadLink');
+                const downloadAnchor = document.getElementById('pdfDownloadAnchor');
+                if (downloadLink && downloadAnchor && data.filename) {
+                    downloadAnchor.href = `/download_pdf/${data.filename}`;
+                    downloadAnchor.download = data.filename;
+                    downloadLink.style.display = 'block';
+
+                    // Hide the export button since PDF is already generated
+                    const exportBtn = document.getElementById('pdfExportBtn');
+                    if (exportBtn) {
+                        exportBtn.style.display = 'none';
+                    }
+
+                    showStatus(`PDF generated: ${data.filename}`, 'success');
                 }
             }
         });
@@ -2237,6 +2406,16 @@ You follow the instructions of the intermediator, review the responses of your a
             if (pdfSection && currentDialogId) {
                 pdfSection.style.display = 'block';
             }
+            
+            // Show manual export button if auto-generate is disabled
+            const autoGenerateCheckbox = document.getElementById('autoGeneratePdf');
+            const pdfExportBtn = document.getElementById('pdfExportBtn');
+            if (pdfExportBtn && autoGenerateCheckbox && !autoGenerateCheckbox.checked) {
+                pdfExportBtn.style.display = 'inline-block';
+            } else if (pdfExportBtn && autoGenerateCheckbox && autoGenerateCheckbox.checked) {
+                // Hide manual button if auto-generate is enabled (it will auto-generate)
+                pdfExportBtn.style.display = 'none';
+            }
         }
 
         function hidePdfButton() {
@@ -2244,7 +2423,48 @@ You follow the instructions of the intermediator, review the responses of your a
             if (pdfSection) {
                 pdfSection.style.display = 'none';
             }
+
+            // Reset download link and export button visibility
+            const downloadLink = document.getElementById('pdfDownloadLink');
+            if (downloadLink) {
+                downloadLink.style.display = 'none';
+            }
+
+            const exportBtn = document.getElementById('pdfExportBtn');
+            if (exportBtn) {
+                // Only show export button if auto-generate is disabled
+                const autoGenerateCheckbox = document.getElementById('autoGeneratePdf');
+                if (autoGenerateCheckbox && !autoGenerateCheckbox.checked) {
+                    exportBtn.style.display = 'inline-block';
+                } else {
+                    exportBtn.style.display = 'none';
+                }
+            }
         }
+
+        // Handle PDF auto-generate toggle change
+        document.addEventListener('DOMContentLoaded', function() {
+            const autoGenerateCheckbox = document.getElementById('autoGeneratePdf');
+            if (autoGenerateCheckbox) {
+                autoGenerateCheckbox.addEventListener('change', function() {
+                    // Update PDF button visibility based on toggle state
+                    const pdfExportBtn = document.getElementById('pdfExportBtn');
+                    const pdfSection = document.getElementById('pdfExportSection');
+                    
+                    if (this.checked) {
+                        // Auto-generate enabled: hide manual button
+                        if (pdfExportBtn) {
+                            pdfExportBtn.style.display = 'none';
+                        }
+                    } else {
+                        // Auto-generate disabled: show manual button if PDF is ready
+                        if (pdfSection && pdfSection.style.display !== 'none' && pdfExportBtn) {
+                            pdfExportBtn.style.display = 'inline-block';
+                        }
+                    }
+                });
+            }
+        });
 
         // Debate Library Functions
         function updateDebateCount(count) {
@@ -2535,9 +2755,11 @@ You follow the instructions of the intermediator, review the responses of your a
             }
 
             const pdfBtn = document.getElementById('pdfExportBtn');
-            const originalText = pdfBtn.textContent;
-            pdfBtn.disabled = true;
-            pdfBtn.textContent = 'Generating PDF...';
+            const originalText = pdfBtn ? pdfBtn.textContent : '';
+            if (pdfBtn) {
+                pdfBtn.disabled = true;
+                pdfBtn.textContent = 'Generating PDF...';
+            }
 
             try {
                 const response = await fetch(`/generate_pdf/${currentDialogId}`);
@@ -2566,15 +2788,27 @@ You follow the instructions of the intermediator, review the responses of your a
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
-                window.URL.revokeObjectURL(url);
 
-                showStatus('PDF exported successfully', 'success');
+                // Open PDF in new tab
+                const pdfWindow = window.open(url, '_blank');
+                if (pdfWindow) {
+                    pdfWindow.focus();
+                }
+
+                // Revoke URL after a delay to allow download/opening
+                setTimeout(() => {
+                    window.URL.revokeObjectURL(url);
+                }, 1000);
+
+                showStatus('PDF generated and opened', 'success');
             } catch (error) {
                 console.error('Error exporting PDF:', error);
                 showStatus(`Error: ${error.message}`, 'error');
             } finally {
-                pdfBtn.disabled = false;
-                pdfBtn.textContent = originalText;
+                if (pdfBtn) {
+                    pdfBtn.disabled = false;
+                    pdfBtn.textContent = originalText;
+                }
             }
         }
 
@@ -2711,7 +2945,7 @@ You follow the instructions of the intermediator, review the responses of your a
             // Get debate details
             const name = document.getElementById('debateName').value.trim();
             const description = document.getElementById('debateDescription').value.trim();
-            const maxTurns = parseInt(document.getElementById('max-turns').value) || 4;
+            const maxTurns = parseInt(document.getElementById('maxTurns').value) || 4;
             const topicPrompt = document.getElementById('intermediator-topic-prompt').value.trim();
 
             if (!name || !description) {

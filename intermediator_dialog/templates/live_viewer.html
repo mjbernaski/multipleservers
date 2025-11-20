@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Debate Viewer</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f7fa;
+            color: #2c3e50;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .metadata {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .metadata-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        .metadata-item {
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            border-left: 4px solid #667eea;
+        }
+
+        .metadata-label {
+            font-weight: 600;
+            color: #667eea;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        .metadata-value {
+            color: #2c3e50;
+            font-size: 1em;
+        }
+
+        .status-bar {
+            background: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #95a5a6;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.active {
+            background: #2ecc71;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .transcript {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            min-height: 400px;
+        }
+
+        .message {
+            margin-bottom: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.intermediator {
+            background: #e8f4fd;
+            border-left: 4px solid #3498db;
+        }
+
+        .message.participant1 {
+            background: #e8f8f5;
+            border-left: 4px solid #1abc9c;
+        }
+
+        .message.participant2 {
+            background: #fef5e7;
+            border-left: 4px solid #f39c12;
+        }
+
+        .message-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .speaker-name {
+            font-weight: 700;
+            font-size: 1.1em;
+        }
+
+        .message.intermediator .speaker-name {
+            color: #2980b9;
+        }
+
+        .message.participant1 .speaker-name {
+            color: #16a085;
+        }
+
+        .message.participant2 .speaker-name {
+            color: #e67e22;
+        }
+
+        .turn-number {
+            background: rgba(0,0,0,0.1);
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+
+        .message-content {
+            color: #34495e;
+            line-height: 1.8;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .token-info {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(0,0,0,0.1);
+            font-size: 0.85em;
+            color: #7f8c8d;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .token-stat {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .streaming-indicator {
+            background: #fff3cd;
+            padding: 10px 15px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            border-left: 4px solid #ffc107;
+            display: none;
+        }
+
+        .streaming-indicator.active {
+            display: block;
+        }
+
+        .no-dialog {
+            text-align: center;
+            padding: 60px 20px;
+            color: #95a5a6;
+        }
+
+        .no-dialog-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+        }
+
+        .progress-info {
+            background: #f8f9fa;
+            padding: 10px 15px;
+            border-radius: 6px;
+            font-size: 0.9em;
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎭 Live Debate Viewer</h1>
+            <p>Watch intermediated debates in real-time</p>
+        </header>
+
+        <div id="metadataSection" class="metadata" style="display: none;">
+            <h2 style="margin-bottom: 15px; color: #2c3e50;">Debate Information</h2>
+            <div class="metadata-grid">
+                <div class="metadata-item">
+                    <div class="metadata-label">Dialog ID</div>
+                    <div class="metadata-value" id="metaDialogId">-</div>
+                </div>
+                <div class="metadata-item">
+                    <div class="metadata-label">Intermediator</div>
+                    <div class="metadata-value" id="metaIntermediator">-</div>
+                </div>
+                <div class="metadata-item">
+                    <div class="metadata-label">Participant 1</div>
+                    <div class="metadata-value" id="metaParticipant1">-</div>
+                </div>
+                <div class="metadata-item">
+                    <div class="metadata-label">Participant 2</div>
+                    <div class="metadata-value" id="metaParticipant2">-</div>
+                </div>
+                <div class="metadata-item" style="grid-column: 1 / -1;">
+                    <div class="metadata-label">Topic</div>
+                    <div class="metadata-value" id="metaTopic">-</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="status-bar">
+            <div class="status-indicator">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="statusText">Waiting for debate to start...</span>
+            </div>
+            <div class="progress-info" id="progressInfo" style="display: none;">
+                Turn <span id="currentTurn">0</span> of <span id="maxTurns">0</span>
+            </div>
+        </div>
+
+        <div class="streaming-indicator" id="streamingIndicator">
+            <strong>⏳ Streaming response...</strong>
+        </div>
+
+        <div class="transcript">
+            <div id="transcriptContent">
+                <div class="no-dialog">
+                    <div class="no-dialog-icon">💬</div>
+                    <h2>No Active Debate</h2>
+                    <p>Start a debate from the main page to see it here in real-time</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        let currentDialogId = null;
+        let messageCount = 0;
+
+        socket.on('connect', () => {
+            console.log('Connected to server');
+            updateStatus('Connected - Waiting for debate', false);
+        });
+
+        socket.on('disconnect', () => {
+            console.log('Disconnected from server');
+            updateStatus('Disconnected from server', false);
+        });
+
+        socket.on('dialog_started', (data) => {
+            console.log('Dialog started:', data);
+            currentDialogId = data.dialog_id;
+            messageCount = 0;
+
+            // Show metadata
+            document.getElementById('metadataSection').style.display = 'block';
+            document.getElementById('metaDialogId').textContent = data.dialog_id;
+            document.getElementById('metaIntermediator').textContent = data.intermediator || '-';
+            document.getElementById('metaParticipant1').textContent = data.participant1 || '-';
+            document.getElementById('metaParticipant2').textContent = data.participant2 || '-';
+
+            // Clear transcript
+            document.getElementById('transcriptContent').innerHTML = '';
+
+            updateStatus('Debate in progress', true);
+        });
+
+        socket.on('dialog_update', (data) => {
+            console.log('Dialog update:', data);
+
+            // Don't filter by dialog_id - show all updates
+            const transcriptContent = document.getElementById('transcriptContent');
+            const eventType = data.type || data.event;
+
+            // Handle different event types
+            if (eventType === 'intermediator_turn' || eventType === 'participant_turn') {
+                // Show streaming indicator when thinking
+                if (data.thinking) {
+                    document.getElementById('streamingIndicator').classList.add('active');
+                } else {
+                    document.getElementById('streamingIndicator').classList.remove('active');
+                }
+
+                // Find or create message element
+                const speaker = data.speaker || data.role;
+                const turn = data.turn !== undefined ? data.turn : messageCount;
+                let messageEl = document.getElementById(`message-${speaker}-${turn}`);
+                
+                if (!messageEl) {
+                    messageEl = createMessageElement(data);
+                    transcriptContent.appendChild(messageEl);
+                    messageCount++;
+
+                    // Scroll to bottom
+                    messageEl.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                }
+
+                // Update content
+                const contentEl = messageEl.querySelector('.message-content');
+                if (contentEl) {
+                    const messageText = data.message || data.content || data.answer || '';
+                    contentEl.textContent = messageText;
+                    
+                    // Update topic in metadata if it's the intro (turn 0)
+                    if (turn === 0 && speaker === 'intermediator' && messageText) {
+                        document.getElementById('metaTopic').textContent = messageText.substring(0, 200) + (messageText.length > 200 ? '...' : '');
+                    }
+                }
+
+                // Update tokens if available
+                if (data.tokens && !data.thinking) {
+                    updateTokenInfo(messageEl, data.tokens);
+                }
+
+                // Update progress
+                if (data.turn !== undefined) {
+                    document.getElementById('progressInfo').style.display = 'block';
+                    document.getElementById('currentTurn').textContent = turn;
+                    // Estimate max turns (we don't have this in the event, so use a reasonable default)
+                    const maxTurnsEl = document.getElementById('maxTurns');
+                    if (maxTurnsEl && !maxTurnsEl.textContent || maxTurnsEl.textContent === '0') {
+                        maxTurnsEl.textContent = (turn + 10).toString(); // Estimate
+                    }
+                }
+            } else if (eventType === 'content') {
+                // Streaming content update
+                const speaker = data.name || data.speaker || data.role;
+                const turn = data.turn !== undefined ? data.turn : messageCount - 1;
+                let messageEl = document.getElementById(`message-${speaker}-${turn}`);
+                
+                if (messageEl) {
+                    const contentEl = messageEl.querySelector('.message-content');
+                    if (contentEl) {
+                        contentEl.textContent += data.content || '';
+                        messageEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }
+                }
+            } else if (eventType === 'response_complete') {
+                // Response completed
+                document.getElementById('streamingIndicator').classList.remove('active');
+                
+                const speaker = data.name || data.speaker || data.role;
+                const turn = data.turn !== undefined ? data.turn : messageCount - 1;
+                let messageEl = document.getElementById(`message-${speaker}-${turn}`);
+                
+                if (messageEl && data.answer) {
+                    const contentEl = messageEl.querySelector('.message-content');
+                    if (contentEl) {
+                        contentEl.textContent = data.answer;
+                    }
+                }
+                
+                if (data.tokens) {
+                    updateTokenInfo(messageEl, data.tokens);
+                }
+            } else if (eventType === 'dialog_started') {
+                // Already handled above
+            } else if (eventType === 'dialog_complete') {
+                updateStatus('Debate completed', false);
+                document.getElementById('streamingIndicator').classList.remove('active');
+            }
+        });
+
+        socket.on('dialog_saved', (data) => {
+            updateStatus('Debate completed and saved', false);
+            document.getElementById('streamingIndicator').classList.remove('active');
+        });
+
+        socket.on('error', (data) => {
+            console.error('Error:', data);
+            updateStatus('Error: ' + (data.error || 'Unknown error'), false);
+            document.getElementById('streamingIndicator').classList.remove('active');
+        });
+
+        function createMessageElement(data) {
+            const speaker = data.speaker || data.role || data.name || 'unknown';
+            const turn = data.turn !== undefined ? data.turn : messageCount;
+            
+            const messageEl = document.createElement('div');
+            messageEl.className = `message ${speaker}`;
+            messageEl.id = `message-${speaker}-${turn}`;
+
+            const speakerNames = {
+                'intermediator': 'Moderator',
+                'participant1': 'Participant 1',
+                'participant2': 'Participant 2'
+            };
+
+            let turnLabel = '';
+            const isSummary = data.is_summary || false;
+            if (isSummary) {
+                turnLabel = `<span class="turn-number">Final Summary</span>`;
+            } else if (turn !== undefined && turn !== null) {
+                turnLabel = `<span class="turn-number">Turn ${turn}</span>`;
+            }
+
+            const speakerDisplayName = speakerNames[speaker] || speaker;
+            const messageText = data.message || data.content || data.answer || '';
+
+            messageEl.innerHTML = `
+                <div class="message-header">
+                    <span class="speaker-name">${speakerDisplayName}</span>
+                    ${turnLabel}
+                </div>
+                <div class="message-content">${messageText}</div>
+                <div class="token-info" id="tokens-${speaker}-${turn}"></div>
+            `;
+
+            return messageEl;
+        }
+
+        function updateTokenInfo(messageEl, tokens) {
+            const tokenInfoEl = messageEl.querySelector('.token-info');
+            if (!tokenInfoEl || !tokens) return;
+
+            const stats = [];
+            if (tokens.prompt_tokens) stats.push(`<span class="token-stat">📝 ${tokens.prompt_tokens} prompt</span>`);
+            if (tokens.completion_tokens) stats.push(`<span class="token-stat">💬 ${tokens.completion_tokens} completion</span>`);
+            if (tokens.total) stats.push(`<span class="token-stat">📊 ${tokens.total} total</span>`);
+            if (tokens.tokens_per_second) stats.push(`<span class="token-stat">⚡ ${tokens.tokens_per_second.toFixed(2)} tok/s</span>`);
+            if (tokens.time_to_first_token) stats.push(`<span class="token-stat">⏱️ ${tokens.time_to_first_token.toFixed(3)}s TTFT</span>`);
+
+            tokenInfoEl.innerHTML = stats.join('');
+        }
+
+        function updateStatus(text, active) {
+            document.getElementById('statusText').textContent = text;
+            const statusDot = document.getElementById('statusDot');
+            if (active) {
+                statusDot.classList.add('active');
+            } else {
+                statusDot.classList.remove('active');
+            }
+        }
+    </script>
+</body>
+</html>

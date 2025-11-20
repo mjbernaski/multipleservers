@@ -105,13 +105,37 @@ def register_socketio_handlers(socketio, state):
                     'intermediator_config': intermediator_config,
                     'participant1_config': participant1_config,
                     'participant2_config': participant2_config,
-                    'gpu_data': gpu_data
+                    'gpu_data': gpu_data,
+                    'dialog_id': dialog_id
                 }
 
-                socketio.emit('pdf_ready', {
-                    'dialog_id': dialog_id
-                })
-                debug_log('info', f"PDF data stored and ready for dialog {dialog_id}", socketio=socketio)
+                # Generate PDF automatically
+                server_config = {
+                    'intermediator': intermediator_config,
+                    'participant1': participant1_config,
+                    'participant2': participant2_config
+                }
+
+                topic = prompt_config.get('intermediator_topic_prompt', 'Dialog')
+                base_filename = generate_filename_from_topic(topic)
+
+                pdf_path = generate_pdf_from_dialog(
+                    dialog_result,
+                    prompt_config,
+                    server_config,
+                    base_filename,
+                    complete_dialog_data[dialog_id]
+                )
+
+                if pdf_path:
+                    socketio.emit('pdf_generated', {
+                        'dialog_id': dialog_id,
+                        'pdf_path': pdf_path,
+                        'filename': os.path.basename(pdf_path)
+                    })
+                    debug_log('info', f"PDF generated successfully: {pdf_path}", socketio=socketio)
+                else:
+                    debug_log('error', f"Failed to generate PDF for dialog {dialog_id}", socketio=socketio)
 
                 topic = prompt_config.get('intermediator_topic_prompt', 'Debate')
                 summary_thread = threading.Thread(

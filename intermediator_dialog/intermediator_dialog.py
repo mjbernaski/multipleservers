@@ -1120,8 +1120,30 @@ def generate_filename_from_topic(topic_prompt: str, max_length: int = 60) -> str
 def save_dialog_to_files(dialog_data: Dict, prompt_config: Dict, 
                          intermediator_config: Dict, participant1_config: Dict, 
                          participant2_config: Dict, dialog_id: str):
-    """Save dialog to JSON and TXT files."""
+    """Save dialog to JSON and TXT files.
+    
+    Returns:
+        Tuple of (json_path, txt_path) or (None, None) on error
+    """
     try:
+        # Validate required inputs
+        if not dialog_data:
+            raise ValueError("dialog_data is required but was None or empty")
+        if not prompt_config:
+            raise ValueError("prompt_config is required but was None or empty")
+        if not intermediator_config:
+            raise ValueError("intermediator_config is required but was None or empty")
+        if not participant1_config:
+            raise ValueError("participant1_config is required but was None or empty")
+        if not participant2_config:
+            raise ValueError("participant2_config is required but was None or empty")
+        if not dialog_id:
+            raise ValueError("dialog_id is required but was None or empty")
+        
+        # Validate dialog_data structure
+        if 'conversation_history' not in dialog_data:
+            raise ValueError("dialog_data must contain 'conversation_history'")
+        
         # Ensure output directory exists
         output_dir = Path(__file__).parent / 'output'
         output_dir.mkdir(exist_ok=True)
@@ -1234,7 +1256,12 @@ def save_dialog_to_files(dialog_data: Dict, prompt_config: Dict,
         return str(json_path), str(txt_path)
         
     except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
         debug_log('error', f"Failed to save dialog files: {str(e)}")
+        debug_log('error', f"Error details: {error_details}")
+        print(f"ERROR in save_dialog_to_files: {str(e)}", flush=True)
+        print(f"Traceback: {error_details}", flush=True)
         return None, None
 
 
@@ -1329,8 +1356,30 @@ def clean_text_for_pdf(text: str) -> str:
 def generate_pdf_from_dialog(dialog_data: Dict, prompt_config: Dict,
                              intermediator_config: Dict, participant1_config: Dict,
                              participant2_config: Dict, dialog_id: str) -> Optional[str]:
-    """Generate a PDF from dialog data with metadata, timing, and token counts."""
+    """Generate a PDF from dialog data with metadata, timing, and token counts.
+    
+    Returns:
+        Path to generated PDF file, or None on error
+    """
     try:
+        # Validate required inputs
+        if not dialog_data:
+            raise ValueError("dialog_data is required but was None or empty")
+        if not prompt_config:
+            raise ValueError("prompt_config is required but was None or empty")
+        if not intermediator_config:
+            raise ValueError("intermediator_config is required but was None or empty")
+        if not participant1_config:
+            raise ValueError("participant1_config is required but was None or empty")
+        if not participant2_config:
+            raise ValueError("participant2_config is required but was None or empty")
+        if not dialog_id:
+            raise ValueError("dialog_id is required but was None or empty")
+        
+        # Validate dialog_data structure
+        if 'conversation_history' not in dialog_data:
+            raise ValueError("dialog_data must contain 'conversation_history'")
+        
         # Ensure output directory exists
         output_dir = Path(__file__).parent / 'output'
         output_dir.mkdir(exist_ok=True)
@@ -1679,12 +1728,20 @@ def generate_pdf_from_dialog(dialog_data: Dict, prompt_config: Dict,
         # Build PDF
         doc.build(elements)
         
+        # Verify PDF was created
+        if not pdf_path.exists():
+            raise FileNotFoundError(f"PDF file was not created at {pdf_path}")
+        
         debug_log('info', f"PDF generated: {pdf_path}")
         return str(pdf_path)
         
     except Exception as e:
-        debug_log('error', f"Failed to generate PDF: {str(e)}")
         import traceback
+        error_details = traceback.format_exc()
+        debug_log('error', f"Failed to generate PDF: {str(e)}")
+        debug_log('error', f"Error details: {error_details}")
+        print(f"ERROR in generate_pdf_from_dialog: {str(e)}", flush=True)
+        print(f"Traceback: {error_details}", flush=True)
         traceback.print_exc()
         return None
 
@@ -1998,6 +2055,12 @@ def run_dialog_thread(intermediator_client, participant1_client, participant2_cl
         
         # Save dialog to files
         if dialog_result and intermediator_config and participant1_config and participant2_config:
+            # Validate dialog_result structure
+            if not isinstance(dialog_result, dict):
+                raise ValueError(f"dialog_result must be a dict, got {type(dialog_result)}")
+            if 'conversation_history' not in dialog_result:
+                raise ValueError("dialog_result must contain 'conversation_history'")
+            
             json_path, txt_path = save_dialog_to_files(
                 dialog_result, prompt_config, intermediator_config, 
                 participant1_config, participant2_config, dialog_id
@@ -2008,8 +2071,14 @@ def run_dialog_thread(intermediator_client, participant1_client, participant2_cl
                     'json_path': json_path,
                     'txt_path': txt_path
                 })
+                debug_log('info', f"Dialog files saved successfully for {dialog_id}")
+            else:
+                debug_log('warning', f"Dialog file saving returned None - files may not have been saved for {dialog_id}")
+                socketio.emit('error', {
+                    'error': f'Failed to save dialog files for dialog {dialog_id}'
+                })
             
-            # Store complete dialog data for PDF generation
+            # Store complete dialog data for PDF generation (even if file save failed)
             # Get GPU data for this dialog
             gpu_data = gpu_monitoring_data.get(dialog_id, {})
 

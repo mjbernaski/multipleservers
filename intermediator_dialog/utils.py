@@ -4,8 +4,10 @@ Utility functions for dialog management.
 import re
 import os
 import json
+import time
 import requests
 from datetime import datetime
+from pathlib import Path
 from typing import Dict, Optional
 
 
@@ -39,35 +41,149 @@ def generate_filename_from_topic(topic_prompt: str, max_length: int = 60) -> str
 
 
 def save_dialog_to_files(dialog_data: Dict, prompt_config: Dict,
-                         server_config: Dict, topic: str) -> tuple:
-    """Save dialog data to JSON and PDF files.
-
+                         intermediator_config: Dict, participant1_config: Dict,
+                         participant2_config: Dict, dialog_id: str):
+    """Save dialog to JSON and TXT files.
+    
     Returns:
-        Tuple of (json_path, pdf_path, base_filename)
+        Tuple of (json_path, txt_path) or (None, None) on error
     """
-    from pdf_generator import generate_pdf_from_dialog
-
-    # Generate filename
-    base_filename = generate_filename_from_topic(topic)
-
-    # Ensure output directory exists
-    os.makedirs('output', exist_ok=True)
-
-    # Save JSON
-    json_path = os.path.join('output', f'{base_filename}.json')
-    with open(json_path, 'w', encoding='utf-8') as f:
-        json.dump({
-            'dialog_data': dialog_data,
-            'prompt_config': prompt_config,
-            'server_config': server_config,
-            'topic': topic,
-            'timestamp': datetime.now().isoformat()
-        }, f, indent=2, ensure_ascii=False)
-
-    # Generate PDF
-    pdf_path = generate_pdf_from_dialog(dialog_data, prompt_config, server_config, base_filename)
-
-    return json_path, pdf_path, base_filename
+    try:
+        # Validate required inputs
+        if not dialog_data:
+            raise ValueError("dialog_data is required but was None or empty")
+        if not prompt_config:
+            raise ValueError("prompt_config is required but was None or empty")
+        if not intermediator_config:
+            raise ValueError("intermediator_config is required but was None or empty")
+        if not participant1_config:
+            raise ValueError("participant1_config is required but was None or empty")
+        if not participant2_config:
+            raise ValueError("participant2_config is required but was None or empty")
+        if not dialog_id:
+            raise ValueError("dialog_id is required but was None or empty")
+        
+        # Validate dialog_data structure
+        if 'conversation_history' not in dialog_data:
+            raise ValueError("dialog_data must contain 'conversation_history'")
+        
+        # Ensure output directory exists
+        output_dir = Path(__file__).parent / 'output'
+        output_dir.mkdir(exist_ok=True)
+        
+        # Generate filename from topic prompt
+        topic_prompt = prompt_config.get('intermediator_topic_prompt', '')
+        base_filename = generate_filename_from_topic(topic_prompt)
+        
+        # Prepare full dialog data for JSON
+        json_data = {
+            'dialog_id': dialog_id,
+            'timestamp': datetime.now().isoformat(),
+            'metadata': {
+                'intermediator': {
+                    'host': intermediator_config.get('host'),
+                    'model': intermediator_config.get('model'),
+                    'name': intermediator_config.get('name')
+                },
+                'participant1': {
+                    'host': participant1_config.get('host'),
+                    'model': participant1_config.get('model'),
+                    'name': participant1_config.get('name')
+                },
+                'participant2': {
+                    'host': participant2_config.get('host'),
+                    'model': participant2_config.get('model'),
+                    'name': participant2_config.get('name')
+                },
+                'prompt_config': prompt_config,
+                'runtime_seconds': dialog_data.get('runtime_seconds', 0),
+                'total_turns': dialog_data.get('total_turns', 0),
+                'start_time': datetime.fromtimestamp(dialog_data.get('start_time', time.time())).isoformat() if dialog_data.get('start_time') else None,
+                'end_time': datetime.fromtimestamp(dialog_data.get('end_time', time.time())).isoformat() if dialog_data.get('end_time') else None
+            },
+            'conversation_history': dialog_data.get('conversation_history', [])
+        }
+        
+        # Save JSON file
+        json_path = output_dir / f"{base_filename}.json"
+        with open(json_path, 'w', encoding='utf-8') as f:
+            json.dump(json_data, f, indent=2, ensure_ascii=False)
+        
+        # Generate readable TXT file
+        txt_path = output_dir / f"{base_filename}.txt"
+        with open(txt_path, 'w', encoding='utf-8') as f:
+            # Write header
+            f.write("=" * 80 + "\n")
+            f.write("INTERMEDIATED DIALOG\n")
+            f.write("=" * 80 + "\n\n")
+            
+            f.write(f"Dialog ID: {dialog_id}\n")
+            f.write(f"Timestamp: {json_data['timestamp']}\n")
+            if dialog_data.get('start_time') and dialog_data.get('end_time'):
+                f.write(f"Duration: {dialog_data.get('runtime_seconds', 0):.2f} seconds\n")
+            f.write(f"Total Turns: {dialog_data.get('total_turns', 0)}\n\n")
+            
+            f.write("-" * 80 + "\n")
+            f.write("PARTICIPANTS\n")
+            f.write("-" * 80 + "\n")
+            f.write(f"Intermediator: {intermediator_config.get('name')} ({intermediator_config.get('model')})\n")
+            f.write(f"Participant 1: {participant1_config.get('name')} ({participant1_config.get('model')})\n")
+            f.write(f"Participant 2: {participant2_config.get('name')} ({participant2_config.get('model')})\n\n")
+            
+            if topic_prompt:
+                f.write("-" * 80 + "\n")
+                f.write("TOPIC / INSTRUCTIONS\n")
+                f.write("-" * 80 + "\n")
+                f.write(f"{topic_prompt}\n\n")
+            
+            f.write("=" * 80 + "\n")
+            f.write("CONVERSATION\n")
+            f.write("=" * 80 + "\n\n")
+            
+            # Write conversation history
+            for entry in dialog_data.get('conversation_history', []):
+                turn = entry.get('turn', 0)
+                speaker = entry.get('speaker', 'unknown')
+                message = entry.get('message', '')
+                is_summary = entry.get('is_summary', False)
+                tokens = entry.get('tokens', {})
+                
+                # Format speaker name
+                if speaker == 'intermediator':
+                    speaker_display = f"Moderator ({intermediator_config.get('name', 'Intermediator')})"
+                elif speaker == 'participant1':
+                    speaker_display = f"Participant 1 ({participant1_config.get('name', 'Participant 1')})"
+                elif speaker == 'participant2':
+                    speaker_display = f"Participant 2 ({participant2_config.get('name', 'Participant 2')})"
+                else:
+                    speaker_display = speaker.title()
+                
+                if is_summary:
+                    f.write("\n" + "=" * 80 + "\n")
+                    f.write("FINAL SUMMARY\n")
+                    f.write("=" * 80 + "\n\n")
+                else:
+                    f.write(f"\n[Turn {turn}] {speaker_display}\n")
+                    f.write("-" * 80 + "\n")
+                
+                f.write(f"{message}\n")
+                
+                if tokens and not is_summary:
+                    total_tokens = tokens.get('total', 0)
+                    if total_tokens > 0:
+                        f.write(f"\n[Tokens: {total_tokens}]\n")
+                
+                f.write("\n")
+        
+        print(f"✓ Dialog saved to {json_path} and {txt_path}")
+        return str(json_path), str(txt_path)
+        
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"ERROR in save_dialog_to_files: {str(e)}", flush=True)
+        print(f"Traceback: {error_details}", flush=True)
+        return None, None
 
 
 def generate_argument_diagram(summary_text: str, participant_name: str, output_dir: str) -> Optional[str]:
