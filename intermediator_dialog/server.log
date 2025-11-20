@@ -1,0 +1,21 @@
+Checking for existing server instances...
+Starting Intermediated Dialog (IDi) server...
+URL: http://0.0.0.0:5006
+Werkzeug appears to be used in a production deployment. Consider switching to a production web server instead.
+Starting Intermediated Dialog (IDi) server on http://0.0.0.0:5006
+ * Serving Flask app 'intermediator_dialog'
+ * Debug mode: off
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5006
+ * Running on http://192.168.6.221:5006
+[33mPress CTRL+C to quit[0m
+Opening web page in browser...
+
+Server is running (PID: 2933)
+Press Ctrl+C to stop the server
+
+127.0.0.1 - - [19/Nov/2025 07:49:20] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [19/Nov/2025 07:50:04] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [19/Nov/2025 07:50:05] "GET / HTTP/1.1" 200 -
+./run_intermediator_dialog.sh: line 83:  2933 Terminated: 15          python3 intermediator_dialog.py --host "$HOST" --port "$PORT"
