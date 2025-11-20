@@ -270,6 +270,7 @@ class IntermediatorDialog:
         self.participant_post_prompt = participant_post_prompt
         self.conversation_history: List[Dict] = []
         self.current_turn = 0
+        self.turn_counter = 0  # Sequential counter for unique turn numbers
         self.stream_callback: Optional[Callable] = None
         self.start_time: Optional[float] = None
         self.end_time: Optional[float] = None
@@ -414,12 +415,15 @@ Please use this context to inform your responses."""
 
         intro_response, intro_tokens = self.intermediator.ask(intro_prompt, round_num=0)
 
+        self.turn_counter = 0
         self.conversation_history.append({
-            'turn': 0,
+            'turn': self.turn_counter,
             'speaker': 'intermediator',
             'message': intro_response,
-            'tokens': intro_tokens
+            'tokens': intro_tokens,
+            'thinking_enabled': self.intermediator.thinking
         })
+        self.turn_counter += 1
 
         # Generate TTS for intro (in background thread)
         if self.enable_tts:
@@ -475,11 +479,13 @@ Please respond thoughtfully. Engage with the points raised and contribute your p
                 p1_response, p1_tokens = self.participant1.ask(p1_prompt, round_num=turn)
 
                 self.conversation_history.append({
-                    'turn': turn,
+                    'turn': self.turn_counter,
                     'speaker': 'participant1',
                     'message': p1_response,
-                    'tokens': p1_tokens
+                    'tokens': p1_tokens,
+                    'thinking_enabled': self.participant1.thinking
                 })
+                self.turn_counter += 1
 
                 # Generate TTS for participant 1 (in background thread)
                 if self.enable_tts:
@@ -528,11 +534,13 @@ Provide a brief moderation comment (2-3 sentences) that keeps the dialog product
                     mod_response, mod_tokens = self.intermediator.ask(mod_prompt, round_num=turn)
 
                     self.conversation_history.append({
-                        'turn': turn,
+                        'turn': self.turn_counter,
                         'speaker': 'intermediator',
                         'message': mod_response,
-                        'tokens': mod_tokens
+                        'tokens': mod_tokens,
+                        'thinking_enabled': self.intermediator.thinking
                     })
+                    self.turn_counter += 1
 
                     # Generate TTS for intermediator moderation (in background thread)
                     if self.enable_tts:
@@ -586,11 +594,13 @@ Please respond thoughtfully. Engage with the points raised and contribute your p
                 p2_response, p2_tokens = self.participant2.ask(p2_prompt, round_num=turn)
 
                 self.conversation_history.append({
-                    'turn': turn,
+                    'turn': self.turn_counter,
                     'speaker': 'participant2',
                     'message': p2_response,
-                    'tokens': p2_tokens
+                    'tokens': p2_tokens,
+                    'thinking_enabled': self.participant2.thinking
                 })
+                self.turn_counter += 1
 
                 # Generate TTS for participant 2 (in background thread)
                 if self.enable_tts:
@@ -639,11 +649,13 @@ Provide a brief moderation comment (2-3 sentences) that keeps the dialog product
                     mod_response, mod_tokens = self.intermediator.ask(mod_prompt, round_num=turn)
 
                     self.conversation_history.append({
-                        'turn': turn,
+                        'turn': self.turn_counter,
                         'speaker': 'intermediator',
                         'message': mod_response,
-                        'tokens': mod_tokens
+                        'tokens': mod_tokens,
+                        'thinking_enabled': self.intermediator.thinking
                     })
+                    self.turn_counter += 1
 
                     # Generate TTS for intermediator moderation (in background thread)
                     if self.enable_tts:
@@ -668,7 +680,7 @@ Provide a brief moderation comment (2-3 sentences) that keeps the dialog product
                     })
 
         # Intermediator provides final summary
-        summary_turn = len(self.conversation_history)
+        summary_turn = self.turn_counter
         
         summary_prompt = """The dialog has now concluded. Please provide a comprehensive summary and wrap-up of the entire conversation. 
 
@@ -702,12 +714,14 @@ Be thorough but concise. This summary should help anyone understand the essence 
         summary_response, summary_tokens = self.intermediator.ask(summary_prompt, round_num=summary_turn)
 
         self.conversation_history.append({
-            'turn': summary_turn,
+            'turn': self.turn_counter,
             'speaker': 'intermediator',
             'message': summary_response,
             'tokens': summary_tokens,
-            'is_summary': True
+            'is_summary': True,
+            'thinking_enabled': self.intermediator.thinking
         })
+        self.turn_counter += 1
 
         # Generate TTS for final summary (in background thread)
         if self.enable_tts:
@@ -1584,17 +1598,21 @@ def generate_pdf_from_dialog(dialog_data: Dict, prompt_config: Dict,
         
         conversation_history = dialog_data.get('conversation_history', [])
         
-        # Calculate totals
+        # Calculate totals (exclude entries with thinking enabled)
         total_prompt_tokens = 0
         total_completion_tokens = 0
         total_tokens = 0
+        thinking_turns_count = 0
         
         for entry in conversation_history:
             tokens = entry.get('tokens', {})
-            if tokens:
+            thinking_enabled = entry.get('thinking_enabled', False)
+            if tokens and not thinking_enabled:
                 total_prompt_tokens += tokens.get('prompt_tokens', 0)
                 total_completion_tokens += tokens.get('completion_tokens', 0)
                 total_tokens += tokens.get('total', 0)
+            elif thinking_enabled:
+                thinking_turns_count += 1
         
         # Write each turn
         for idx, entry in enumerate(conversation_history):
@@ -1666,8 +1684,9 @@ def generate_pdf_from_dialog(dialog_data: Dict, prompt_config: Dict,
             # Add white space after colored box
             elements.append(Spacer(1, 0.12*inch))
 
-            # Token information
-            if tokens and not is_summary:
+            # Token information (exclude if thinking mode was enabled, as tokens include thinking)
+            thinking_enabled = entry.get('thinking_enabled', False)
+            if tokens and not is_summary and not thinking_enabled:
                 token_info_parts = []
                 if tokens.get('prompt_tokens', 0) > 0:
                     token_info_parts.append(f"Prompt: {tokens.get('prompt_tokens', 0)}")
@@ -1691,6 +1710,17 @@ def generate_pdf_from_dialog(dialog_data: Dict, prompt_config: Dict,
                         spaceBefore=4
                     )
                     elements.append(Paragraph(f"<i>Tokens: {token_text}</i>", token_style))
+            elif thinking_enabled and tokens:
+                # Show a note that tokens are not shown because thinking mode includes thinking tokens
+                token_style = ParagraphStyle(
+                    'TokenInfo',
+                    parent=normal_style,
+                    fontSize=9,
+                    textColor=colors.grey,
+                    fontStyle='italic',
+                    spaceBefore=4
+                )
+                elements.append(Paragraph("<i>Tokens: Not shown (thinking mode enabled - tokens include thinking process)</i>", token_style))
 
             # Always add spacing between turns
             elements.append(Spacer(1, 0.05*inch))
@@ -1706,6 +1736,9 @@ def generate_pdf_from_dialog(dialog_data: Dict, prompt_config: Dict,
             ['Total Completion Tokens', f"{total_completion_tokens:,}"],
             ['Total Tokens', f"{total_tokens:,}"],
         ]
+        
+        if thinking_turns_count > 0:
+            stats_data.append(['Turns with Thinking Mode', f"{thinking_turns_count} (tokens excluded from counts)"])
         
         if dialog_data.get('runtime_seconds', 0) > 0 and total_tokens > 0:
             avg_tokens_per_second = total_tokens / dialog_data.get('runtime_seconds', 1)
