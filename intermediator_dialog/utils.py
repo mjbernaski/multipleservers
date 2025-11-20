@@ -11,6 +11,42 @@ from pathlib import Path
 from typing import Dict, Optional
 
 
+def load_default_prompts() -> Dict[str, str]:
+    """
+    Load default prompts from external configuration file.
+
+    Returns:
+        Dictionary containing default prompts with keys:
+        - intermediator_pre_prompt
+        - participant_pre_prompt
+        - participant_post_prompt
+    """
+    default_fallbacks = {
+        'intermediator_pre_prompt': """You are the intermediator for a dialog between two AI participants.
+Your role is to present the participants with the rules and the topic.
+You review each response before passing
+it on to the other participant.
+If you have to remind the participants of the rules you will.
+If a participant misbehaves you will mention that in your final summary.
+encourage brevity and clarity.""",
+        'participant_pre_prompt': """You are the participant in a debate.
+You follow the instructions of the intermediator, review the responses of your adversary, and develop thoughtful on-point responses.""",
+        'participant_post_prompt': """You bottom line your response in 1 sentence."""
+    }
+
+    try:
+        prompts_path = Path(__file__).parent / 'default_prompts.json'
+        if prompts_path.exists():
+            with open(prompts_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                if 'prompts' in data:
+                    return data['prompts']
+    except Exception as e:
+        debug_log('warning', f'Failed to load default prompts from file: {e}, using fallback defaults')
+
+    return default_fallbacks
+
+
 def generate_filename_from_topic(topic_prompt: str, max_length: int = 60) -> str:
     """Generate a unique, readable filename from the topic prompt."""
     if not topic_prompt:

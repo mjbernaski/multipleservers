@@ -323,6 +323,18 @@
       "participant2_mid_prompt": "Yes, it makes economic sense.",
       "participant_post_prompt": "You bottom line your response in 1 sentence.",
       "max_turns": 3
+    },
+    {
+      "id": "apple_back_from_china_419045",
+      "name": "Apple Back from China",
+      "description": "Should Apple deglobalize?",
+      "intermediator_pre_prompt": "You are the intermediator for a dialog between two AI participants.\nYour role is to present the participants with the rules and the topic.\nYou review each response before passing\nit on to the other participant.\nIf you have to remind the participants of the rules you will.\nIf a participant misbehaves you will mention that in your final summary.\nencourage brevity and clarity.",
+      "intermediator_topic_prompt": "should companies like Apple deglobalize their product manufacturing to benefit the home country of the United States?",
+      "participant_pre_prompt": "You are the participant in a debate.\nYou follow the instructions of the intermediator, review the responses of your adversary, and develop thoughtful on-point responses.",
+      "participant1_mid_prompt": "no.  That would be inefficient and hurt consumers.",
+      "participant2_mid_prompt": "yes.    it is overly dependent on China and other overseas locations.",
+      "participant_post_prompt": "You bottom line your response in 1 sentence.",
+      "max_turns": 3
     }
   ]
 }

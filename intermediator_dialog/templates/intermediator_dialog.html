@@ -876,24 +876,23 @@
             </div>
 
             <div class="form-group" style="border-top: 1px solid #d0d0d0; padding-top: 12px; margin-top: 12px;">
-                <label
-                    style="display: flex; align-items: center; cursor: pointer; font-weight: 600; color: #1f4e78; margin-bottom: 8px; font-size: 13px;"
-                    onclick="togglePromptConfig()">
-                    <span id="promptConfigToggle" style="margin-right: 8px; font-size: 13px;">▼</span>
-                    <span>Prompt Configuration</span>
-                </label>
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                    <label
+                        style="display: flex; align-items: center; cursor: pointer; font-weight: 600; color: #1f4e78; font-size: 13px; margin: 0;"
+                        onclick="togglePromptConfig()">
+                        <span id="promptConfigToggle" style="margin-right: 8px; font-size: 13px;">▼</span>
+                        <span>Prompt Configuration</span>
+                    </label>
+                    <button onclick="resetPromptsToDefaults()" class="utility"
+                        style="background: #4472c4; padding: 4px 12px; font-size: 11px;"
+                        title="Reset pre/post prompts to current defaults">🔄 Reset Prompts</button>
+                </div>
 
                 <div id="promptConfigSection" style="display: block;">
                     <div class="form-group">
                         <label for="intermediator-pre-prompt">Intermediator Pre-Prompt (static):</label>
                         <textarea id="intermediator-pre-prompt"
-                            placeholder="Static pre-prompt for the intermediator that stays the same across dialogs...">You are the intermediator for a dialog between two AI participants.
-Your role is to present the participants with the rules and the topic.
-You review each response before passing
-it on to the other participant.
-If you have to remind the participants of the rules you will.
-If a participant misbehaves you will mention that in your final summary.
-encourage brevity and clarity.</textarea>
+                            placeholder="Static pre-prompt for the intermediator that stays the same across dialogs..."></textarea>
                     </div>
 
                     <div class="form-group">
@@ -910,8 +909,7 @@ encourage brevity and clarity.</textarea>
                     <div class="form-group">
                         <label for="participant-pre-prompt">Participant Pre-Prompt (shared):</label>
                         <textarea id="participant-pre-prompt"
-                            placeholder="Shared prompt that appears before the mid-prompt for both participants...">You are the participant in a debate.
-You follow the instructions of the intermediator, review the responses of your adversary, and develop thoughtful on-point responses.</textarea>
+                            placeholder="Shared prompt that appears before the mid-prompt for both participants..."></textarea>
                     </div>
 
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
@@ -930,7 +928,7 @@ You follow the instructions of the intermediator, review the responses of your a
                     <div class="form-group">
                         <label for="participant-post-prompt">Participant Post-Prompt (shared):</label>
                         <textarea id="participant-post-prompt"
-                            placeholder="Shared prompt that appears after the mid-prompt for both participants...">You bottom line your response in 1 sentence.</textarea>
+                            placeholder="Shared prompt that appears after the mid-prompt for both participants..."></textarea>
                     </div>
 
                     <div style="font-size: 11px; color: #808080; margin-top: 8px;">
@@ -997,6 +995,8 @@ You follow the instructions of the intermediator, review the responses of your a
                     </div>
                     <button onclick="showSaveToLibraryDialog()" class="secondary"
                         title="Save current prompt configuration to debate library">💾 Save</button>
+                    <button onclick="showDefaultPromptsEditor()" class="secondary"
+                        title="Edit default prompt templates">📝 Defaults</button>
                 </div>
                 <div class="flex-center" style="gap: 8px;">
                     <button onclick="resetCache()" class="utility"
@@ -1217,24 +1217,41 @@ You follow the instructions of the intermediator, review the responses of your a
         // Initialize shared model sync on page load
         updateSharedModel();
 
-        // Default intermediator pre-prompt
-        const DEFAULT_INTERMEDIATOR_PRE_PROMPT = `You are the intermediator for a dialog between two AI participants.
+        // Global variable to store default prompts loaded from server
+        let DEFAULT_PROMPTS = {
+            intermediator_pre_prompt: `You are the intermediator for a dialog between two AI participants.
 Your role is to present the participants with the rules and the topic.
 You review each response before passing
 it on to the other participant.
 If you have to remind the participants of the rules you will.
 If a participant misbehaves you will mention that in your final summary.
-encourage brevity and clarity.`;
+encourage brevity and clarity.`,
+            participant_pre_prompt: `You are the participant in a debate.
+You follow the instructions of the intermediator, review the responses of your adversary, and develop thoughtful on-point responses.`,
+            participant_post_prompt: `You bottom line your response in 1 sentence.`
+        };
 
-        // Default participant pre-prompt
-        const DEFAULT_PARTICIPANT_PRE_PROMPT = `You are the participant in a debate.
-You follow the instructions of the intermediator, review the responses of your adversary, and develop thoughtful on-point responses.`;
+        // Load default prompts from server
+        async function loadDefaultPromptsFromServer() {
+            try {
+                const response = await fetch('/default_prompts');
+                const data = await response.json();
 
-        // Default participant post-prompt
-        const DEFAULT_PARTICIPANT_POST_PROMPT = `You bottom line your response in 1 sentence.`;
+                if (response.ok && data.prompts) {
+                    DEFAULT_PROMPTS = data.prompts;
+                    console.log('Default prompts loaded from server');
+                } else {
+                    console.warn('Failed to load default prompts from server, using fallback defaults');
+                }
+            } catch (error) {
+                console.warn('Error loading default prompts from server:', error, '- using fallback defaults');
+            }
+        }
 
         // Load persisted prompt fields
-        function loadPersistedFields() {
+        async function loadPersistedFields() {
+            // First, load default prompts from server
+            await loadDefaultPromptsFromServer();
             // Load prompt configuration (excluding pre/post prompts which always revert to defaults)
             const intermediatorPrePrompt = localStorage.getItem('idi_intermediator_pre_prompt');
             const intermediatorTopicPrompt = localStorage.getItem('idi_intermediator_topic_prompt');
@@ -1246,7 +1263,7 @@ You follow the instructions of the intermediator, review the responses of your a
             if (intermediatorPrePrompt) {
                 intermediatorPrePromptEl.value = intermediatorPrePrompt;
             } else {
-                intermediatorPrePromptEl.value = DEFAULT_INTERMEDIATOR_PRE_PROMPT;
+                intermediatorPrePromptEl.value = DEFAULT_PROMPTS.intermediator_pre_prompt;
             }
 
             if (intermediatorTopicPrompt) document.getElementById('intermediator-topic-prompt').value = intermediatorTopicPrompt;
@@ -1257,7 +1274,7 @@ You follow the instructions of the intermediator, review the responses of your a
             if (participantPrePrompt) {
                 participantPrePromptEl.value = participantPrePrompt;
             } else {
-                participantPrePromptEl.value = DEFAULT_PARTICIPANT_PRE_PROMPT;
+                participantPrePromptEl.value = DEFAULT_PROMPTS.participant_pre_prompt;
             }
 
             // Participant post-prompt: use localStorage if exists, otherwise use default
@@ -1266,7 +1283,7 @@ You follow the instructions of the intermediator, review the responses of your a
             if (participantPostPrompt) {
                 participantPostPromptEl.value = participantPostPrompt;
             } else {
-                participantPostPromptEl.value = DEFAULT_PARTICIPANT_POST_PROMPT;
+                participantPostPromptEl.value = DEFAULT_PROMPTS.participant_post_prompt;
             }
             if (participant1MidPrompt) document.getElementById('participant1-mid-prompt').value = participant1MidPrompt;
             if (participant2MidPrompt) document.getElementById('participant2-mid-prompt').value = participant2MidPrompt;
@@ -1322,9 +1339,6 @@ You follow the instructions of the intermediator, review the responses of your a
             }
         }
 
-        // Load persisted fields on page load
-        loadPersistedFields();
-
         // Ensure maxTurns is always set to 3 on page load (override any cached values)
         function ensureMaxTurnsDefault() {
             const maxTurnsInput = document.getElementById('maxTurns');
@@ -1333,15 +1347,22 @@ You follow the instructions of the intermediator, review the responses of your a
             }
         }
 
+        // Initialize on page load - properly await async loading
+        async function initializePage() {
+            await loadPersistedFields();  // Wait for defaults to load from server
+            ensureMaxTurnsDefault();
+            loadDebateCount();
+            loadDebateLibrary();
+            checkAllServers();
+        }
+
         // Set it immediately if DOM is already loaded, otherwise wait for DOMContentLoaded
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', () => {
-                ensureMaxTurnsDefault();
-                loadDebateCount();
+                initializePage();
             });
         } else {
-            ensureMaxTurnsDefault();
-            loadDebateCount();
+            initializePage();
         }
 
         // Auto-save prompt fields when they change
@@ -2343,12 +2364,12 @@ You follow the instructions of the intermediator, review the responses of your a
 
         function clearAll() {
             // Clear prompt fields (pre/post prompts always revert to defaults)
-            document.getElementById('intermediator-pre-prompt').value = DEFAULT_INTERMEDIATOR_PRE_PROMPT;
+            document.getElementById('intermediator-pre-prompt').value = DEFAULT_PROMPTS.intermediator_pre_prompt;
             document.getElementById('intermediator-topic-prompt').value = '';
-            document.getElementById('participant-pre-prompt').value = '';
+            document.getElementById('participant-pre-prompt').value = DEFAULT_PROMPTS.participant_pre_prompt;
             document.getElementById('participant1-mid-prompt').value = '';
             document.getElementById('participant2-mid-prompt').value = '';
-            document.getElementById('participant-post-prompt').value = '';
+            document.getElementById('participant-post-prompt').value = DEFAULT_PROMPTS.participant_post_prompt;
 
             // Clear other fields (maxTurns always defaults to 3)
             document.getElementById('fileUpload').value = '';
@@ -3006,6 +3027,107 @@ You follow the instructions of the intermediator, review the responses of your a
             }
         }
 
+        // Reset prompt fields to current defaults
+        function resetPromptsToDefaults() {
+            if (!confirm('Reset pre/post prompts to current defaults? This will clear any customizations.')) {
+                return;
+            }
+
+            // Clear localStorage for these fields
+            localStorage.removeItem('idi_intermediator_pre_prompt');
+            localStorage.removeItem('idi_participant_pre_prompt');
+            localStorage.removeItem('idi_participant_post_prompt');
+
+            // Update form fields with current defaults
+            document.getElementById('intermediator-pre-prompt').value = DEFAULT_PROMPTS.intermediator_pre_prompt;
+            document.getElementById('participant-pre-prompt').value = DEFAULT_PROMPTS.participant_pre_prompt;
+            document.getElementById('participant-post-prompt').value = DEFAULT_PROMPTS.participant_post_prompt;
+
+            alert('Prompts reset to defaults!');
+        }
+
+        // Default Prompts Editor functionality
+        async function showDefaultPromptsEditor() {
+            try {
+                const response = await fetch('/default_prompts');
+                const data = await response.json();
+
+                if (response.ok && data.prompts) {
+                    // Populate the editor with current default prompts
+                    document.getElementById('editIntermediatorPrePrompt').value = data.prompts.intermediator_pre_prompt || '';
+                    document.getElementById('editParticipantPrePrompt').value = data.prompts.participant_pre_prompt || '';
+                    document.getElementById('editParticipantPostPrompt').value = data.prompts.participant_post_prompt || '';
+
+                    // Display last updated timestamp
+                    const timestamp = data.last_updated ? new Date(data.last_updated).toLocaleString() : 'Unknown';
+                    document.getElementById('lastUpdatedTimestamp').textContent = `Last updated: ${timestamp}`;
+
+                    // Show the modal
+                    const modal = document.getElementById('defaultPromptsModal');
+                    modal.style.display = 'flex';
+                } else {
+                    alert('Failed to load default prompts: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error loading default prompts:', error);
+                alert('Failed to load default prompts: ' + error.message);
+            }
+        }
+
+        function closeDefaultPromptsEditor() {
+            const modal = document.getElementById('defaultPromptsModal');
+            modal.style.display = 'none';
+        }
+
+        async function saveDefaultPrompts() {
+            const prompts = {
+                intermediator_pre_prompt: document.getElementById('editIntermediatorPrePrompt').value.trim(),
+                participant_pre_prompt: document.getElementById('editParticipantPrePrompt').value.trim(),
+                participant_post_prompt: document.getElementById('editParticipantPostPrompt').value.trim()
+            };
+
+            // Validate that all fields are filled
+            if (!prompts.intermediator_pre_prompt || !prompts.participant_pre_prompt || !prompts.participant_post_prompt) {
+                alert('All prompt fields are required. Please fill in all prompts.');
+                return;
+            }
+
+            try {
+                const response = await fetch('/update_default_prompts', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ prompts })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    // Update the in-memory defaults
+                    DEFAULT_PROMPTS = prompts;
+
+                    // Clear localStorage for default prompt fields so new defaults take effect
+                    localStorage.removeItem('idi_intermediator_pre_prompt');
+                    localStorage.removeItem('idi_participant_pre_prompt');
+                    localStorage.removeItem('idi_participant_post_prompt');
+
+                    // Update the form fields with the new defaults
+                    document.getElementById('intermediator-pre-prompt').value = prompts.intermediator_pre_prompt;
+                    document.getElementById('participant-pre-prompt').value = prompts.participant_pre_prompt;
+                    document.getElementById('participant-post-prompt').value = prompts.participant_post_prompt;
+
+                    closeDefaultPromptsEditor();
+                    alert('Default prompts updated successfully!\n\nPrevious version has been archived.\nThe new defaults are now active in the form.');
+                } else {
+                    alert('Failed to update default prompts: ' + (result.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error saving default prompts:', error);
+                alert('Failed to save default prompts: ' + error.message);
+            }
+        }
+
     </script>
 
     <!-- Save to Library Modal -->
@@ -3038,6 +3160,51 @@ You follow the instructions of the intermediator, review the responses of your a
                 <button onclick="saveToLibrary()"
                     style="padding: 8px 16px; background: #9d60d6; color: #ffffff; border: none; border-radius: 4px; cursor: pointer;">💾
                     Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Default Prompts Editor Modal -->
+    <div id="defaultPromptsModal"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center; overflow-y: auto;">
+        <div
+            style="background: #ffffff; padding: 24px; border-radius: 8px; max-width: 700px; width: 90%; box-shadow: 0 4px 12px rgba(0,0,0,0.3); margin: 20px auto; max-height: 90vh; overflow-y: auto;">
+            <h3 style="margin-top: 0; color: #1f4e78;">Edit Default Prompts</h3>
+            <div style="font-size: 12px; color: #666; margin-bottom: 20px;">
+                These default prompts are used when creating new custom dialogs. Changes will be saved and archived.
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #1f4e78;">Intermediator Pre-Prompt</label>
+                <textarea id="editIntermediatorPrePrompt"
+                    style="width: 100%; padding: 8px; border: 1px solid #d0d0d0; border-radius: 4px; box-sizing: border-box; min-height: 120px; resize: vertical; font-family: monospace; font-size: 12px;"></textarea>
+                <div style="font-size: 11px; color: #808080; margin-top: 4px;">Default instructions for the intermediator role</div>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #1f4e78;">Participant Pre-Prompt</label>
+                <textarea id="editParticipantPrePrompt"
+                    style="width: 100%; padding: 8px; border: 1px solid #d0d0d0; border-radius: 4px; box-sizing: border-box; min-height: 80px; resize: vertical; font-family: monospace; font-size: 12px;"></textarea>
+                <div style="font-size: 11px; color: #808080; margin-top: 4px;">Default instructions for participant role</div>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #1f4e78;">Participant Post-Prompt</label>
+                <textarea id="editParticipantPostPrompt"
+                    style="width: 100%; padding: 8px; border: 1px solid #d0d0d0; border-radius: 4px; box-sizing: border-box; min-height: 60px; resize: vertical; font-family: monospace; font-size: 12px;"></textarea>
+                <div style="font-size: 11px; color: #808080; margin-top: 4px;">Default instructions for response formatting</div>
+            </div>
+
+            <div style="display: flex; gap: 10px; justify-content: space-between; align-items: center;">
+                <div style="font-size: 11px; color: #666;">
+                    <span id="lastUpdatedTimestamp"></span>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button onclick="closeDefaultPromptsEditor()"
+                        style="padding: 8px 16px; background: #808080; color: #ffffff; border: none; border-radius: 4px; cursor: pointer;">Cancel</button>
+                    <button onclick="saveDefaultPrompts()"
+                        style="padding: 8px 16px; background: #4472c4; color: #ffffff; border: none; border-radius: 4px; cursor: pointer;">💾 Save</button>
+                </div>
             </div>
         </div>
     </div>

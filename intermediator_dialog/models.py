@@ -7,6 +7,7 @@ import threading
 import uuid
 from typing import Dict, List, Callable, Optional
 from clients.base_client import BaseClient
+from utils import load_default_prompts
 
 
 class IntermediatorDialog:
@@ -69,6 +70,9 @@ class IntermediatorDialog:
                 context_content = f.read()
 
         # Initialize system prompts
+        # Load default prompts from external configuration
+        default_prompts = load_default_prompts()
+
         # Build intermediator prompt from pre-prompt + topic prompt
         no_markdown_instruction = "\n\nIMPORTANT: Use plain text only. Do NOT use markdown formatting (no **bold**, no *italic*, no # headers, no lists with markdown syntax, etc.). Write in natural, plain text."
 
@@ -76,28 +80,14 @@ class IntermediatorDialog:
             intermediator_system_prompt = f"{self.intermediator_pre_prompt}\n\n{self.intermediator_topic_prompt}{no_markdown_instruction}"
         elif self.intermediator_topic_prompt:
             # If only topic prompt provided, use default pre-prompt
-            default_pre = """You are a thoughtful moderator facilitating a dialog between two AI participants. Your role is to:
-1. Guide the conversation to explore the topic deeply
-2. Ask clarifying questions when needed
-3. Summarize key points when appropriate
-4. Ensure both participants have opportunities to contribute
-5. Keep the conversation focused and productive
-
-Be concise but insightful in your moderation."""
+            default_pre = default_prompts.get('intermediator_pre_prompt', '')
             intermediator_system_prompt = f"{default_pre}\n\n{self.intermediator_topic_prompt}{no_markdown_instruction}"
         elif self.intermediator_pre_prompt:
             # If only pre-prompt provided, use it alone
             intermediator_system_prompt = f"{self.intermediator_pre_prompt}{no_markdown_instruction}"
         else:
             # Default prompt if nothing provided
-            intermediator_system_prompt = """You are a thoughtful moderator facilitating a dialog between two AI participants. Your role is to:
-1. Guide the conversation to explore the topic deeply
-2. Ask clarifying questions when needed
-3. Summarize key points when appropriate
-4. Ensure both participants have opportunities to contribute
-5. Keep the conversation focused and productive
-
-Be concise but insightful in your moderation.""" + no_markdown_instruction
+            intermediator_system_prompt = default_prompts.get('intermediator_pre_prompt', '') + no_markdown_instruction
 
         # Build participant prompts from pre-prompt + mid-prompt + post-prompt
         def build_participant_prompt(mid_prompt: str = None) -> str:
@@ -112,13 +102,18 @@ Be concise but insightful in your moderation.""" + no_markdown_instruction
             no_markdown_instruction = "\n\nIMPORTANT: Use plain text only. Do NOT use markdown formatting (no **bold**, no *italic*, no # headers, no lists with markdown syntax, etc.). Write in natural, plain text."
 
             if not parts:
-                # Default prompt if none provided
-                default_prompt = """You are participating in a moderated dialog. Another AI will moderate the conversation, and you will be in dialog with another participant.
-- Respond thoughtfully to questions and statements
-- Build on previous points in the conversation
-- Be clear and concise
-- Engage constructively with the other participant's ideas"""
-                return default_prompt + no_markdown_instruction
+                # Default prompt if none provided - use pre and post defaults
+                default_parts = []
+                if default_prompts.get('participant_pre_prompt'):
+                    default_parts.append(default_prompts['participant_pre_prompt'])
+                if default_prompts.get('participant_post_prompt'):
+                    default_parts.append(default_prompts['participant_post_prompt'])
+
+                if default_parts:
+                    return "\n\n".join(default_parts) + no_markdown_instruction
+                else:
+                    # Ultimate fallback if default_prompts.json can't be loaded
+                    return "You are participating in a moderated dialog." + no_markdown_instruction
 
             return "\n\n".join(parts) + no_markdown_instruction
 

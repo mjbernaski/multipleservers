@@ -16,9 +16,11 @@ import re
 import tempfile
 import uuid
 from pathlib import Path
+from datetime import datetime
 from flask import render_template, request, jsonify, send_file
 from werkzeug.utils import secure_filename
 import requests
+import shutil
 
 from clients.ollama_client import OllamaClient
 from models import IntermediatorDialog
@@ -120,6 +122,88 @@ def register_routes(app, socketio, state):
 
             return jsonify({'success': True, 'message': f'Debate "{new_debate["name"]}" saved successfully', 'debate_count': len(library['debates'])})
 
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+
+    @app.route('/default_prompts', methods=['GET'])
+    def get_default_prompts():
+        """Retrieve the current default prompts."""
+        try:
+            prompts_path = Path(__file__).parent / 'default_prompts.json'
+            if not prompts_path.exists():
+                return jsonify({'error': 'Default prompts file not found'}), 404
+
+            with open(prompts_path, 'r', encoding='utf-8') as f:
+                prompts_data = json.load(f)
+
+            return jsonify(prompts_data)
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+
+    @app.route('/update_default_prompts', methods=['POST'])
+    def update_default_prompts():
+        """Update default prompts and archive the previous version."""
+        try:
+            new_prompts = request.json.get('prompts')
+            if not new_prompts:
+                return jsonify({'error': 'No prompts provided'}), 400
+
+            # Validate required fields
+            required_fields = ['intermediator_pre_prompt', 'participant_pre_prompt', 'participant_post_prompt']
+            for field in required_fields:
+                if field not in new_prompts:
+                    return jsonify({'error': f'Missing required field: {field}'}), 400
+
+            prompts_path = Path(__file__).parent / 'default_prompts.json'
+            archive_dir = Path(__file__).parent / 'archive' / 'default_prompts'
+            archive_dir.mkdir(parents=True, exist_ok=True)
+
+            # Archive current version if it exists
+            if prompts_path.exists():
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                archive_path = archive_dir / f'default_prompts_{timestamp}.json'
+                shutil.copy2(prompts_path, archive_path)
+                debug_log('info', f"Archived default prompts to {archive_path}")
+
+            # Update the prompts file
+            updated_data = {
+                'version': '1.0',
+                'last_updated': datetime.now().isoformat(),
+                'prompts': new_prompts
+            }
+
+            with open(prompts_path, 'w', encoding='utf-8') as f:
+                json.dump(updated_data, f, indent=2, ensure_ascii=False)
+
+            debug_log('info', 'Default prompts updated successfully')
+            return jsonify({
+                'success': True,
+                'message': 'Default prompts updated successfully',
+                'last_updated': updated_data['last_updated']
+            })
+
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+
+    @app.route('/default_prompts_archive', methods=['GET'])
+    def get_default_prompts_archive():
+        """List all archived versions of default prompts."""
+        try:
+            archive_dir = Path(__file__).parent / 'archive' / 'default_prompts'
+            if not archive_dir.exists():
+                return jsonify({'archives': []})
+
+            archives = []
+            for archive_file in sorted(archive_dir.glob('default_prompts_*.json'), reverse=True):
+                with open(archive_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                archives.append({
+                    'filename': archive_file.name,
+                    'timestamp': data.get('last_updated', ''),
+                    'version': data.get('version', ''),
+                })
+
+            return jsonify({'archives': archives})
         except Exception as e:
             return jsonify({'error': str(e)}), 500
 
