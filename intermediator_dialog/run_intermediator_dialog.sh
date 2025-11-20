@@ -23,8 +23,8 @@ URL="http://${HOST}:${PORT}"
 # Check for and kill any existing instance
 echo "Checking for existing server instances..."
 
-# Find processes running intermediator_dialog.py
-EXISTING_PIDS=$(pgrep -f "intermediator_dialog.py" 2>/dev/null)
+# Find processes running app.py
+EXISTING_PIDS=$(pgrep -f "app.py" 2>/dev/null)
 
 if [ ! -z "$EXISTING_PIDS" ]; then
     echo "Found existing server process(es): $EXISTING_PIDS"
@@ -63,7 +63,7 @@ else
 fi
 
 # Run the Python script in the background
-$PYTHON_CMD intermediator_dialog.py --host "$HOST" --port "$PORT" &
+$PYTHON_CMD app.py --host "$HOST" --port "$PORT" &
 SERVER_PID=$!
 
 # Wait a moment for the server to start
