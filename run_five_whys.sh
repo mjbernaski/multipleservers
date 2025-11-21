@@ -11,7 +11,7 @@ source venv/bin/activate
 
 # Default host and port (can be overridden with command line args)
 HOST="${1:-0.0.0.0}"
-PORT="${2:-5005}"
+PORT="${2:-5555}"
 
 # URL for the web interface
 URL="http://${HOST}:${PORT}"

@@ -874,6 +874,9 @@
 
         async function startAnalysis() {
             try {
+                // Initialize AudioContext on user interaction (satisfies browser autoplay policy)
+                initAudioContext();
+
                 const question = document.getElementById('question').value.trim();
                 const fileInput = document.getElementById('fileUpload');
                 const restartDialog = document.getElementById('restartDialog').checked;
@@ -1317,11 +1320,43 @@
             }
         }
 
+        // Global AudioContext for playing sounds
+        let globalAudioContext = null;
+        let soundsEnabled = true;
+
+        // Initialize AudioContext on first user interaction
+        function initAudioContext() {
+            if (!globalAudioContext) {
+                try {
+                    globalAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    console.log('AudioContext initialized successfully');
+                } catch (error) {
+                    console.error('Failed to initialize AudioContext:', error);
+                }
+            }
+            // Resume if suspended (browser autoplay policy)
+            if (globalAudioContext && globalAudioContext.state === 'suspended') {
+                globalAudioContext.resume().then(() => {
+                    console.log('AudioContext resumed');
+                });
+            }
+        }
+
         // Function to play mellow sound for server completion
         function playMellowSound(server) {
+            if (!soundsEnabled) return;
+
             try {
-                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                
+                // Initialize AudioContext if needed
+                if (!globalAudioContext) {
+                    initAudioContext();
+                }
+
+                if (!globalAudioContext || globalAudioContext.state === 'suspended') {
+                    console.warn('AudioContext not available or suspended - sound will not play');
+                    return;
+                }
+
                 // Map each server to a different mellow frequency (musical notes)
                 // Using pleasant frequencies in a minor pentatonic scale
                 const serverFrequencies = {
@@ -1331,33 +1366,34 @@
                     'Server 4': 329.63,  // E4
                     'Server 5': 392.00,  // G4
                 };
-                
+
                 // Default to a pleasant frequency if server not in map
                 const frequency = serverFrequencies[server] || 220.00;
-                
+                console.log(`Playing completion sound for "${server}" at ${frequency} Hz`);
+
                 // Create oscillator
-                const oscillator = audioContext.createOscillator();
-                const gainNode = audioContext.createGain();
-                
+                const oscillator = globalAudioContext.createOscillator();
+                const gainNode = globalAudioContext.createGain();
+
                 oscillator.connect(gainNode);
-                gainNode.connect(audioContext.destination);
-                
+                gainNode.connect(globalAudioContext.destination);
+
                 // Set waveform to sine for mellow sound
                 oscillator.type = 'sine';
                 oscillator.frequency.value = frequency;
-                
+
                 // Create a gentle attack and release envelope
-                const now = audioContext.currentTime;
+                const now = globalAudioContext.currentTime;
                 gainNode.gain.setValueAtTime(0, now);
                 gainNode.gain.linearRampToValueAtTime(0.3, now + 0.1); // Gentle attack
                 gainNode.gain.linearRampToValueAtTime(0.3, now + 0.3); // Sustain
                 gainNode.gain.linearRampToValueAtTime(0, now + 0.8);    // Gentle release
-                
+
                 // Play the sound
                 oscillator.start(now);
                 oscillator.stop(now + 0.8);
             } catch (error) {
-                console.log('Could not play sound:', error);
+                console.error('Could not play sound:', error);
             }
         }
 
