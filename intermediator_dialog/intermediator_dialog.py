@@ -178,6 +178,12 @@ class OllamaClient:
                 if line:
                     chunk = json.loads(line)
 
+                    # Handle thinking tokens separately (don't include in answer/TTS)
+                    if 'message' in chunk and 'thinking' in chunk['message']:
+                        thinking_content = chunk['message']['thinking']
+                        # Optionally log thinking for debugging
+                        # print(f"[THINKING] {thinking_content}")
+
                     if 'message' in chunk and 'content' in chunk['message']:
                         content = chunk['message']['content']
                         answer += content
@@ -2044,9 +2050,11 @@ def run_dialog_thread(intermediator_client, participant1_client, participant2_cl
     """Run dialog in a separate thread."""
     try:
         # Apply thinking parameters if provided
+        # Note: Thinking mode should only be applied to participants, not the intermediator
+        # to avoid mixing reasoning with the actual moderation speech
         if thinking_params:
             if 'thinking' in thinking_params:
-                intermediator_client.thinking = thinking_params['thinking']
+                # Only apply thinking to participants, not intermediator
                 participant1_client.thinking = thinking_params['thinking']
                 participant2_client.thinking = thinking_params['thinking']
             if 'temperature' in thinking_params:
@@ -2180,7 +2188,7 @@ def handle_start_dialog(data):
     max_turns = data.get('max_turns', 3)
     thinking_params = data.get('thinking_params', {})
     prompt_config = data.get('prompt_config', {})
-    enable_tts = data.get('enable_tts', False)
+    enable_tts = data.get('enable_tts', True)
 
     # Validate that intermediator topic prompt is provided
     if not prompt_config.get('intermediator_topic_prompt'):

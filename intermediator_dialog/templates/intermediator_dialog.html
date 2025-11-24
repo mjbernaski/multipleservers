@@ -1193,16 +1193,22 @@
 
         function updateAudioToggleButton() {
             const audioEnabled = localStorage.getItem('audioGeneration') !== 'disabled';
-            const toggleBtn = document.getElementById('audioToggle');
-            if (toggleBtn) {
+            const checkbox = document.getElementById('enableTTS');
+            const label = document.querySelector('label[for="enableTTS"]');
+
+            if (checkbox) {
+                checkbox.checked = audioEnabled;
+            }
+
+            if (label) {
                 if (audioEnabled) {
-                    toggleBtn.textContent = '🔊';
-                    toggleBtn.title = 'Audio Generation: ON (click to disable)';
-                    toggleBtn.style.background = '#70ad47';
+                    label.textContent = '🔊';
+                    label.title = 'Audio Generation: ON (click to disable)';
+                    label.style.background = '#70ad47';
                 } else {
-                    toggleBtn.textContent = '🔇';
-                    toggleBtn.title = 'Audio Generation: OFF (click to enable)';
-                    toggleBtn.style.background = '#808080';
+                    label.textContent = '🔇';
+                    label.title = 'Audio Generation: OFF (click to enable)';
+                    label.style.background = '#808080';
                 }
             }
         }
@@ -1621,23 +1627,49 @@ You follow the instructions of the intermediator, review the responses of your a
             if (data.status === 'generating') {
                 ttsGenerating = true;
                 indicator.style.opacity = '1';
-                status.textContent = 'Generating...';
+                status.style.color = '#ffa500';
+                const speakerName = data.speaker === 'intermediator' ? 'Moderator' :
+                    data.speaker === 'participant1' ? 'Participant 1' : 'Participant 2';
+                status.textContent = `Generating ${speakerName}...`;
             } else if (data.status === 'complete') {
                 ttsCount++;
                 count.textContent = ttsCount;
                 ttsGenerating = false;
-                status.textContent = 'Ready';
+                status.style.color = '#70ad47';
+                status.textContent = '✓ Complete';
+                // Show brief success message
+                const filename = data.filename || 'audio';
+                showStatus(`🎙️ Generated audio: ${filename}`, 'success');
                 // Keep indicator visible for a moment
                 setTimeout(() => {
                     if (!ttsGenerating) {
                         indicator.style.opacity = '0.7';
+                        status.style.color = '';
+                        status.textContent = 'Ready';
                     }
-                }, 500);
+                }, 2000);
             } else if (data.status === 'error') {
                 ttsGenerating = false;
                 status.textContent = 'Error';
-                indicator.style.opacity = '0.7';
+                status.style.color = '#ff6b6b';
+                indicator.style.opacity = '1';
                 console.error('TTS Error:', data.error);
+
+                // Show visible error message to user
+                const errorMsg = data.error || 'Unknown error';
+                if (errorMsg.includes('quota') || errorMsg.includes('429')) {
+                    showStatus('⚠️ TTS Error: OpenAI API quota exceeded. Please check your billing.', 'error');
+                } else if (errorMsg.includes('401') || errorMsg.includes('authentication')) {
+                    showStatus('⚠️ TTS Error: Invalid OpenAI API key. Please check your .env file.', 'error');
+                } else {
+                    showStatus(`⚠️ TTS Error: ${errorMsg}`, 'error');
+                }
+
+                // Reset status color after a delay
+                setTimeout(() => {
+                    status.style.color = '';
+                    indicator.style.opacity = '0.7';
+                }, 3000);
             }
         });
 
