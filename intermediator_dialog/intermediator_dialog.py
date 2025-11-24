@@ -2052,6 +2052,10 @@ def run_dialog_thread(intermediator_client, participant1_client, participant2_cl
         # Apply thinking parameters if provided
         # Note: Thinking mode should only be applied to participants, not the intermediator
         # to avoid mixing reasoning with the actual moderation speech
+        # NOTE: It's philosophically ok for moderator to think, but we don't want thinking tokens
+        # showing in the formal voice of the moderator, so we disable it explicitly here.
+        intermediator_client.thinking = False
+
         if thinking_params:
             if 'thinking' in thinking_params:
                 # Only apply thinking to participants, not intermediator
