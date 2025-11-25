@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Player</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h2>Folders</h2>
+                <div class="sort-controls">
+                    <select id="folder-sort">
+                        <option value="name">Name</option>
+                        <option value="date">Date</option>
+                    </select>
+                </div>
+            </div>
+            <ul id="folder-list">
+                <!-- Folders will be loaded here -->
+            </ul>
+        </div>
+        <div class="main-content">
+            <div class="header">
+                <h2 id="current-folder-title">Select a folder</h2>
+                <div id="playlist-stats" class="stats-hidden">
+                    <span id="playlist-duration">Total: 00:00</span>
+                    <span id="playlist-progress">Track 0 of 0</span>
+                    <div class="sort-controls">
+                        <select id="file-sort">
+                            <option value="name">Name</option>
+                            <option value="date">Date</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="player-controls">
+                <div class="track-info">
+                    <h3 id="track-name">No track selected</h3>
+                    <div class="time-display">
+                        <span id="current-time">00:00</span> / <span id="total-time">00:00</span>
+                    </div>
+                </div>
+                <audio id="audio-player" controls></audio>
+                <div class="control-buttons">
+                    <button id="prev-btn">Previous</button>
+                    <button id="next-btn">Next</button>
+                    <label>
+                        <input type="checkbox" id="autoplay-check" checked> Autoplay
+                    </label>
+                    <button id="download-btn" class="hidden">Download MP3</button>
+                </div>
+            </div>
+
+            <ul id="file-list">
+                <!-- Files will be loaded here -->
+            </ul>
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

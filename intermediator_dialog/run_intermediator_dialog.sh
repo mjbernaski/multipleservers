@@ -70,7 +70,7 @@ $PYTHON_CMD app.py --host "$HOST" --port "$PORT" &
 SERVER_PID=$!
 
 # Start the audio player server (uses its own venv)
-AUDIO_PLAYER_DIR="$SCRIPT_DIR/output/audio/audio_player_py"
+AUDIO_PLAYER_DIR="$SCRIPT_DIR/audio_player"
 AUDIO_PYTHON_CMD="$AUDIO_PLAYER_DIR/venv/bin/python3"
 
 if [ -d "$AUDIO_PLAYER_DIR" ] && [ -f "$AUDIO_PYTHON_CMD" ]; then
