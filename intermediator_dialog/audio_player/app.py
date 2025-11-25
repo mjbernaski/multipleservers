@@ -7,8 +7,8 @@ from mutagen import File as MutagenFile
 
 app = Flask(__name__)
 
-# Configuration - audio files are in output/audio relative to the main project
-AUDIO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), 'output', 'audio'))
+# Configuration - audio files are in output/audio relative to the main project (go up one level from audio_player/)
+AUDIO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'output', 'audio'))
 
 @app.route('/')
 def index():
