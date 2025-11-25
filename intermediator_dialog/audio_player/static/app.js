@@ -12,8 +12,6 @@ const playlistDuration = document.getElementById('playlist-duration');
 const currentTimeDisplay = document.getElementById('current-time');
 const totalTimeDisplay = document.getElementById('total-time');
 const downloadBtn = document.getElementById('download-btn');
-const folderSortSelect = document.getElementById('folder-sort');
-const fileSortSelect = document.getElementById('file-sort');
 
 let currentFolder = null;
 let currentFiles = [];
@@ -31,11 +29,10 @@ function formatDate(timestamp) {
     return date.toLocaleString();
 }
 
-// Load folders on startup
+// Load folders on startup (always sorted by date, newest first)
 async function loadFolders() {
     try {
-        const sort = folderSortSelect.value;
-        const response = await fetch(`/api/folders?sort=${sort}`);
+        const response = await fetch('/api/folders');
         const folders = await response.json();
         
         folderList.innerHTML = '';
@@ -72,8 +69,8 @@ async function loadFiles() {
     if (!currentFolder) return;
     
     try {
-        const sort = fileSortSelect.value;
-        const response = await fetch(`/api/files/${currentFolder}?sort=${sort}`);
+        // Always sorted by date (oldest first for playback order)
+        const response = await fetch(`/api/files/${currentFolder}`);
         const files = await response.json();
         currentFiles = files;
         
@@ -153,10 +150,8 @@ function playTrack(index) {
 // Download handler
 downloadBtn.onclick = () => {
     if (!currentFolder) return;
-    
-    const sort = fileSortSelect.value;
-    // Trigger download
-    window.location.href = `/api/convert/${currentFolder}?sort=${sort}`;
+    // Trigger download (files in date order)
+    window.location.href = `/api/convert/${currentFolder}`;
 };
 
 // Audio events
@@ -176,9 +171,5 @@ audioPlayer.addEventListener('ended', () => {
 // Controls
 prevBtn.onclick = () => playTrack(currentFileIndex - 1);
 nextBtn.onclick = () => playTrack(currentFileIndex + 1);
-
-// Sort listeners
-folderSortSelect.onchange = loadFolders;
-fileSortSelect.onchange = loadFiles;
 
 loadFolders();

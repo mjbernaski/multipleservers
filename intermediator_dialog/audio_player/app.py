@@ -35,8 +35,8 @@ def get_folders():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-def get_sorted_audio_files(folder_path, sort_by='name'):
-    # Get all audio files
+def get_sorted_audio_files(folder_path):
+    """Get all audio files sorted by date (oldest first for playback order)."""
     audio_files = []
     for f in os.listdir(folder_path):
         if f.lower().endswith(('.mp3', '.wav')):
@@ -48,24 +48,19 @@ def get_sorted_audio_files(folder_path, sort_by='name'):
                 'created': created
             })
 
-    if sort_by == 'date':
-        audio_files.sort(key=lambda x: x['created']) # Oldest first for playback flow
-    else:
-        audio_files.sort(key=lambda x: x['name'].lower())
-        
+    # Always sort by date, oldest first for natural playback order
+    audio_files.sort(key=lambda x: x['created'])
     return audio_files
 
 @app.route('/api/files/<folder_id>')
 def get_files(folder_id):
     try:
-        sort_by = request.args.get('sort', 'name')
         folder_path = os.path.join(AUDIO_ROOT, folder_id)
         if not os.path.exists(folder_path):
             return jsonify({'error': 'Folder not found'}), 404
         
         files_data = []
-        # get_sorted_audio_files now returns dicts with 'name' and 'created'
-        audio_files_list = get_sorted_audio_files(folder_path, sort_by)
+        audio_files_list = get_sorted_audio_files(folder_path)
 
         for file_info in audio_files_list:
             f = file_info['name']
@@ -99,12 +94,11 @@ def serve_audio(folder_id, filename):
 @app.route('/api/convert/<folder_id>')
 def convert_folder(folder_id):
     try:
-        sort_by = request.args.get('sort', 'name')
         folder_path = os.path.join(AUDIO_ROOT, folder_id)
         if not os.path.exists(folder_path):
             return jsonify({'error': 'Folder not found'}), 404
 
-        audio_files_list = get_sorted_audio_files(folder_path, sort_by)
+        audio_files_list = get_sorted_audio_files(folder_path)
         if not audio_files_list:
              return jsonify({'error': 'No audio files found'}), 404
 
