@@ -10,6 +10,8 @@ from datetime import datetime
 from flask_socketio import emit
 from clients.ollama_client import OllamaClient
 from models import IntermediatorDialog
+from intermediator_dialog_refactored import IntermediatorDialogRefactored, DialogConfig
+from prompt_templates import DialogMode
 from gpu_monitor import start_gpu_monitoring, stop_gpu_monitoring
 from tts import generate_tts_audio, generate_participant_summaries
 from utils import debug_log, save_dialog_to_files, generate_filename_from_topic
@@ -60,16 +62,38 @@ def register_socketio_handlers(socketio, state):
                     participant2_client.temperature = thinking_params['temperature']
 
             prompt_config = prompt_config or {}
-            dialog = IntermediatorDialog(
-                intermediator_client, participant1_client, participant2_client,
-                intermediator_pre_prompt=prompt_config.get('intermediator_pre_prompt'),
-                intermediator_topic_prompt=prompt_config.get('intermediator_topic_prompt'),
-                participant_pre_prompt=prompt_config.get('participant_pre_prompt'),
-                participant1_mid_prompt=prompt_config.get('participant1_mid_prompt'),
-                participant2_mid_prompt=prompt_config.get('participant2_mid_prompt'),
-                participant_post_prompt=prompt_config.get('participant_post_prompt'),
+            
+            # Determine dialog mode from prompt_config
+            mode_str = prompt_config.get('dialog_mode', 'exploration')
+            mode_map = {
+                'debate': DialogMode.DEBATE,
+                'exploration': DialogMode.EXPLORATION,
+                'interview': DialogMode.INTERVIEW,
+                'critique': DialogMode.CRITIQUE
+            }
+            dialog_mode = mode_map.get(mode_str.lower(), DialogMode.EXPLORATION)
+            
+            # Create DialogConfig for refactored dialog
+            config = DialogConfig(
+                mode=dialog_mode,
+                max_turns=max_turns,
+                enable_tts=enable_tts,
+                participant1_position=prompt_config.get('participant1_mid_prompt'),
+                participant2_position=prompt_config.get('participant2_mid_prompt'),
+                moderator_instructions=prompt_config.get('intermediator_pre_prompt'),
+                participant1_instructions=prompt_config.get('participant_pre_prompt'),
+                participant2_instructions=prompt_config.get('participant_pre_prompt'),
+            )
+            
+            # Use refactored dialog with phase-aware prompts
+            dialog = IntermediatorDialogRefactored(
+                intermediator=intermediator_client,
+                participant1=participant1_client,
+                participant2=participant2_client,
+                topic=prompt_config.get('intermediator_topic_prompt', ''),
+                config=config,
                 dialog_id=dialog_id,
-                enable_tts=enable_tts
+                tts_callback=generate_tts_audio if enable_tts else None
             )
             dialog_instances[dialog_id] = dialog
 
@@ -81,7 +105,7 @@ def register_socketio_handlers(socketio, state):
                 gpu_monitoring_data, gpu_monitoring_threads, socketio
             )
 
-            dialog_result = dialog.run_dialog(max_turns=max_turns, context_file=context_file)
+            dialog_result = dialog.run_dialog(context_file=context_file)
 
             stop_gpu_monitoring(dialog_id, gpu_monitoring_threads, socketio)
 

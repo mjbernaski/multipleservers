@@ -415,7 +415,7 @@ Please use this context to inform your responses."""
             'turn': 0,
             'speaker': 'intermediator',
             'message': intro_prompt,
-            'thinking': True,
+            'thinking': False,
             'intermediator': self.intermediator.name
         })
 
