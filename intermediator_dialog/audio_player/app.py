@@ -37,8 +37,8 @@ def get_folders():
         return jsonify({'error': str(e)}), 500
 
 def extract_turn_number(filename):
-    """Extract turn number from filename like 'speaker_turn3.mp3' -> 3."""
-    match = re.search(r'turn(\d+)', filename, re.IGNORECASE)
+    """Extract sequence number from filename like '001_participant1.mp3' -> 1."""
+    match = re.match(r'^(\d+)', filename)
     if match:
         return int(match.group(1))
     return float('inf')
