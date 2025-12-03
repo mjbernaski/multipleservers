@@ -1,5 +1,6 @@
 import os
 import io
+import re
 import subprocess
 import tempfile
 from flask import Flask, render_template, jsonify, send_from_directory, abort, send_file, request
@@ -35,8 +36,15 @@ def get_folders():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+def extract_turn_number(filename):
+    """Extract turn number from filename like 'speaker_turn3.mp3' -> 3."""
+    match = re.search(r'turn(\d+)', filename, re.IGNORECASE)
+    if match:
+        return int(match.group(1))
+    return float('inf')
+
 def get_sorted_audio_files(folder_path):
-    """Get all audio files sorted by date (oldest first for playback order)."""
+    """Get all audio files sorted by turn number (for natural playback order)."""
     audio_files = []
     for f in os.listdir(folder_path):
         if f.lower().endswith(('.mp3', '.wav')):
@@ -48,8 +56,8 @@ def get_sorted_audio_files(folder_path):
                 'created': created
             })
 
-    # Always sort by date, oldest first for natural playback order
-    audio_files.sort(key=lambda x: x['created'])
+    # Sort by turn number extracted from filename
+    audio_files.sort(key=lambda x: extract_turn_number(x['name']))
     return audio_files
 
 @app.route('/api/files/<folder_id>')
