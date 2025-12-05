@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Debate</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Georgia, 'Times New Roman', serif;
+            background: #fafafa;
+            color: #333;
+            line-height: 1.8;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        h1 {
+            font-size: 2em;
+            font-weight: normal;
+            color: #222;
+            margin-bottom: 10px;
+        }
+
+        .status {
+            font-size: 0.9em;
+            color: #888;
+        }
+
+        .status.active {
+            color: #4caf50;
+        }
+
+        .transcript {
+            background: white;
+            padding: 30px;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .turn {
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .turn:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .speaker {
+            font-weight: bold;
+            font-size: 0.85em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .speaker.moderator {
+            color: #1976d2;
+        }
+
+        .speaker.participant1 {
+            color: #388e3c;
+        }
+
+        .speaker.participant2 {
+            color: #f57c00;
+        }
+
+        .content {
+            font-size: 1.1em;
+            text-align: justify;
+        }
+
+        .streaming {
+            opacity: 0.7;
+        }
+
+        .streaming::after {
+            content: '...';
+            animation: dots 1.5s infinite;
+        }
+
+        @keyframes dots {
+            0%, 20% { content: '.'; }
+            40% { content: '..'; }
+            60%, 100% { content: '...'; }
+        }
+
+        .waiting {
+            text-align: center;
+            padding: 60px 20px;
+            color: #888;
+            font-style: italic;
+        }
+
+        .turn-number {
+            font-size: 0.75em;
+            color: #aaa;
+            float: right;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1 id="title">Live Debate</h1>
+            <div class="status" id="status">Waiting for debate to start...</div>
+        </header>
+
+        <div class="transcript" id="transcript">
+            <div class="waiting">No active debate. Start one from the main page.</div>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        let currentContent = {};
+        let speakerNames = {
+            intermediator: 'Moderator',
+            participant1: 'Participant A',
+            participant2: 'Participant B'
+        };
+
+        socket.on('connect', () => {
+            console.log('Connected to server');
+        });
+
+        socket.on('dialog_started', (data) => {
+            document.getElementById('transcript').innerHTML = '';
+            document.getElementById('status').textContent = 'Debate in progress...';
+            document.getElementById('status').className = 'status active';
+
+            if (data.intermediator) speakerNames.intermediator = data.intermediator;
+            if (data.participant1) speakerNames.participant1 = data.participant1;
+            if (data.participant2) speakerNames.participant2 = data.participant2;
+        });
+
+        socket.on('dialog_update', (data) => {
+            const eventType = data.type || data.event;
+            const speaker = data.speaker || data.role || data.name;
+            const turn = data.turn !== undefined ? data.turn : 0;
+
+            if (eventType === 'intermediator_turn' || eventType === 'participant_turn') {
+                // Start of a new turn - create placeholder
+                ensureTurnElement(speaker, turn);
+            } else if (eventType === 'content') {
+                // Streaming content
+                const turnEl = document.getElementById(`turn-${speaker}-${turn}`);
+                if (turnEl) {
+                    const contentEl = turnEl.querySelector('.content');
+                    if (contentEl) {
+                        if (!currentContent[`${speaker}-${turn}`]) {
+                            currentContent[`${speaker}-${turn}`] = '';
+                        }
+                        currentContent[`${speaker}-${turn}`] += data.content || '';
+                        contentEl.textContent = currentContent[`${speaker}-${turn}`];
+                        contentEl.classList.add('streaming');
+                        scrollToBottom();
+                    }
+                }
+            } else if (eventType === 'response_complete') {
+                // Response finished
+                const turnEl = document.getElementById(`turn-${speaker}-${turn}`);
+                if (turnEl) {
+                    const contentEl = turnEl.querySelector('.content');
+                    if (contentEl) {
+                        contentEl.textContent = data.answer || currentContent[`${speaker}-${turn}`] || '';
+                        contentEl.classList.remove('streaming');
+                    }
+                }
+            } else if (eventType === 'participant_final_response_complete') {
+                // Participant finished speaking
+                const turnEl = document.getElementById(`turn-${data.speaker}-${data.turn}`);
+                if (turnEl) {
+                    const contentEl = turnEl.querySelector('.content');
+                    if (contentEl && data.response) {
+                        contentEl.textContent = data.response;
+                        contentEl.classList.remove('streaming');
+                    }
+                }
+            }
+        });
+
+        socket.on('dialog_complete', () => {
+            document.getElementById('status').textContent = 'Debate completed';
+            document.getElementById('status').className = 'status';
+        });
+
+        function ensureTurnElement(speaker, turn) {
+            const id = `turn-${speaker}-${turn}`;
+            if (document.getElementById(id)) return;
+
+            const transcript = document.getElementById('transcript');
+
+            // Remove waiting message if present
+            const waiting = transcript.querySelector('.waiting');
+            if (waiting) waiting.remove();
+
+            const turnEl = document.createElement('div');
+            turnEl.className = 'turn';
+            turnEl.id = id;
+
+            const speakerClass = speaker === 'intermediator' ? 'moderator' : speaker;
+            const speakerName = speakerNames[speaker] || speaker;
+
+            turnEl.innerHTML = `
+                <div class="speaker ${speakerClass}">
+                    ${speakerName}
+                    <span class="turn-number">Turn ${turn}</span>
+                </div>
+                <div class="content streaming"></div>
+            `;
+
+            transcript.appendChild(turnEl);
+            currentContent[`${speaker}-${turn}`] = '';
+            scrollToBottom();
+        }
+
+        function scrollToBottom() {
+            window.scrollTo({
+                top: document.body.scrollHeight,
+                behavior: 'smooth'
+            });
+        }
+    </script>
+</body>
+</html>

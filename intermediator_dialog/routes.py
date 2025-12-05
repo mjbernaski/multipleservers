@@ -51,7 +51,7 @@ def register_routes(app, socketio, state):
     @app.route('/live')
     def live_viewer():
         """Serve the live debate viewer page."""
-        return render_template('live_viewer.html')
+        return render_template('live.html')
 
     @app.route('/debate_library', methods=['GET'])
     def get_debate_library():
@@ -439,9 +439,11 @@ def register_routes(app, socketio, state):
                 'name': client.name,
                 'model': client.model,
                 'host': client.host,
+                'role': getattr(client, 'role', None),
                 'message_count': len(client.messages),
                 'total_tokens': client.total_tokens,
-                'thinking_enabled': client.thinking
+                'thinking_enabled': client.thinking,
+                'reasoning_effort': getattr(client, 'reasoning_effort', None)
             }
         return jsonify({'clients': clients})
 
