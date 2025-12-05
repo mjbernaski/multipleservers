@@ -257,7 +257,7 @@ def register_socketio_handlers(socketio, state):
             if key in client_instances:
                 client = client_instances[key]
                 if thinking_params.get('num_ctx'):
-                    client.num_ctx = thinking_params.get('num_ctx', 8192)
+                    client.num_ctx = thinking_params.get('num_ctx', 96000)
                 if thinking_params.get('temperature') is not None:
                     client.temperature = thinking_params.get('temperature')
                 if thinking_params.get('top_p') is not None:
@@ -279,7 +279,7 @@ def register_socketio_handlers(socketio, state):
                     config['host'],
                     config['model'],
                     config.get('name'),
-                    num_ctx=thinking_params.get('num_ctx', 8192),
+                    num_ctx=thinking_params.get('num_ctx', 96000),
                     temperature=thinking_params.get('temperature'),
                     top_p=thinking_params.get('top_p'),
                     top_k=thinking_params.get('top_k'),

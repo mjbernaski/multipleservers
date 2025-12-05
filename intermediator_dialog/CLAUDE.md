@@ -11,187 +11,162 @@ Intermediated Dialog (IDi) is a three-AI dialog system where one AI acts as an i
 ### Starting the Application
 
 ```bash
-# Using the startup script (recommended)
+# Using the startup script (recommended) - starts both main app and audio player
 ./run_intermediator_dialog.sh
 
 # Or with custom host/port
 ./run_intermediator_dialog.sh 0.0.0.0 5006
 
-# Or directly with Python
-python intermediator_dialog.py --host 0.0.0.0 --port 5006
+# Or directly with Python (main app only)
+python app.py --host 0.0.0.0 --port 5005
 ```
 
 The startup script handles:
-- Killing existing instances on the same port
-- Activating the parent project's venv (../venv) if it exists
+- Killing existing instances on the configured ports
+- Activating the venv (.venv, venv, or ../venv)
+- Starting the audio player server on port 5002
 - Opening the browser automatically
-- Running the server in the background
-
-### Dependencies
-
-```bash
-# Install dependencies (use parent venv or create new one)
-source ../venv/bin/activate  # If using parent project
-pip install -r requirements.txt
-```
-
-Required packages:
-- Flask (web framework)
-- Flask-SocketIO (WebSocket support for real-time streaming)
-- Requests (HTTP communication with Ollama servers)
-- ReportLab (PDF generation)
-- Python-dotenv (environment variable support)
+- Running both servers in the background with proper cleanup on Ctrl+C
 
 ### Running Tests
 
-There are currently no automated tests in this project.
+```bash
+python -m pytest tests/
+python -m pytest tests/test_ollama_client.py  # Single test file
+```
 
 ### Environment Setup
 
-Create a `.env` file in the project root with:
+Create a `.env` file with:
 ```
 OPENAI_API_KEY=your_openai_api_key_here
 ```
 
-This is required for the Text-to-Speech (TTS) feature.
+Required for the Text-to-Speech (TTS) feature.
 
 ## Architecture
 
-### Core Components
+### Module Structure
 
-**OllamaClient** (intermediator_dialog.py:34-205)
-- Manages communication with individual Ollama servers
-- Handles streaming responses with token counting
-- Maintains conversation history (message cache) per client instance
-- Supports extensive model parameters (temperature, top_p, top_k, repeat_penalty, etc.)
-- Key feature: Client instances are cached by `host:model:name` to preserve conversation state across multiple dialogs
+The codebase uses a modular architecture:
 
-**IntermediatorDialog** (intermediator_dialog.py:207-637)
-- Orchestrates the three-way dialog between intermediator and two participants
-- Manages turn-taking logic (alternating participants with intermediator moderation)
-- Builds and maintains separate conversation contexts for each AI
-- Supports flexible prompt configuration:
-  - Intermediator: pre_prompt + topic_prompt (topic is required)
-  - Participants: pre_prompt + mid_prompt (personalization) + post_prompt
-- Handles context file injection into all three AIs' conversation history
-- Emits real-time events via callbacks for streaming to web interface
+```
+app.py                          # Flask entry point, initializes SocketIO
+├── config.py                   # Global state dictionaries and configuration
+├── routes.py                   # HTTP endpoints (/, /generate_pdf, /check_servers, etc.)
+├── socketio_handlers.py        # WebSocket event handlers (start_dialog, reset_cache)
+├── models.py                   # IntermediatorDialog class (original implementation)
+├── intermediator_dialog_refactored.py  # Refactored dialog with phase-aware prompts
+├── prompt_templates.py         # PromptTemplates class with DialogMode/DialogPhase enums
+├── clients/
+│   ├── base_client.py          # Abstract BaseClient with TokenInfo dataclass
+│   └── ollama_client.py        # OllamaClient implementation
+├── tts.py                      # OpenAI TTS generation and participant summaries
+├── pdf_generator.py            # ReportLab-based PDF generation
+├── gpu_monitor.py              # Optional GPU status polling (port 9999)
+└── utils.py                    # Helper functions (save_dialog_to_files, debug_log)
+```
 
-**Flask Application** (intermediator_dialog.py:614-1596)
-- WebSocket-based architecture using Flask-SocketIO
-- Key endpoints:
-  - `/` - Main web interface
-  - `/upload` - File upload for context documents
-  - `/generate_pdf/<dialog_id>` - Generate PDF from saved dialog
-  - `/check_servers` - Verify Ollama server availability
-- Key SocketIO events:
-  - `start_dialog` - Initiates a new dialog session
-  - `reset_cache` - Clears all cached client instances
+### Core Classes
 
-### Conversation Flow
+**BaseClient** (`clients/base_client.py`)
+- Abstract base class for LLM providers
+- Defines `ask()`, `check_server_available()`, `reset_conversation()` methods
+- Tracks conversation history and token counts
 
-1. **Initialization**: Intermediator introduces topic from its system prompt
-2. **Turn Alternation**: Participants alternate turns (Participant 1 → Intermediator moderation → Participant 2 → Intermediator moderation)
-3. **Context Passing**: Each participant sees recent conversation history (last 3 messages)
-4. **Streaming**: All responses stream in real-time to the web interface via WebSocket callbacks
-5. **Finalization**: Intermediator provides final summary after max_turns completed
+**OllamaClient** (`clients/ollama_client.py`)
+- Implements BaseClient for Ollama servers
+- Handles streaming responses with token metrics (TTFT, tokens/sec)
+- Supports model parameters: temperature, top_p, top_k, repeat_penalty, num_predict, thinking, be_brief
 
-### Client Caching System
+**IntermediatorDialogRefactored** (`intermediator_dialog_refactored.py`)
+- Uses DialogConfig dataclass for configuration
+- Supports four dialog modes: DEBATE, EXPLORATION, INTERVIEW, CRITIQUE
+- Implements draft → critique → final response flow for participants
+- Phase-aware prompting (EARLY, MIDDLE, LATE phases affect moderation style)
+- Consolidated `_handle_participant_turn()` method replaces duplicate code
 
-The application maintains a global `client_instances` dictionary that caches OllamaClient instances by `host:model:name`. This is critical for:
-- Preserving conversation history across multiple dialog sessions
-- Maintaining context when running sequential dialogs
-- Avoiding redundant server connections
+**PromptTemplates** (`prompt_templates.py`)
+- Centralized prompt management
+- Mode-specific system prompts for moderator and participants
+- Phase-aware moderation prompts with randomized variety
+- Summary prompts tailored to dialog mode
 
-To reset the cache: Use the "Reset Cache" button in the web UI or the `reset_cache` SocketIO event.
+### Dialog Flow
+
+1. **Initialization**: System prompts set per mode, models preloaded in parallel
+2. **Introduction**: Moderator introduces topic (mode-specific intro prompt)
+3. **Turn Loop**:
+   - Participant responds using draft → self-critique → final response pipeline
+   - Moderator intervenes with phase-aware prompt (can signal early conclusion via "CONCLUDE")
+   - Context built with priority weighting (recent moderator/opponent messages prioritized)
+4. **Summary**: Mode-specific summary prompt, declares winner for debates
+
+### Client Caching
+
+Global `client_instances` dictionary in `config.py` caches OllamaClient instances by `{host}:{model}:{name}`. This preserves conversation history across sequential dialogs. Reset via "Reset Cache" button or `reset_dialog_cache` SocketIO event.
 
 ### Output Files
 
-Dialogs are saved to `output/` directory in two formats:
-- **JSON**: Complete dialog data including metadata, all messages, and token counts
-- **PDF**: Formatted document with conversation flow and statistics
+Saved to `output/` directory:
+- **JSON**: Complete dialog data with metadata and token counts
+- **TXT**: Readable transcript with formatting
+- **PDF**: Formatted report with participant table, token stats, GPU energy (if available)
 
-Filename format: `{sanitized_topic}_{timestamp}.{json|pdf}`
+Audio files saved to `output/audio/Debate_{topic}/`:
+- TTS audio: `{sequence}_{speaker}.mp3`
+- Argument summaries: `summary_{participant_name}.txt`
+- Diagrams: `diagram_{participant_name}.png` (requires diagram service at port 7777)
 
-### Default Server Configuration
+### Key SocketIO Events
 
-- **Intermediator**: RT5090 at http://localhost:11434 (model: gpt-oss:20b)
-- **Participant 1**: NVIDIA DGX Spark 1 at http://localhost:11434 (model: gpt-oss:20b)
-- **Participant 2**: NVIDIA DGX Spark 2 at http://localhost:11434 (model: gpt-oss:120b)
+**Client → Server:**
+- `start_dialog`: Initiates dialog with server configs, prompt_config, thinking_params
+- `reset_dialog_cache`: Clears conversation cache
 
-All configurations are customizable via the web interface.
+**Server → Client:**
+- `dialog_update`: Streaming content chunks
+- `dialog_started`, `dialog_complete`: Lifecycle events
+- `participant_draft_start/complete`, `participant_critique_start/complete`, `participant_final_response_start/complete`: Draft-critique-final phases
+- `pdf_generated`, `summaries_generated`: Post-dialog artifacts
+- `gpu_status_update`: Real-time GPU metrics
 
 ## Key Implementation Details
 
+### Draft-Critique-Final Response Pipeline
+
+Participants generate responses in three phases (see `_handle_participant_turn()` in refactored dialog):
+1. **Draft**: Initial response generation
+2. **Critique**: Self-review for clarity, logic, tone
+3. **Final**: Refined response incorporating critique
+
+### Dialog Modes
+
+- **DEBATE**: Adversarial, winner declared in summary
+- **EXPLORATION**: Collaborative inquiry, synthesis-focused summary
+- **INTERVIEW**: One participant questions, other responds
+- **CRITIQUE**: One presents, other critiques
+
+### Phase-Aware Prompting
+
+Dialog divided into EARLY (30%), MIDDLE (40%), LATE (30%) phases. Moderation prompts adapt:
+- EARLY: Establish positions, clarify framing
+- MIDDLE: Probe arguments, find crux of disagreement
+- LATE: Focus on resolution, prepare for summary
+
 ### Markdown Suppression
-All system prompts automatically append instructions to avoid markdown formatting. This ensures clean plain-text output for better readability in the dialog interface.
 
-### Token Tracking
-Each response includes comprehensive metrics:
-- Prompt tokens, completion tokens, total tokens
-- Tokens per second (throughput)
-- Time to first token (TTFT)
+All system prompts include: "IMPORTANT: Use plain text only. No markdown formatting."
 
-These are tracked both per-response and cumulatively per client.
+### External Services
 
-### Thinking Parameter
-The application supports an optional "thinking" parameter that can be enabled per client, allowing models that support reasoning modes to use extended inference.
+- **Diagram service**: `http://192.168.6.202:7777` - Generates argument structure diagrams (optional)
+- **GPU monitoring**: Port 9999 on each Ollama server - Returns GPU status JSON (optional)
+- **Audio player**: Port 5002 - Separate Flask app in `audio_player/` subdirectory
 
-### Context File Support
-Users can upload context files (text documents) that are injected into all three AIs' conversation history before the dialog begins. This provides shared background information for the discussion.
+### Turn Logic
 
-### PDF Generation
-The `generate_pdf_from_dialog()` function (intermediator_dialog.py:886) creates formatted PDFs with:
-- Conversation header with metadata
-- Server configuration table
-- Turn-by-turn dialog with speaker identification
-- Token usage statistics
-- Automatic page breaks and text wrapping
-- Special handling for landscape mode when 3+ servers are involved
-
-### Text-to-Speech (TTS) Feature
-
-The application automatically generates audio narration for all responses using OpenAI's TTS API:
-
-**Voice Assignments:**
-- **Intermediator**: 'alloy' voice (neutral, balanced)
-- **Participant 1**: 'echo' voice (clear, articulate)
-- **Participant 2**: 'fable' voice (warm, expressive)
-
-**Audio Files:**
-- Saved to `output/audio/{dialog_id}/` directory
-- Format: `{speaker}_turn{number}.mp3`
-- Generated automatically after each response
-- Includes intro, all participant responses, intermediator moderations, and final summary
-
-**Turn Logic:**
-When `max_turns` is set to N, each participant will speak N times (total of 2N participant turns), with intermediator moderation after each turn. For example:
-- max_turns=4 means Participant 1 speaks 4 times, Participant 2 speaks 4 times (8 total participant turns)
-- Plus intermediator intro and moderation after each response
-- Plus final summary
-
-The `generate_tts_audio()` function (intermediator_dialog.py:784) handles all TTS generation and file management.
-
-### Participant Argument Summaries and Diagrams
-
-After each dialog completes, the system automatically generates comprehensive argument summaries for each participant:
-
-**Summary Generation:**
-- Aggregates all turns for each participant
-- Uses the participant's own Ollama client to generate a structured summary including:
-  - Main thesis/position
-  - Key arguments (bullet points)
-  - Supporting evidence or reasoning
-  - Counter-arguments addressed
-- Saves summaries as text files in the audio directory: `summary_{participant_name}.txt`
-
-**Argument Structure Diagrams:**
-- POSTs each summary to diagram service at `http://192.168.6.202:7777`
-- Generates horizontal argument structure visualizations
-- Saves diagrams as PNG files: `diagram_{participant_name}.png`
-- All files stored in: `output/audio/Debate_{topic}/`
-
-**Implementation:**
-- `generate_participant_summaries()` (intermediator_dialog.py:872) orchestrates the summary generation
-- `generate_argument_diagram()` (intermediator_dialog.py:984) handles diagram creation
-- Runs asynchronously in background thread after dialog completes
-- Emits `summaries_generated` WebSocket event when complete
+`max_turns` parameter means each participant speaks that many times. With `max_turns=4`:
+- Participant 1 speaks 4 times, Participant 2 speaks 4 times (8 total participant turns)
+- Moderator intervenes after each participant turn (7 moderation comments)
+- Plus intro and final summary

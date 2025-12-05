@@ -11,7 +11,7 @@ from .base_client import BaseClient
 class OllamaClient(BaseClient):
     """Client for communicating with Ollama servers."""
 
-    def __init__(self, host: str, model: str, name: str = None, num_ctx: int = 8192,
+    def __init__(self, host: str, model: str, name: str = None, num_ctx: int = 96000,
                  temperature: float = None, top_p: float = None, top_k: int = None,
                  repeat_penalty: float = None, num_predict: int = None, thinking: bool = False,
                  be_brief: bool = False, keep_alive: str = "10m"):

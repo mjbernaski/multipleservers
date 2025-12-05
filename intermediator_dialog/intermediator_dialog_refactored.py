@@ -32,8 +32,8 @@ class DialogConfig:
     participant2_instructions: str = None
     
     # Context settings
-    max_context_chars: int = 12000  # Increased from 300
-    max_message_chars: int = 4000  # Increased from 400
+    max_context_chars: int = 120000  # Allow full history visibility
+    max_message_chars: int = 40000   # Let them write essays if needed
 
 
 class IntermediatorDialogRefactored:
