@@ -32,8 +32,8 @@ class DialogConfig:
     participant2_instructions: str = None
     
     # Context settings
-    max_context_chars: int = 800  # Increased from 300
-    max_message_chars: int = 1000  # Increased from 400
+    max_context_chars: int = 12000  # Increased from 300
+    max_message_chars: int = 4000  # Increased from 400
 
 
 class IntermediatorDialogRefactored:
@@ -241,8 +241,36 @@ class IntermediatorDialogRefactored:
             'participant_name': participant_name
         })
         
-        # Get response
-        response, tokens = participant.ask(prompt, round_num=turn)
+        # STEP 1: Draft
+        draft_prompt = self.prompts.get_participant_draft_prompt(
+            context_summary=context_summary,
+            last_message=last_message,
+            last_speaker_name=last_speaker_name,
+            turn=turn,
+            total_turns=total_turns,
+            base_prompt=prompt # Pass the original prompt as a base
+        )
+        self._emit('participant_draft_start', {'speaker': speaker_key, 'turn': turn})
+        draft, draft_tokens = participant.ask(draft_prompt, round_num=turn, phase="draft")
+        self._emit('participant_draft_complete', {'speaker': speaker_key, 'turn': turn, 'draft': draft})
+        
+        # STEP 2: Self-Critique
+        critique_prompt = self.prompts.get_participant_critique_prompt(
+            draft=draft
+        )
+        self._emit('participant_critique_start', {'speaker': speaker_key, 'turn': turn})
+        critique, critique_tokens = participant.ask(critique_prompt, round_num=turn, phase="critique")
+        self._emit('participant_critique_complete', {'speaker': speaker_key, 'turn': turn, 'critique': critique})
+        
+        # STEP 3: Final Output
+        final_response_prompt = self.prompts.get_participant_final_response_prompt(
+            original_draft=draft,
+            critique=critique
+        )
+        self._emit('participant_final_response_start', {'speaker': speaker_key, 'turn': turn})
+        response, tokens = participant.ask(final_response_prompt, round_num=turn, phase="final")
+        self._emit('participant_final_response_complete', {'speaker': speaker_key, 'turn': turn, 'response': response})
+        
         
         # Record in history
         self.conversation_history.append({

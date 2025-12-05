@@ -289,6 +289,85 @@ Build on what's been said. What does this make you think? What questions does it
     }
 
     # =========================================================================
+    # PARTICIPANT TURN PROMPTS
+    # =========================================================================
+
+    PARTICIPANT_TURN_DEBATE = """RECENT EXCHANGE:
+{context_summary}
+
+{last_speaker_name}'s statement:
+"{last_message}"
+
+---
+Turn {turn_number} of {total_turns}. {phase_hint}
+
+Respond directly to advance your position. Don't summarize or repeat—move the debate forward."""
+
+    PARTICIPANT_TURN_EXPLORATION = """RECENT EXCHANGE:
+{context_summary}
+
+{last_speaker_name}'s contribution:
+"{last_message}"
+
+---
+Turn {turn_number} of {total_turns}. {phase_hint}
+
+Build on what's been said. What does this make you think? What questions does it raise?"""
+
+    PARTICIPANT_DRAFT_PROMPT = """You are preparing a response for a moderated discussion.
+
+Your task: Draft a response to the current state of the conversation. Focus on generating your initial thoughts and arguments without self-censoring.
+
+Here's the current context and the last statement made:
+{context_summary}
+
+{last_speaker_name}'s statement:
+"{last_message}"
+
+---
+Draft your raw, unfiltered response now. It should be concise, focusing on the core point you want to make."""
+
+    PARTICIPANT_CRITIQUE_PROMPT = """You have drafted a response for a moderated discussion, and now you need to critique it.
+
+Your draft:
+"{draft}"
+
+Critique this draft. Consider:
+1. Is it clear and concise?
+2. Does it directly address the previous speaker's points?
+3. Does it effectively advance your own position or contribute to the discussion?
+4. Are there any logical fallacies or weak arguments?
+5. Is the tone appropriate for the discussion mode (e.g., debate, exploration)?
+6. Is it resorting to fake numbers or scorecards? If so, remove them.
+7. Is it addressing the core philosophy or just the surface tactics?
+8. Is it too agreeable?
+
+Provide a constructive critique in 1-3 sentences, highlighting areas for improvement."""
+
+    PARTICIPANT_FINAL_RESPONSE_PROMPT = """You have drafted a response and critically reviewed it. Now, write your final response for the moderated discussion, incorporating the critique.
+
+Original Draft:
+"{original_draft}"
+
+Critique:
+"{critique}"
+
+---
+Based on your draft and the critique, provide your refined, final response. Make it concise, impactful, and aligned with the discussion's objective. This is your final output."""
+
+    PHASE_HINTS_DEBATE = {
+        DialogPhase.EARLY: "Early in the debate—establish your position clearly.",
+        DialogPhase.MIDDLE: "Mid-debate—engage directly with the opposing arguments.",
+        DialogPhase.LATE: "Final turns—make your strongest remaining point.",
+    }
+
+    PHASE_HINTS_EXPLORATION = {
+        DialogPhase.EARLY: "Early in the exploration—share your initial perspective.",
+        DialogPhase.MIDDLE: "Deep in the exploration—build on what's emerged.",
+        DialogPhase.LATE: "Wrapping up—what's your key insight from this conversation?",
+    }
+
+    # =========================================================================
     # SUMMARY PROMPTS
     # =========================================================================
 
@@ -506,6 +585,36 @@ Be direct about both strengths and weaknesses."""
             phase_hint=phase_hint
         )
 
+    def get_participant_draft_prompt(
+        self,
+        context_summary: str,
+        last_message: str,
+        last_speaker_name: str,
+        turn: int,
+        total_turns: int,
+        base_prompt: str
+    ) -> str:
+        """Get the participant's draft prompt."""
+        return self.PARTICIPANT_DRAFT_PROMPT.format(
+            context_summary=context_summary,
+            last_message=last_message,
+            last_speaker_name=last_speaker_name,
+            turn_number=turn,
+            total_turns=total_turns,
+            base_prompt=base_prompt # Not directly used in template, but good to pass
+        )
+
+    def get_participant_critique_prompt(self, draft: str) -> str:
+        """Get the participant's critique prompt."""
+        return self.PARTICIPANT_CRITIQUE_PROMPT.format(draft=draft)
+
+    def get_participant_final_response_prompt(self, original_draft: str, critique: str) -> str:
+        """Get the participant's final response prompt."""
+        return self.PARTICIPANT_FINAL_RESPONSE_PROMPT.format(
+            original_draft=original_draft,
+            critique=critique
+        )
+
     def get_summary_prompt(
         self,
         participant1_name: str,
@@ -530,3 +639,4 @@ Be direct about both strengths and weaknesses."""
     def for_mode(cls, mode: DialogMode) -> 'PromptTemplates':
         """Factory method to create templates for a specific mode."""
         return cls(mode=mode)
+
