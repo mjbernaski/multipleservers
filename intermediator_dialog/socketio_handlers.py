@@ -84,7 +84,7 @@ def register_socketio_handlers(socketio, state):
                 'interview': DialogMode.INTERVIEW,
                 'critique': DialogMode.CRITIQUE
             }
-            dialog_mode = mode_map.get(mode_str.lower(), DialogMode.EXPLORATION)
+            dialog_mode = mode_map.get(mode_str.lower(), DialogMode.DEBATE)
             
             # Create DialogConfig for refactored dialog
             config = DialogConfig(
@@ -99,6 +99,7 @@ def register_socketio_handlers(socketio, state):
             )
             
             # Use refactored dialog with phase-aware prompts
+            debug_log('info', f"[TTS Debug] Creating dialog with enable_tts={enable_tts}, tts_callback={'set' if enable_tts else 'None'}", socketio=socketio)
             dialog = IntermediatorDialogRefactored(
                 intermediator=intermediator_client,
                 participant1=participant1_client,
@@ -220,6 +221,7 @@ def register_socketio_handlers(socketio, state):
         thinking_params = data.get('thinking_params', {})
         prompt_config = data.get('prompt_config', {})
         enable_tts = data.get('enable_tts', False)
+        debug_log('info', f"[TTS Debug] Received enable_tts={enable_tts}", socketio=socketio)
 
         if not prompt_config.get('intermediator_topic_prompt'):
             emit('error', {'error': 'Intermediator topic/instructions prompt is required'})

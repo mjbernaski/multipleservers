@@ -29,6 +29,7 @@ def generate_tts_audio(text: str, speaker: str, dialog_id: str, topic: str, sequ
     Returns:
         Path to the saved audio file, or None if TTS fails
     """
+    print(f"[TTS Debug] generate_tts_audio called: speaker={speaker}, dialog_id={dialog_id[:8]}, sequence={sequence}")
     try:
         # Map speakers to OpenAI TTS voices
         voice_map = {
@@ -38,11 +39,12 @@ def generate_tts_audio(text: str, speaker: str, dialog_id: str, topic: str, sequ
         }
         voice = voice_map.get(speaker, 'alloy')
 
-        # Create folder name: Debate_{sanitized_topic}
+        # Create folder name: Debate_{sanitized_topic}_{dialog_id}
         # Sanitize topic for folder name
         sanitized_topic = re.sub(r'[^\w\s-]', '', topic)[:50]  # Remove special chars, limit length
         sanitized_topic = re.sub(r'[-\s]+', '_', sanitized_topic)  # Replace spaces/dashes with underscore
-        folder_name = f"Debate_{sanitized_topic}" if sanitized_topic else f"Debate_{dialog_id[:8]}"
+        # Include dialog_id to make each debate's folder unique
+        folder_name = f"Debate_{sanitized_topic}_{dialog_id[:8]}" if sanitized_topic else f"Debate_{dialog_id[:8]}"
 
         # Create audio directory
         audio_dir = os.path.join('output', 'audio', folder_name)
@@ -69,15 +71,18 @@ def generate_tts_audio(text: str, speaker: str, dialog_id: str, topic: str, sequ
             truncated_text = text
 
         # Generate speech using OpenAI TTS
+        print(f"[TTS Debug] Calling OpenAI TTS API for {speaker}, voice={voice}, text_len={len(truncated_text)}")
         response = openai_client.audio.speech.create(
             model="tts-1",
             voice=voice,
             input=truncated_text
         )
+        print(f"[TTS Debug] OpenAI TTS API returned, saving to {filepath}")
 
         # Save audio file
         with open(filepath, 'wb') as f:
             f.write(response.content)
+        print(f"[TTS Debug] Audio file saved: {filepath}")
 
         # Emit TTS complete event
         if socketio:
@@ -100,7 +105,9 @@ def generate_tts_audio(text: str, speaker: str, dialog_id: str, topic: str, sequ
                 'sequence': sequence,
                 'error': str(e)
             })
-        print(f"TTS Error for {speaker}: {str(e)}")
+        print(f"[TTS Debug] ERROR for {speaker}: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return None
 
 
@@ -168,9 +175,10 @@ Be concise but comprehensive. Format your response in plain text with clear sect
 
         # Save summaries to text files
         topic = dialog_data.get('topic', 'Dialog')
+        dialog_id = dialog_data.get('dialog_id', '')[:8]
         sanitized_topic = re.sub(r'[^\w\s-]', '', topic)[:50]
         sanitized_topic = re.sub(r'[-\s]+', '_', sanitized_topic)
-        folder_name = f"Debate_{sanitized_topic}" if sanitized_topic else "Debate"
+        folder_name = f"Debate_{sanitized_topic}_{dialog_id}" if sanitized_topic else f"Debate_{dialog_id}"
         audio_dir = os.path.join('output', 'audio', folder_name)
         os.makedirs(audio_dir, exist_ok=True)
 

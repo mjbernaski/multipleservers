@@ -942,8 +942,8 @@
                     <div class="form-group">
                         <label for="dialog-mode">Dialog Mode:</label>
                         <select id="dialog-mode" style="width: 100%; padding: 8px; background: #2d2d2d; color: #e0e0e0; border: 1px solid #444; border-radius: 4px;">
-                            <option value="exploration">Exploration (collaborative inquiry)</option>
                             <option value="debate">Debate (adversarial, winner declared)</option>
+                            <option value="exploration">Exploration (collaborative inquiry)</option>
                             <option value="interview">Interview (one questions the other)</option>
                             <option value="critique">Critique (one presents, other critiques)</option>
                         </select>
@@ -2319,6 +2319,9 @@ You follow the instructions of the intermediator, review the responses of your a
                     }
                 });
 
+                const ttsEnabled = isAudioGenerationEnabled();
+                console.log('[TTS Debug] Starting dialog with enable_tts:', ttsEnabled);
+
                 socket.emit('start_dialog', {
                     session_id: sessionId,
                     intermediator: intermediator,
@@ -2329,7 +2332,7 @@ You follow the instructions of the intermediator, review the responses of your a
                     participant1_override_model: participant1Override ? participant1.model : null,
                     participant2_override_model: participant2Override ? participant2.model : null,
                     prompt_config: promptConfig,
-                    enable_tts: isAudioGenerationEnabled()
+                    enable_tts: ttsEnabled
                 });
             } catch (error) {
                 console.error('Error in startDialog:', error);
@@ -2495,7 +2498,7 @@ You follow the instructions of the intermediator, review the responses of your a
             document.getElementById('participant1-mid-prompt').value = '';
             document.getElementById('participant2-mid-prompt').value = '';
             document.getElementById('participant-post-prompt').value = DEFAULT_PROMPTS.participant_post_prompt;
-            document.getElementById('dialog-mode').value = 'exploration';  // Reset to default mode
+            document.getElementById('dialog-mode').value = 'debate';  // Reset to default mode
 
             // Clear other fields (maxTurns always defaults to 3)
             document.getElementById('fileUpload').value = '';

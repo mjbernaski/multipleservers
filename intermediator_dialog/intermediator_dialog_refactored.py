@@ -37,7 +37,7 @@ class DialogAbortedError(DialogError):
 @dataclass
 class DialogConfig:
     """Configuration for a dialog session."""
-    mode: DialogMode = DialogMode.EXPLORATION
+    mode: DialogMode = DialogMode.DEBATE
     max_turns: int = 3
     enable_tts: bool = True
     
@@ -327,17 +327,19 @@ class IntermediatorDialogRefactored:
             'speaker': speaker_key,
             'message': response,
             'tokens': tokens,
-            'thinking_enabled': participant.thinking
+            'thinking_enabled': participant.thinking,
+            'thinking': tokens.get('thinking') if tokens else None
         })
         self.turn_counter += 1
-        
+
         # Update other participants' context
         self._update_contexts(speaker_key, response)
         
         # Handle TTS if enabled
+        print(f"[TTS Debug] Participant turn complete: enable_tts={self.config.enable_tts}, has_callback={self.tts_callback is not None}")
         if self.config.enable_tts and self.tts_callback:
             self._queue_tts(response, speaker_key)
-        
+
         return response, tokens
 
     def _update_contexts(self, speaker_key: str, message: str):
@@ -418,7 +420,7 @@ class IntermediatorDialogRefactored:
         })
 
         try:
-            mod_response, mod_tokens = self.intermediator.ask(mod_prompt, round_num=turn)
+            mod_response, mod_tokens = self.intermediator.ask(mod_prompt, round_num=turn, phase="moderation")
         except Exception as e:
             self._emit('error', {
                 'type': 'llm_error',
@@ -435,10 +437,11 @@ class IntermediatorDialogRefactored:
             'speaker': 'intermediator',
             'message': mod_response,
             'tokens': mod_tokens,
-            'thinking_enabled': self.intermediator.thinking
+            'thinking_enabled': self.intermediator.thinking,
+            'thinking': mod_tokens.get('thinking') if mod_tokens else None
         })
         self.turn_counter += 1
-        
+
         # Update participants with moderator's comment
         mod_content = f"Moderator ({self.names['intermediator']}) said: {mod_response}"
         self.participant1.messages.append({"role": "user", "content": mod_content})
@@ -448,9 +451,10 @@ class IntermediatorDialogRefactored:
         self._emit_context_lengths()
 
         # Handle TTS
+        print(f"[TTS Debug] Moderator turn complete: enable_tts={self.config.enable_tts}, has_callback={self.tts_callback is not None}")
         if self.config.enable_tts and self.tts_callback:
             self._queue_tts(mod_response, 'intermediator')
-        
+
         # Check for early conclusion signal
         should_continue = "CONCLUDE" not in mod_response.upper()
         
@@ -462,7 +466,9 @@ class IntermediatorDialogRefactored:
 
     def _queue_tts(self, text: str, speaker: str):
         """Queue TTS generation in background thread."""
+        print(f"[TTS Debug] _queue_tts called: speaker={speaker}, text_len={len(text)}, callback={'set' if self.tts_callback else 'None'}")
         if not self.tts_callback:
+            print("[TTS Debug] _queue_tts: No callback, returning")
             return
         
         thread = threading.Thread(
@@ -582,7 +588,7 @@ class IntermediatorDialogRefactored:
         })
 
         try:
-            intro_response, intro_tokens = self.intermediator.ask(intro_prompt, round_num=0)
+            intro_response, intro_tokens = self.intermediator.ask(intro_prompt, round_num=0, phase="introduction")
         except Exception as e:
             self._emit('error', {
                 'type': 'llm_error',
@@ -598,7 +604,8 @@ class IntermediatorDialogRefactored:
             'speaker': 'intermediator',
             'message': intro_response,
             'tokens': intro_tokens,
-            'thinking_enabled': self.intermediator.thinking
+            'thinking_enabled': self.intermediator.thinking,
+            'thinking': intro_tokens.get('thinking') if intro_tokens else None
         })
         self.turn_counter += 1
 
@@ -627,8 +634,9 @@ class IntermediatorDialogRefactored:
                     total_turns=total_turns
                 )
 
-                # Moderator intervenes (skip on final turn)
-                if turn < total_turns:
+                # Moderator intervenes after both participants have stated their positions
+                # Skip turn 1 (P1 opening), moderate after turn 2+ (except final turn)
+                if turn >= 2 and turn < total_turns:
                     mod_response, mod_tokens, should_continue = self._handle_moderation(
                         turn=turn,
                         total_turns=total_turns,
@@ -679,7 +687,7 @@ class IntermediatorDialogRefactored:
         })
 
         try:
-            summary_response, summary_tokens = self.intermediator.ask(summary_prompt, round_num=self.turn_counter)
+            summary_response, summary_tokens = self.intermediator.ask(summary_prompt, round_num=self.turn_counter, phase="summary")
         except Exception as e:
             self._emit('error', {
                 'type': 'llm_error',
@@ -698,10 +706,11 @@ class IntermediatorDialogRefactored:
             'message': summary_response,
             'tokens': summary_tokens,
             'is_summary': True,
-            'thinking_enabled': self.intermediator.thinking
+            'thinking_enabled': self.intermediator.thinking,
+            'thinking': summary_tokens.get('thinking') if summary_tokens else None
         })
         self.turn_counter += 1
-        
+
         if self.config.enable_tts and self.tts_callback:
             self._queue_tts(summary_response, 'intermediator')
         
