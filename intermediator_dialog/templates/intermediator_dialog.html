@@ -1126,6 +1126,9 @@
                 🎙️ <span id="ttsStatus">TTS</span> <span id="ttsCount"
                     style="background: rgba(255,255,255,0.2); padding: 2px 6px; border-radius: 3px; margin-left: 4px;">0</span>
             </span>
+            <span id="contextIndicator" style="margin-left: 16px; font-size: 11px; opacity: 0; transition: opacity 0.3s;">
+                📊 Context: <span id="contextStats" style="font-family: monospace;">--</span>
+            </span>
         </div>
         <div id="progressBarContainer"
             style="position: absolute; bottom: 0; left: 0; right: 0; height: 4px; background: rgba(0,0,0,0.2); overflow: hidden; display: none;">
@@ -1637,6 +1640,34 @@ You follow the instructions of the intermediator, review the responses of your a
 
         socket.on('dialog_update', (data) => {
             handleDialogUpdate(data);
+        });
+
+        socket.on('context_length_update', (data) => {
+            const indicator = document.getElementById('contextIndicator');
+            const stats = document.getElementById('contextStats');
+            indicator.style.opacity = '1';
+
+            // Find max tokens used across all participants
+            const maxUsed = Math.max(
+                data.intermediator.tokens,
+                data.participant1.tokens,
+                data.participant2.tokens
+            );
+            const maxTokens = data.max_tokens;
+            const pct = ((maxUsed / maxTokens) * 100).toFixed(1);
+
+            // Format: "12.5k/96k (13%)"
+            const formatK = (n) => n >= 1000 ? (n / 1000).toFixed(1) + 'k' : n;
+            stats.textContent = `${formatK(maxUsed)}/${formatK(maxTokens)} (${pct}%)`;
+
+            // Color code based on usage
+            if (pct > 80) {
+                stats.style.color = '#ff6b6b'; // Red - danger
+            } else if (pct > 60) {
+                stats.style.color = '#ffa500'; // Orange - warning
+            } else {
+                stats.style.color = '#70ad47'; // Green - ok
+            }
         });
 
         socket.on('tts_progress', (data) => {
@@ -2593,7 +2624,7 @@ You follow the instructions of the intermediator, review the responses of your a
 
             debateLibrary.forEach((debate, index) => {
                 const debateItem = document.createElement('div');
-                debateItem.style.cssText = 'padding: 10px; margin-bottom: 8px; border: 1px solid #d0d0d0; border-radius: 4px; background: #f9f9f9; cursor: pointer; transition: background 0.2s;';
+                debateItem.style.cssText = 'padding: 10px; margin-bottom: 8px; border: 1px solid #d0d0d0; border-radius: 4px; background: #f9f9f9; transition: background 0.2s;';
                 debateItem.onmouseover = () => debateItem.style.background = '#e7f3ff';
                 debateItem.onmouseout = () => debateItem.style.background = '#f9f9f9';
 
@@ -2604,6 +2635,9 @@ You follow the instructions of the intermediator, review the responses of your a
                             <div style="font-weight: 600; color: #1f4e78; margin-bottom: 4px;">${debate.name}</div>
                             <div style="font-size: 12px; color: #808080;">${debate.description}</div>
                         </label>
+                        <button onclick="event.stopPropagation(); loadDebateToEdit('${debate.id}')"
+                            style="background: #70ad47; padding: 4px 10px; font-size: 11px; white-space: nowrap;"
+                            title="Load into form for editing">✏️ Edit</button>
                     </div>
                 `;
 
@@ -2687,6 +2721,37 @@ You follow the instructions of the intermediator, review the responses of your a
 
             // Start queue
             startDebateQueue();
+        }
+
+        function loadDebateToEdit(debateId) {
+            const debate = debateLibrary.find(d => d.id === debateId);
+            if (!debate) {
+                showStatus('Debate not found', 'error');
+                return;
+            }
+
+            // Load debate into form fields
+            document.getElementById('intermediator-pre-prompt').value = debate.intermediator_pre_prompt || '';
+            document.getElementById('intermediator-topic-prompt').value = debate.intermediator_topic_prompt || '';
+            document.getElementById('participant-pre-prompt').value = debate.participant_pre_prompt || '';
+            document.getElementById('participant1-mid-prompt').value = debate.participant1_mid_prompt || '';
+            document.getElementById('participant2-mid-prompt').value = debate.participant2_mid_prompt || '';
+            document.getElementById('participant-post-prompt').value = debate.participant_post_prompt || '';
+            document.getElementById('maxTurns').value = debate.max_turns || 3;
+
+            // Deselect all debates (user is editing, not running queue)
+            deselectAllDebates();
+
+            // Collapse the debate library section
+            const section = document.getElementById('debateLibrarySection');
+            const toggle = document.getElementById('debateLibraryToggle');
+            section.style.display = 'none';
+            toggle.textContent = '▶';
+
+            // Scroll to the prompts section
+            document.getElementById('intermediator-topic-prompt').scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+            showStatus(`Loaded "${debate.name}" for editing. Make changes and click Start Dialog.`, 'success');
         }
 
         function startDebateQueue() {

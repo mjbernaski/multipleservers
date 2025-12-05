@@ -295,13 +295,13 @@ class IntermediatorDialogRefactored:
         """Update all participants' message histories with a new message."""
         speaker_name = self.names[speaker_key]
         content = f"{speaker_name} said: {message}"
-        
+
         # Update intermediator
         self.intermediator.messages.append({
             "role": "user",
             "content": content
         })
-        
+
         # Update the OTHER participant (not the one who just spoke)
         if speaker_key == 'participant1':
             self.participant2.messages.append({
@@ -313,6 +313,29 @@ class IntermediatorDialogRefactored:
                 "role": "user",
                 "content": content
             })
+
+        # Emit context length update
+        self._emit_context_lengths()
+
+    def _calculate_context_length(self, client) -> dict:
+        """Calculate context length for a client in characters and estimated tokens."""
+        total_chars = sum(len(msg.get('content', '')) for msg in client.messages)
+        # Rough estimate: ~4 chars per token for English text
+        estimated_tokens = total_chars // 4
+        return {
+            'chars': total_chars,
+            'tokens': estimated_tokens,
+            'messages': len(client.messages)
+        }
+
+    def _emit_context_lengths(self):
+        """Emit current context lengths for all participants."""
+        self._emit('context_length_update', {
+            'intermediator': self._calculate_context_length(self.intermediator),
+            'participant1': self._calculate_context_length(self.participant1),
+            'participant2': self._calculate_context_length(self.participant2),
+            'max_tokens': 96000  # Current num_ctx setting
+        })
 
     # =========================================================================
     # MODERATION HANDLING
@@ -361,7 +384,10 @@ class IntermediatorDialogRefactored:
         mod_content = f"Moderator ({self.names['intermediator']}) said: {mod_response}"
         self.participant1.messages.append({"role": "user", "content": mod_content})
         self.participant2.messages.append({"role": "user", "content": mod_content})
-        
+
+        # Emit context length update
+        self._emit_context_lengths()
+
         # Handle TTS
         if self.config.enable_tts and self.tts_callback:
             self._queue_tts(mod_response, 'intermediator')
