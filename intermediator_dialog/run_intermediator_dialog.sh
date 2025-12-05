@@ -65,8 +65,8 @@ else
     PYTHON_CMD="python3"
 fi
 
-# Run the main Python script in the background
-$PYTHON_CMD app.py --host "$HOST" --port "$PORT" &
+# Run the main Python script in the background (--no-browser since we open tabs below)
+$PYTHON_CMD app.py --host "$HOST" --port "$PORT" --no-browser &
 SERVER_PID=$!
 
 # Start the audio player server (uses its own venv)
