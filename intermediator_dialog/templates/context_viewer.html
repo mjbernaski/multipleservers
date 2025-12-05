@@ -297,16 +297,20 @@
                         <div class="stat-label">Messages</div>
                     </div>
                     <div class="stat-item">
-                        <div class="stat-value" id="intTokens">0</div>
-                        <div class="stat-label">Total Tokens</div>
+                        <div class="stat-value" id="intSpeakingTokens">0</div>
+                        <div class="stat-label">Speaking Tokens</div>
                     </div>
                     <div class="stat-item">
-                        <div class="stat-value" id="intChars">0</div>
-                        <div class="stat-label">Characters</div>
+                        <div class="stat-value" id="intThinkingTokens">0</div>
+                        <div class="stat-label">Thinking Tokens</div>
                     </div>
                     <div class="stat-item">
                         <div class="stat-value" id="intThinking">No</div>
                         <div class="stat-label">Thinking</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="intReasoning">-</div>
+                        <div class="stat-label">Reasoning</div>
                     </div>
                 </div>
                 <div class="panel-content" id="intermediatorContent">
@@ -325,16 +329,20 @@
                         <div class="stat-label">Messages</div>
                     </div>
                     <div class="stat-item">
-                        <div class="stat-value" id="p1Tokens">0</div>
-                        <div class="stat-label">Total Tokens</div>
+                        <div class="stat-value" id="p1SpeakingTokens">0</div>
+                        <div class="stat-label">Speaking Tokens</div>
                     </div>
                     <div class="stat-item">
-                        <div class="stat-value" id="p1Chars">0</div>
-                        <div class="stat-label">Characters</div>
+                        <div class="stat-value" id="p1ThinkingTokens">0</div>
+                        <div class="stat-label">Thinking Tokens</div>
                     </div>
                     <div class="stat-item">
                         <div class="stat-value" id="p1Thinking">No</div>
                         <div class="stat-label">Thinking</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="p1Reasoning">-</div>
+                        <div class="stat-label">Reasoning</div>
                     </div>
                 </div>
                 <div class="panel-content" id="participant1Content">
@@ -353,16 +361,20 @@
                         <div class="stat-label">Messages</div>
                     </div>
                     <div class="stat-item">
-                        <div class="stat-value" id="p2Tokens">0</div>
-                        <div class="stat-label">Total Tokens</div>
+                        <div class="stat-value" id="p2SpeakingTokens">0</div>
+                        <div class="stat-label">Speaking Tokens</div>
                     </div>
                     <div class="stat-item">
-                        <div class="stat-value" id="p2Chars">0</div>
-                        <div class="stat-label">Characters</div>
+                        <div class="stat-value" id="p2ThinkingTokens">0</div>
+                        <div class="stat-label">Thinking Tokens</div>
                     </div>
                     <div class="stat-item">
                         <div class="stat-value" id="p2Thinking">No</div>
                         <div class="stat-label">Thinking</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="p2Reasoning">-</div>
+                        <div class="stat-label">Reasoning</div>
                     </div>
                 </div>
                 <div class="panel-content" id="participant2Content">
@@ -430,9 +442,10 @@
 
             if (data.stats) {
                 document.getElementById(`${prefix}MsgCount`).textContent = data.stats.message_count || 0;
-                document.getElementById(`${prefix}Tokens`).textContent = formatNumber(data.stats.total_tokens || 0);
-                document.getElementById(`${prefix}Chars`).textContent = formatNumber(data.stats.total_chars || 0);
+                document.getElementById(`${prefix}SpeakingTokens`).textContent = formatNumber(data.stats.total_speaking_tokens || 0);
+                document.getElementById(`${prefix}ThinkingTokens`).textContent = formatNumber(data.stats.total_thinking_tokens || 0);
                 document.getElementById(`${prefix}Thinking`).textContent = data.thinking_enabled ? 'Yes' : 'No';
+                document.getElementById(`${prefix}Reasoning`).textContent = data.reasoning_effort || '-';
             }
 
             document.getElementById(`${role}Content`).innerHTML = renderMessages(data.messages);
@@ -450,21 +463,24 @@
                     return;
                 }
 
-                clientList.innerHTML = Object.entries(data.clients).map(([key, client]) => `
-                    <div class="client-badge" data-key="${key}" onclick="selectClient('${key}')">
-                        <div class="client-name">${client.name}</div>
-                        <div class="client-model">${client.model} (${client.message_count} msgs)</div>
+                clientList.innerHTML = Object.entries(data.clients).map(([key, client]) => {
+                    const role = client.role || '';
+                    const roleLabel = role === 'intermediator' ? ' [MOD]' : (role ? ` [${role.toUpperCase()}]` : '');
+                    return `
+                    <div class="client-badge" data-key="${key}" data-role="${role}" onclick="selectClient('${key}')">
+                        <div class="client-name">${client.name}${roleLabel}</div>
+                        <div class="client-model">${client.model} (${client.message_count} msgs) ${client.thinking_enabled ? '🧠' : ''}${client.reasoning_effort ? ' R:' + client.reasoning_effort : ''}</div>
                     </div>
-                `).join('');
+                `}).join('');
 
-                // Auto-assign clients to panels based on name patterns
+                // Auto-assign clients to panels based on their role property
                 Object.entries(data.clients).forEach(([key, client]) => {
-                    const name = client.name.toLowerCase();
-                    if (name.includes('moderator') || name.includes('intermediator')) {
+                    const role = client.role;
+                    if (role === 'intermediator' && !selectedClients.intermediator) {
                         selectedClients.intermediator = key;
-                    } else if (!selectedClients.participant1 && !name.includes('moderator')) {
+                    } else if (role === 'participant1' && !selectedClients.participant1) {
                         selectedClients.participant1 = key;
-                    } else if (!selectedClients.participant2 && !name.includes('moderator')) {
+                    } else if (role === 'participant2' && !selectedClients.participant2) {
                         selectedClients.participant2 = key;
                     }
                 });

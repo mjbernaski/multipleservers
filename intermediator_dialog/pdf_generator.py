@@ -211,7 +211,7 @@ def generate_pdf_from_dialog(dialog_data: Dict, prompt_config: Dict,
                 total_energy = sum(server_energy.values())
 
                 if total_energy > 0:
-                    elements.append(Paragraph("Estimated Energy Consumption", heading_style))
+                    elements.append(Paragraph("Estimated GPU Energy (GPU Only)", heading_style))
                     energy_text = f"Total Energy: {total_energy:.4f} Wh<br/>"
                     for role, energy in server_energy.items():
                         if energy > 0:
@@ -236,17 +236,33 @@ def generate_pdf_from_dialog(dialog_data: Dict, prompt_config: Dict,
 
         conversation_history = dialog_data.get('conversation_history', [])
 
-        # Calculate totals
+        # Calculate totals and per-server breakdowns
         total_prompt_tokens = 0
         total_completion_tokens = 0
         total_tokens = 0
 
+        # Per-server token tracking
+        server_tokens = {
+            'intermediator': {'prompt': 0, 'completion': 0, 'thinking': 0, 'speaking': 0, 'total': 0},
+            'participant1': {'prompt': 0, 'completion': 0, 'thinking': 0, 'speaking': 0, 'total': 0},
+            'participant2': {'prompt': 0, 'completion': 0, 'thinking': 0, 'speaking': 0, 'total': 0},
+        }
+
         for entry in conversation_history:
             tokens = entry.get('tokens', {})
+            speaker = entry.get('speaker', '')
             if tokens:
                 total_prompt_tokens += tokens.get('prompt_tokens', 0)
                 total_completion_tokens += tokens.get('completion_tokens', 0)
                 total_tokens += tokens.get('total', 0)
+
+                # Track per-server tokens
+                if speaker in server_tokens:
+                    server_tokens[speaker]['prompt'] += tokens.get('prompt_tokens', 0)
+                    server_tokens[speaker]['completion'] += tokens.get('completion_tokens', 0)
+                    server_tokens[speaker]['thinking'] += tokens.get('thinking_tokens', 0)
+                    server_tokens[speaker]['speaking'] += tokens.get('speaking_tokens', 0)
+                    server_tokens[speaker]['total'] += tokens.get('total', 0)
 
         # Write each turn
         for idx, entry in enumerate(conversation_history):
@@ -371,6 +387,52 @@ def generate_pdf_from_dialog(dialog_data: Dict, prompt_config: Dict,
             ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f2f2f2')]),
         ]))
         elements.append(stats_table)
+
+        # Per-Server Token Breakdown
+        elements.append(Spacer(1, 0.3*inch))
+        elements.append(Paragraph("Tokens by Server", heading_style))
+
+        server_stats_data = [
+            ['Server', 'Speaking Tokens', 'Thinking Tokens', 'Total Completion', 'Prompt Tokens'],
+            [
+                f"Moderator ({intermediator_config.get('name', 'Intermediator')})",
+                f"{server_tokens['intermediator']['speaking']:,}",
+                f"{server_tokens['intermediator']['thinking']:,}",
+                f"{server_tokens['intermediator']['completion']:,}",
+                f"{server_tokens['intermediator']['prompt']:,}",
+            ],
+            [
+                f"Participant 1 ({participant1_config.get('name', 'P1')})",
+                f"{server_tokens['participant1']['speaking']:,}",
+                f"{server_tokens['participant1']['thinking']:,}",
+                f"{server_tokens['participant1']['completion']:,}",
+                f"{server_tokens['participant1']['prompt']:,}",
+            ],
+            [
+                f"Participant 2 ({participant2_config.get('name', 'P2')})",
+                f"{server_tokens['participant2']['speaking']:,}",
+                f"{server_tokens['participant2']['thinking']:,}",
+                f"{server_tokens['participant2']['completion']:,}",
+                f"{server_tokens['participant2']['prompt']:,}",
+            ],
+        ]
+
+        server_stats_table = Table(server_stats_data, colWidths=[2.2*inch, 1.2*inch, 1.2*inch, 1.4*inch, 1.2*inch])
+        server_stats_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#4472c4')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (0, -1), 'LEFT'),
+            ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ('BACKGROUND', (0, 1), (-1, 1), colors.HexColor('#dae3f3')),
+            ('BACKGROUND', (0, 2), (-1, 2), colors.HexColor('#e2efda')),
+            ('BACKGROUND', (0, 3), (-1, 3), colors.HexColor('#fce4d6')),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ]))
+        elements.append(server_stats_table)
 
         # Build PDF
         doc.build(elements)

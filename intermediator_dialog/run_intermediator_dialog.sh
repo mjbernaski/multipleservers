@@ -95,8 +95,8 @@ if ! kill -0 $SERVER_PID 2>/dev/null; then
     exit 1
 fi
 
-# Open the web page in the default browser
-echo "Opening web page in browser..."
+# Open the web pages in the default browser
+echo "Opening web pages in browser..."
 if [[ "$OSTYPE" == "darwin"* ]]; then
     # macOS
     if [[ "$HOST" == "0.0.0.0" ]]; then
@@ -105,11 +105,13 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
         BROWSER_URL="$URL"
     fi
     open "$BROWSER_URL"
+    open "$BROWSER_URL/context"
 elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
     # Linux
     xdg-open "$URL" 2>/dev/null || echo "Please open $URL in your browser"
+    xdg-open "$URL/context" 2>/dev/null || echo "Please open $URL/context in your browser"
 else
-    echo "Please open $URL in your browser"
+    echo "Please open $URL and $URL/context in your browser"
 fi
 
 echo ""
