@@ -141,6 +141,12 @@
             participant1: 'Participant A',
             participant2: 'Participant B'
         };
+        // Track current active speaker/turn for streaming content
+        let activeSpeaker = null;
+        let activeTurn = 0;
+        let activePhase = null;  // 'draft', 'critique', 'final', or 'moderation'
+        // Map client names to speaker keys
+        let nameToSpeaker = {};
 
         socket.on('connect', () => {
             console.log('Connected to server');
@@ -151,46 +157,89 @@
             document.getElementById('status').textContent = 'Debate in progress...';
             document.getElementById('status').className = 'status active';
 
-            if (data.intermediator) speakerNames.intermediator = data.intermediator;
-            if (data.participant1) speakerNames.participant1 = data.participant1;
-            if (data.participant2) speakerNames.participant2 = data.participant2;
+            if (data.intermediator) {
+                speakerNames.intermediator = data.intermediator;
+                nameToSpeaker[data.intermediator] = 'intermediator';
+            }
+            if (data.participant1) {
+                speakerNames.participant1 = data.participant1;
+                nameToSpeaker[data.participant1] = 'participant1';
+            }
+            if (data.participant2) {
+                speakerNames.participant2 = data.participant2;
+                nameToSpeaker[data.participant2] = 'participant2';
+            }
         });
 
         socket.on('dialog_update', (data) => {
             const eventType = data.type || data.event;
-            const speaker = data.speaker || data.role || data.name;
-            const turn = data.turn !== undefined ? data.turn : 0;
 
-            if (eventType === 'intermediator_turn' || eventType === 'participant_turn') {
-                // Start of a new turn - create placeholder
-                ensureTurnElement(speaker, turn);
+            if (eventType === 'intermediator_turn') {
+                // Moderator starting - create element and track
+                activeSpeaker = 'intermediator';
+                activeTurn = data.turn;
+                activePhase = 'moderation';
+                ensureTurnElement('intermediator', data.turn);
+            } else if (eventType === 'participant_turn') {
+                // Participant starting - just track, don't create element yet
+                // (we only show final response, not draft/critique)
+                activeSpeaker = data.speaker;
+                activeTurn = data.turn;
+            } else if (eventType === 'participant_final_response_start') {
+                // Final response starting - now create the element
+                activeSpeaker = data.speaker;
+                activeTurn = data.turn;
+                activePhase = 'final';
+                ensureTurnElement(data.speaker, data.turn);
             } else if (eventType === 'content') {
-                // Streaming content
-                const turnEl = document.getElementById(`turn-${speaker}-${turn}`);
-                if (turnEl) {
-                    const contentEl = turnEl.querySelector('.content');
-                    if (contentEl) {
-                        if (!currentContent[`${speaker}-${turn}`]) {
-                            currentContent[`${speaker}-${turn}`] = '';
+                // Streaming content - only show for moderation and final responses
+                if (activePhase === 'moderation' || activePhase === 'final') {
+                    // Map name to speaker if needed
+                    let speaker = activeSpeaker;
+                    if (data.name && nameToSpeaker[data.name]) {
+                        speaker = nameToSpeaker[data.name];
+                    }
+
+                    const turnEl = document.getElementById(`turn-${speaker}-${activeTurn}`);
+                    if (turnEl) {
+                        const contentEl = turnEl.querySelector('.content');
+                        if (contentEl) {
+                            const key = `${speaker}-${activeTurn}`;
+                            if (!currentContent[key]) {
+                                currentContent[key] = '';
+                            }
+                            currentContent[key] += data.content || '';
+                            contentEl.textContent = currentContent[key];
+                            contentEl.classList.add('streaming');
+                            scrollToBottom();
                         }
-                        currentContent[`${speaker}-${turn}`] += data.content || '';
-                        contentEl.textContent = currentContent[`${speaker}-${turn}`];
-                        contentEl.classList.add('streaming');
-                        scrollToBottom();
                     }
                 }
             } else if (eventType === 'response_complete') {
-                // Response finished
-                const turnEl = document.getElementById(`turn-${speaker}-${turn}`);
-                if (turnEl) {
-                    const contentEl = turnEl.querySelector('.content');
-                    if (contentEl) {
-                        contentEl.textContent = data.answer || currentContent[`${speaker}-${turn}`] || '';
-                        contentEl.classList.remove('streaming');
+                // Response finished - finalize current turn
+                if (activePhase === 'moderation' || activePhase === 'final') {
+                    let speaker = activeSpeaker;
+                    if (data.name && nameToSpeaker[data.name]) {
+                        speaker = nameToSpeaker[data.name];
+                    }
+
+                    const turnEl = document.getElementById(`turn-${speaker}-${activeTurn}`);
+                    if (turnEl) {
+                        const contentEl = turnEl.querySelector('.content');
+                        if (contentEl) {
+                            const key = `${speaker}-${activeTurn}`;
+                            contentEl.textContent = data.answer || currentContent[key] || '';
+                            contentEl.classList.remove('streaming');
+                        }
                     }
                 }
+                activePhase = null;
+            } else if (eventType === 'participant_draft_start') {
+                activePhase = 'draft';
+            } else if (eventType === 'participant_critique_start') {
+                activePhase = 'critique';
             } else if (eventType === 'participant_final_response_complete') {
-                // Participant finished speaking
+                // Final response complete - update with final text
                 const turnEl = document.getElementById(`turn-${data.speaker}-${data.turn}`);
                 if (turnEl) {
                     const contentEl = turnEl.querySelector('.content');
@@ -199,6 +248,7 @@
                         contentEl.classList.remove('streaming');
                     }
                 }
+                activePhase = null;
             }
         });
 
