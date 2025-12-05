@@ -15,6 +15,25 @@ from dataclasses import dataclass, field
 from prompt_templates import PromptTemplates, DialogMode, DialogPhase
 
 
+class DialogError(Exception):
+    """Base exception for dialog errors."""
+    pass
+
+
+class LLMError(DialogError):
+    """Error communicating with an LLM."""
+    def __init__(self, message: str, participant: str = None, turn: int = None, phase: str = None):
+        self.participant = participant
+        self.turn = turn
+        self.phase = phase
+        super().__init__(message)
+
+
+class DialogAbortedError(DialogError):
+    """Dialog was aborted due to unrecoverable error."""
+    pass
+
+
 @dataclass
 class DialogConfig:
     """Configuration for a dialog session."""
@@ -251,24 +270,54 @@ class IntermediatorDialogRefactored:
             base_prompt=prompt # Pass the original prompt as a base
         )
         self._emit('participant_draft_start', {'speaker': speaker_key, 'turn': turn})
-        draft, draft_tokens = participant.ask(draft_prompt, round_num=turn, phase="draft")
+        try:
+            draft, draft_tokens = participant.ask(draft_prompt, round_num=turn, phase="draft")
+        except Exception as e:
+            self._emit('error', {
+                'type': 'llm_error',
+                'speaker': speaker_key,
+                'turn': turn,
+                'phase': 'draft',
+                'error': str(e)
+            })
+            raise LLMError(f"Draft generation failed: {e}", participant=speaker_key, turn=turn, phase="draft")
         self._emit('participant_draft_complete', {'speaker': speaker_key, 'turn': turn, 'draft': draft})
-        
+
         # STEP 2: Self-Critique
         critique_prompt = self.prompts.get_participant_critique_prompt(
             draft=draft
         )
         self._emit('participant_critique_start', {'speaker': speaker_key, 'turn': turn})
-        critique, critique_tokens = participant.ask(critique_prompt, round_num=turn, phase="critique")
+        try:
+            critique, critique_tokens = participant.ask(critique_prompt, round_num=turn, phase="critique")
+        except Exception as e:
+            self._emit('error', {
+                'type': 'llm_error',
+                'speaker': speaker_key,
+                'turn': turn,
+                'phase': 'critique',
+                'error': str(e)
+            })
+            raise LLMError(f"Critique generation failed: {e}", participant=speaker_key, turn=turn, phase="critique")
         self._emit('participant_critique_complete', {'speaker': speaker_key, 'turn': turn, 'critique': critique})
-        
+
         # STEP 3: Final Output
         final_response_prompt = self.prompts.get_participant_final_response_prompt(
             original_draft=draft,
             critique=critique
         )
         self._emit('participant_final_response_start', {'speaker': speaker_key, 'turn': turn})
-        response, tokens = participant.ask(final_response_prompt, round_num=turn, phase="final")
+        try:
+            response, tokens = participant.ask(final_response_prompt, round_num=turn, phase="final")
+        except Exception as e:
+            self._emit('error', {
+                'type': 'llm_error',
+                'speaker': speaker_key,
+                'turn': turn,
+                'phase': 'final',
+                'error': str(e)
+            })
+            raise LLMError(f"Final response generation failed: {e}", participant=speaker_key, turn=turn, phase="final")
         self._emit('participant_final_response_complete', {'speaker': speaker_key, 'turn': turn, 'response': response})
         
         
@@ -367,9 +416,19 @@ class IntermediatorDialogRefactored:
             'speaker': 'intermediator',
             'message': mod_prompt
         })
-        
-        mod_response, mod_tokens = self.intermediator.ask(mod_prompt, round_num=turn)
-        
+
+        try:
+            mod_response, mod_tokens = self.intermediator.ask(mod_prompt, round_num=turn)
+        except Exception as e:
+            self._emit('error', {
+                'type': 'llm_error',
+                'speaker': 'intermediator',
+                'turn': turn,
+                'phase': 'moderation',
+                'error': str(e)
+            })
+            raise LLMError(f"Moderation failed: {e}", participant='intermediator', turn=turn, phase='moderation')
+
         # Record in history
         self.conversation_history.append({
             'turn': self.turn_counter,
@@ -521,9 +580,19 @@ class IntermediatorDialogRefactored:
             'thinking': False,
             'intermediator': self.names['intermediator']
         })
-        
-        intro_response, intro_tokens = self.intermediator.ask(intro_prompt, round_num=0)
-        
+
+        try:
+            intro_response, intro_tokens = self.intermediator.ask(intro_prompt, round_num=0)
+        except Exception as e:
+            self._emit('error', {
+                'type': 'llm_error',
+                'speaker': 'intermediator',
+                'turn': 0,
+                'phase': 'introduction',
+                'error': str(e)
+            })
+            raise LLMError(f"Introduction failed: {e}", participant='intermediator', turn=0, phase='introduction')
+
         self.conversation_history.append({
             'turn': self.turn_counter,
             'speaker': 'intermediator',
@@ -532,53 +601,74 @@ class IntermediatorDialogRefactored:
             'thinking_enabled': self.intermediator.thinking
         })
         self.turn_counter += 1
-        
+
         # Share intro with participants
         intro_content = f"Moderator ({self.names['intermediator']}) said: {intro_response}"
         self.participant1.messages.append({"role": "user", "content": intro_content})
         self.participant2.messages.append({"role": "user", "content": intro_content})
-        
+
         if self.config.enable_tts and self.tts_callback:
             self._queue_tts(intro_response, 'intermediator')
-        
+
         # === MAIN DIALOG LOOP ===
         total_turns = self.config.max_turns * 2
-        
+        dialog_error = None
+
         for turn in range(1, total_turns + 1):
-            # Determine which participant's turn
-            participant_num = 1 if turn % 2 == 1 else 2
-            speaker_key = f'participant{participant_num}'
-            
-            # Participant responds
-            response, tokens = self._handle_participant_turn(
-                participant_num=participant_num,
-                turn=turn,
-                total_turns=total_turns
-            )
-            
-            # Moderator intervenes (skip on final turn)
-            if turn < total_turns:
-                mod_response, mod_tokens, should_continue = self._handle_moderation(
+            try:
+                # Determine which participant's turn
+                participant_num = 1 if turn % 2 == 1 else 2
+                speaker_key = f'participant{participant_num}'
+
+                # Participant responds
+                response, tokens = self._handle_participant_turn(
+                    participant_num=participant_num,
                     turn=turn,
-                    total_turns=total_turns,
-                    last_speaker=speaker_key,
-                    last_response=response
+                    total_turns=total_turns
                 )
-                
-                # Check for early conclusion
-                if not should_continue:
-                    self._emit('early_conclusion', {
-                        'turn': turn,
-                        'reason': mod_response
-                    })
-                    break
-        
+
+                # Moderator intervenes (skip on final turn)
+                if turn < total_turns:
+                    mod_response, mod_tokens, should_continue = self._handle_moderation(
+                        turn=turn,
+                        total_turns=total_turns,
+                        last_speaker=speaker_key,
+                        last_response=response
+                    )
+
+                    # Check for early conclusion
+                    if not should_continue:
+                        self._emit('early_conclusion', {
+                            'turn': turn,
+                            'reason': mod_response
+                        })
+                        break
+
+            except LLMError as e:
+                dialog_error = e
+                self._emit('dialog_error', {
+                    'turn': turn,
+                    'participant': e.participant,
+                    'phase': e.phase,
+                    'error': str(e),
+                    'recoverable': False
+                })
+                break
+            except Exception as e:
+                dialog_error = e
+                self._emit('dialog_error', {
+                    'turn': turn,
+                    'error': str(e),
+                    'recoverable': False
+                })
+                break
+
         # === FINAL SUMMARY ===
         summary_prompt = self.prompts.get_summary_prompt(
             participant1_name=self.names['participant1'],
             participant2_name=self.names['participant2']
         )
-        
+
         self._emit('intermediator_turn', {
             'turn': self.turn_counter,
             'speaker': 'intermediator',
@@ -587,8 +677,20 @@ class IntermediatorDialogRefactored:
             'thinking': True,
             'intermediator': self.names['intermediator']
         })
-        
-        summary_response, summary_tokens = self.intermediator.ask(summary_prompt, round_num=self.turn_counter)
+
+        try:
+            summary_response, summary_tokens = self.intermediator.ask(summary_prompt, round_num=self.turn_counter)
+        except Exception as e:
+            self._emit('error', {
+                'type': 'llm_error',
+                'speaker': 'intermediator',
+                'turn': self.turn_counter,
+                'phase': 'summary',
+                'error': str(e)
+            })
+            # Even if summary fails, return what we have
+            summary_response = "[Summary generation failed]"
+            summary_tokens = {'prompt_tokens': 0, 'completion_tokens': 0, 'total': 0}
         
         self.conversation_history.append({
             'turn': self.turn_counter,
@@ -615,20 +717,35 @@ class IntermediatorDialogRefactored:
         self.end_time = time.time()
         runtime_seconds = self.end_time - self.start_time
         
-        self._emit('dialog_complete', {
-            'conversation_history': self.conversation_history,
-            'runtime_seconds': runtime_seconds,
-            'total_turns': len(self.conversation_history)
-        })
-        
-        return {
+        # Build result
+        result = {
             'conversation_history': self.conversation_history,
             'runtime_seconds': runtime_seconds,
             'total_turns': len(self.conversation_history),
             'start_time': self.start_time,
             'end_time': self.end_time,
-            'mode': self.config.mode.value
+            'mode': self.config.mode.value,
+            'completed_successfully': dialog_error is None
         }
+
+        if dialog_error:
+            result['error'] = {
+                'message': str(dialog_error),
+                'type': type(dialog_error).__name__
+            }
+            if isinstance(dialog_error, LLMError):
+                result['error']['participant'] = dialog_error.participant
+                result['error']['turn'] = dialog_error.turn
+                result['error']['phase'] = dialog_error.phase
+
+        self._emit('dialog_complete', {
+            'conversation_history': self.conversation_history,
+            'runtime_seconds': runtime_seconds,
+            'total_turns': len(self.conversation_history),
+            'completed_successfully': dialog_error is None
+        })
+
+        return result
 
 
 # =============================================================================

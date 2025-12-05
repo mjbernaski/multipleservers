@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Context Viewer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background: linear-gradient(135deg, #16213e 0%, #0f3460 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h1 {
+            font-size: 1.5em;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        select, button {
+            padding: 8px 16px;
+            border-radius: 5px;
+            border: 1px solid #333;
+            background: #16213e;
+            color: #eee;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #0f3460;
+        }
+
+        .refresh-btn {
+            background: #e94560;
+        }
+
+        .refresh-btn:hover {
+            background: #c73e54;
+        }
+
+        .auto-refresh {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.9em;
+        }
+
+        .panels-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            height: calc(100vh - 140px);
+        }
+
+        .panel {
+            background: #16213e;
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .panel-header {
+            padding: 15px;
+            border-bottom: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .panel-title {
+            font-weight: 600;
+            font-size: 1.1em;
+        }
+
+        .panel-stats {
+            font-size: 0.8em;
+            color: #888;
+        }
+
+        .intermediator .panel-header { border-left: 4px solid #e94560; }
+        .participant1 .panel-header { border-left: 4px solid #0f3460; }
+        .participant2 .panel-header { border-left: 4px solid #533483; }
+
+        .panel-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            padding: 12px;
+            border-radius: 8px;
+            background: #1a1a2e;
+        }
+
+        .message-role {
+            font-size: 0.75em;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+            padding: 2px 8px;
+            border-radius: 3px;
+            display: inline-block;
+        }
+
+        .message-role.system { background: #e94560; color: white; }
+        .message-role.user { background: #0f3460; color: white; }
+        .message-role.assistant { background: #533483; color: white; }
+
+        .message-content {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-size: 0.9em;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .thinking-block {
+            margin-top: 10px;
+            padding: 10px;
+            background: #2a2a4e;
+            border-left: 3px solid #ffd700;
+            border-radius: 5px;
+        }
+
+        .thinking-label {
+            font-size: 0.75em;
+            font-weight: 600;
+            color: #ffd700;
+            margin-bottom: 5px;
+        }
+
+        .thinking-content {
+            font-size: 0.85em;
+            color: #ccc;
+            white-space: pre-wrap;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .stats-panel {
+            background: #0f3460;
+            padding: 10px 15px;
+            border-radius: 5px;
+            margin: 10px;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            font-size: 0.8em;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .stat-label {
+            color: #888;
+            font-size: 0.85em;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .client-selector {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #16213e;
+            border-radius: 10px;
+        }
+
+        .client-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .client-badge {
+            padding: 8px 15px;
+            background: #1a1a2e;
+            border-radius: 5px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .client-badge:hover {
+            border-color: #e94560;
+        }
+
+        .client-badge.selected {
+            border-color: #e94560;
+            background: #2a2a4e;
+        }
+
+        .client-name {
+            font-weight: 600;
+        }
+
+        .client-model {
+            font-size: 0.8em;
+            color: #888;
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #1a1a2e;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #333;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #444;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Context Window Viewer</h1>
+            <div class="controls">
+                <select id="viewMode">
+                    <option value="clients">All Clients</option>
+                    <option value="dialog">Active Dialog</option>
+                </select>
+                <button class="refresh-btn" onclick="refresh()">Refresh</button>
+                <button onclick="openSeparateWindows()">Open in Windows</button>
+                <label class="auto-refresh">
+                    <input type="checkbox" id="autoRefresh" checked>
+                    Auto-refresh (5s)
+                </label>
+            </div>
+        </header>
+
+        <div id="clientSelector" class="client-selector">
+            <strong>Available Clients:</strong>
+            <div id="clientList" class="client-list">
+                <div class="no-data">Loading clients...</div>
+            </div>
+        </div>
+
+        <div class="panels-container">
+            <div class="panel intermediator">
+                <div class="panel-header">
+                    <span class="panel-title" id="intermediatorTitle">Intermediator</span>
+                    <span class="panel-stats" id="intermediatorStats">--</span>
+                </div>
+                <div class="stats-panel" id="intermediatorStatsPanel">
+                    <div class="stat-item">
+                        <div class="stat-value" id="intMsgCount">0</div>
+                        <div class="stat-label">Messages</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="intTokens">0</div>
+                        <div class="stat-label">Total Tokens</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="intChars">0</div>
+                        <div class="stat-label">Characters</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="intThinking">No</div>
+                        <div class="stat-label">Thinking</div>
+                    </div>
+                </div>
+                <div class="panel-content" id="intermediatorContent">
+                    <div class="no-data">No data</div>
+                </div>
+            </div>
+
+            <div class="panel participant1">
+                <div class="panel-header">
+                    <span class="panel-title" id="participant1Title">Participant 1</span>
+                    <span class="panel-stats" id="participant1Stats">--</span>
+                </div>
+                <div class="stats-panel" id="participant1StatsPanel">
+                    <div class="stat-item">
+                        <div class="stat-value" id="p1MsgCount">0</div>
+                        <div class="stat-label">Messages</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="p1Tokens">0</div>
+                        <div class="stat-label">Total Tokens</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="p1Chars">0</div>
+                        <div class="stat-label">Characters</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="p1Thinking">No</div>
+                        <div class="stat-label">Thinking</div>
+                    </div>
+                </div>
+                <div class="panel-content" id="participant1Content">
+                    <div class="no-data">No data</div>
+                </div>
+            </div>
+
+            <div class="panel participant2">
+                <div class="panel-header">
+                    <span class="panel-title" id="participant2Title">Participant 2</span>
+                    <span class="panel-stats" id="participant2Stats">--</span>
+                </div>
+                <div class="stats-panel" id="participant2StatsPanel">
+                    <div class="stat-item">
+                        <div class="stat-value" id="p2MsgCount">0</div>
+                        <div class="stat-label">Messages</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="p2Tokens">0</div>
+                        <div class="stat-label">Total Tokens</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="p2Chars">0</div>
+                        <div class="stat-label">Characters</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="p2Thinking">No</div>
+                        <div class="stat-label">Thinking</div>
+                    </div>
+                </div>
+                <div class="panel-content" id="participant2Content">
+                    <div class="no-data">No data</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let autoRefreshInterval = null;
+        let selectedClients = {
+            intermediator: null,
+            participant1: null,
+            participant2: null
+        };
+
+        function formatNumber(num) {
+            if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+            if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+            return num.toString();
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function renderMessages(messages) {
+            if (!messages || messages.length === 0) {
+                return '<div class="no-data">No messages</div>';
+            }
+
+            return messages.map(msg => {
+                const role = msg.role || 'unknown';
+                const content = msg.content || '';
+                const thinking = msg.thinking || '';
+
+                let html = `
+                    <div class="message">
+                        <span class="message-role ${role}">${role}</span>
+                        <div class="message-content">${escapeHtml(content)}</div>
+                `;
+
+                if (thinking) {
+                    html += `
+                        <div class="thinking-block">
+                            <div class="thinking-label">THINKING</div>
+                            <div class="thinking-content">${escapeHtml(thinking)}</div>
+                        </div>
+                    `;
+                }
+
+                html += '</div>';
+                return html;
+            }).join('');
+        }
+
+        function updatePanel(role, data) {
+            const prefix = role === 'intermediator' ? 'int' : (role === 'participant1' ? 'p1' : 'p2');
+
+            document.getElementById(`${role}Title`).textContent = data.name || role;
+            document.getElementById(`${role}Stats`).textContent = data.model || '';
+
+            if (data.stats) {
+                document.getElementById(`${prefix}MsgCount`).textContent = data.stats.message_count || 0;
+                document.getElementById(`${prefix}Tokens`).textContent = formatNumber(data.stats.total_tokens || 0);
+                document.getElementById(`${prefix}Chars`).textContent = formatNumber(data.stats.total_chars || 0);
+                document.getElementById(`${prefix}Thinking`).textContent = data.thinking_enabled ? 'Yes' : 'No';
+            }
+
+            document.getElementById(`${role}Content`).innerHTML = renderMessages(data.messages);
+        }
+
+        async function loadClients() {
+            try {
+                const response = await fetch('/api/context/clients');
+                const data = await response.json();
+
+                const clientList = document.getElementById('clientList');
+
+                if (Object.keys(data.clients).length === 0) {
+                    clientList.innerHTML = '<div class="no-data">No clients cached yet. Start a dialog first.</div>';
+                    return;
+                }
+
+                clientList.innerHTML = Object.entries(data.clients).map(([key, client]) => `
+                    <div class="client-badge" data-key="${key}" onclick="selectClient('${key}')">
+                        <div class="client-name">${client.name}</div>
+                        <div class="client-model">${client.model} (${client.message_count} msgs)</div>
+                    </div>
+                `).join('');
+
+                // Auto-assign clients to panels based on name patterns
+                Object.entries(data.clients).forEach(([key, client]) => {
+                    const name = client.name.toLowerCase();
+                    if (name.includes('moderator') || name.includes('intermediator')) {
+                        selectedClients.intermediator = key;
+                    } else if (!selectedClients.participant1 && !name.includes('moderator')) {
+                        selectedClients.participant1 = key;
+                    } else if (!selectedClients.participant2 && !name.includes('moderator')) {
+                        selectedClients.participant2 = key;
+                    }
+                });
+
+                await refresh();
+
+            } catch (error) {
+                console.error('Failed to load clients:', error);
+                document.getElementById('clientList').innerHTML =
+                    '<div class="no-data">Failed to load clients</div>';
+            }
+        }
+
+        function selectClient(key) {
+            // Toggle selection - cycle through panels
+            const badges = document.querySelectorAll('.client-badge');
+            badges.forEach(b => b.classList.remove('selected'));
+
+            // Simple assignment logic
+            if (!selectedClients.intermediator) {
+                selectedClients.intermediator = key;
+            } else if (!selectedClients.participant1) {
+                selectedClients.participant1 = key;
+            } else if (!selectedClients.participant2) {
+                selectedClients.participant2 = key;
+            } else {
+                // Reset and assign to first
+                selectedClients = { intermediator: key, participant1: null, participant2: null };
+            }
+
+            refresh();
+        }
+
+        async function refresh() {
+            for (const [role, key] of Object.entries(selectedClients)) {
+                if (key) {
+                    try {
+                        const response = await fetch(`/api/context/client/${encodeURIComponent(key)}`);
+                        const data = await response.json();
+                        updatePanel(role, data);
+                    } catch (error) {
+                        console.error(`Failed to load ${role}:`, error);
+                    }
+                }
+            }
+        }
+
+        function toggleAutoRefresh() {
+            const checkbox = document.getElementById('autoRefresh');
+            if (checkbox.checked) {
+                autoRefreshInterval = setInterval(refresh, 5000);
+            } else {
+                clearInterval(autoRefreshInterval);
+            }
+        }
+
+        document.getElementById('autoRefresh').addEventListener('change', toggleAutoRefresh);
+
+        function openSeparateWindows() {
+            // Open each selected client in a separate window
+            const windowFeatures = 'width=700,height=900,scrollbars=yes,resizable=yes';
+
+            let xOffset = 0;
+            for (const [role, key] of Object.entries(selectedClients)) {
+                if (key) {
+                    const url = `/context/single?client=${encodeURIComponent(key)}&role=${role}`;
+                    window.open(url, `context_${role}`, windowFeatures + `,left=${xOffset}`);
+                    xOffset += 720;
+                }
+            }
+        }
+
+        // Initial load
+        loadClients();
+        toggleAutoRefresh();
+    </script>
+</body>
+</html>

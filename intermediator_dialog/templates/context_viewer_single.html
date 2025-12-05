@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Context: {{ role }}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 100%;
+            padding: 15px;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        header.intermediator { background: linear-gradient(135deg, #e94560 0%, #c73e54 100%); }
+        header.participant1 { background: linear-gradient(135deg, #0f3460 0%, #16213e 100%); }
+        header.participant2 { background: linear-gradient(135deg, #533483 0%, #3d2663 100%); }
+
+        h1 {
+            font-size: 1.3em;
+        }
+
+        .subtitle {
+            font-size: 0.85em;
+            opacity: 0.8;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        button {
+            padding: 8px 16px;
+            border-radius: 5px;
+            border: none;
+            background: rgba(255,255,255,0.2);
+            color: #fff;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .auto-refresh {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.9em;
+        }
+
+        .stats-bar {
+            background: #16213e;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 15px;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.4em;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .stat-label {
+            color: #888;
+            font-size: 0.8em;
+        }
+
+        .messages-container {
+            flex: 1;
+            overflow-y: auto;
+            background: #16213e;
+            border-radius: 10px;
+            padding: 15px;
+        }
+
+        .message {
+            margin-bottom: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            background: #1a1a2e;
+        }
+
+        .message-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .message-role {
+            font-size: 0.75em;
+            font-weight: 600;
+            text-transform: uppercase;
+            padding: 3px 10px;
+            border-radius: 3px;
+        }
+
+        .message-role.system { background: #e94560; color: white; }
+        .message-role.user { background: #0f3460; color: white; }
+        .message-role.assistant { background: #533483; color: white; }
+
+        .message-index {
+            font-size: 0.75em;
+            color: #666;
+        }
+
+        .message-content {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-size: 0.9em;
+            line-height: 1.7;
+            max-height: none;
+        }
+
+        .thinking-block {
+            margin-top: 15px;
+            padding: 15px;
+            background: #2a2a4e;
+            border-left: 4px solid #ffd700;
+            border-radius: 5px;
+        }
+
+        .thinking-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .thinking-label {
+            font-size: 0.8em;
+            font-weight: 600;
+            color: #ffd700;
+        }
+
+        .thinking-toggle {
+            font-size: 0.75em;
+            color: #888;
+            cursor: pointer;
+        }
+
+        .thinking-toggle:hover {
+            color: #ffd700;
+        }
+
+        .thinking-content {
+            font-size: 0.85em;
+            color: #ccc;
+            white-space: pre-wrap;
+            line-height: 1.6;
+        }
+
+        .thinking-content.collapsed {
+            max-height: 100px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .thinking-content.collapsed::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 50px;
+            background: linear-gradient(transparent, #2a2a4e);
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #1a1a2e;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #333;
+            border-radius: 5px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #444;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="{{ role }}">
+            <div>
+                <h1 id="clientName">{{ role }}</h1>
+                <div class="subtitle" id="clientModel">Loading...</div>
+            </div>
+            <div class="controls">
+                <button onclick="refresh()">Refresh</button>
+                <button onclick="scrollToBottom()">Scroll to End</button>
+                <label class="auto-refresh">
+                    <input type="checkbox" id="autoRefresh" checked>
+                    Auto (3s)
+                </label>
+            </div>
+        </header>
+
+        <div class="stats-bar">
+            <div class="stat-item">
+                <div class="stat-value" id="msgCount">0</div>
+                <div class="stat-label">Messages</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="totalChars">0</div>
+                <div class="stat-label">Characters</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="estTokens">0</div>
+                <div class="stat-label">Est. Tokens</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="promptTokens">0</div>
+                <div class="stat-label">Prompt Tokens</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="completionTokens">0</div>
+                <div class="stat-label">Completion</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="thinkingEnabled">--</div>
+                <div class="stat-label">Thinking</div>
+            </div>
+        </div>
+
+        <div class="messages-container" id="messagesContainer">
+            <div class="no-data">Loading...</div>
+        </div>
+    </div>
+
+    <script>
+        const clientKey = "{{ client_key }}";
+        const role = "{{ role }}";
+        let autoRefreshInterval = null;
+        let lastMessageCount = 0;
+
+        function formatNumber(num) {
+            if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+            if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+            return num.toString();
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function toggleThinking(index) {
+            const content = document.getElementById(`thinking-${index}`);
+            const toggle = document.getElementById(`toggle-${index}`);
+            if (content.classList.contains('collapsed')) {
+                content.classList.remove('collapsed');
+                toggle.textContent = 'Collapse';
+            } else {
+                content.classList.add('collapsed');
+                toggle.textContent = 'Expand';
+            }
+        }
+
+        function renderMessages(messages) {
+            if (!messages || messages.length === 0) {
+                return '<div class="no-data">No messages in context</div>';
+            }
+
+            return messages.map((msg, index) => {
+                const role = msg.role || 'unknown';
+                const content = msg.content || '';
+                const thinking = msg.thinking || '';
+
+                let html = `
+                    <div class="message">
+                        <div class="message-header">
+                            <span class="message-role ${role}">${role}</span>
+                            <span class="message-index">#${index + 1}</span>
+                        </div>
+                        <div class="message-content">${escapeHtml(content)}</div>
+                `;
+
+                if (thinking) {
+                    html += `
+                        <div class="thinking-block">
+                            <div class="thinking-header">
+                                <span class="thinking-label">THINKING</span>
+                                <span class="thinking-toggle" id="toggle-${index}" onclick="toggleThinking(${index})">Expand</span>
+                            </div>
+                            <div class="thinking-content collapsed" id="thinking-${index}">${escapeHtml(thinking)}</div>
+                        </div>
+                    `;
+                }
+
+                html += '</div>';
+                return html;
+            }).join('');
+        }
+
+        async function refresh() {
+            try {
+                const response = await fetch(`/api/context/client/${encodeURIComponent(clientKey)}`);
+                const data = await response.json();
+
+                if (data.error) {
+                    document.getElementById('messagesContainer').innerHTML =
+                        `<div class="no-data">Error: ${data.error}</div>`;
+                    return;
+                }
+
+                // Update header
+                document.getElementById('clientName').textContent = data.name || role;
+                document.getElementById('clientModel').textContent = `${data.model} @ ${data.host}`;
+                document.title = `Context: ${data.name || role}`;
+
+                // Update stats
+                if (data.stats) {
+                    document.getElementById('msgCount').textContent = data.stats.message_count || 0;
+                    document.getElementById('totalChars').textContent = formatNumber(data.stats.total_chars || 0);
+                    document.getElementById('estTokens').textContent = formatNumber(data.stats.estimated_tokens || 0);
+                    document.getElementById('promptTokens').textContent = formatNumber(data.stats.total_prompt_tokens || 0);
+                    document.getElementById('completionTokens').textContent = formatNumber(data.stats.total_completion_tokens || 0);
+                }
+                document.getElementById('thinkingEnabled').textContent = data.thinking_enabled ? 'Yes' : 'No';
+
+                // Update messages
+                const container = document.getElementById('messagesContainer');
+                const shouldScroll = (data.stats?.message_count || 0) > lastMessageCount;
+                container.innerHTML = renderMessages(data.messages);
+
+                if (shouldScroll) {
+                    scrollToBottom();
+                }
+                lastMessageCount = data.stats?.message_count || 0;
+
+            } catch (error) {
+                console.error('Failed to refresh:', error);
+            }
+        }
+
+        function scrollToBottom() {
+            const container = document.getElementById('messagesContainer');
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function toggleAutoRefresh() {
+            const checkbox = document.getElementById('autoRefresh');
+            if (checkbox.checked) {
+                autoRefreshInterval = setInterval(refresh, 3000);
+            } else {
+                clearInterval(autoRefreshInterval);
+            }
+        }
+
+        document.getElementById('autoRefresh').addEventListener('change', toggleAutoRefresh);
+
+        // Initial load
+        refresh();
+        toggleAutoRefresh();
+    </script>
+</body>
+</html>

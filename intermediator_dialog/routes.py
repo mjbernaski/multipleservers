@@ -413,3 +413,109 @@ def register_routes(app, socketio, state):
                 reset_count += 1
 
             emit('cache_reset', {'message': f'Reset cache for {reset_count} clients', 'reset_count': reset_count})
+
+    # =========================================================================
+    # CONTEXT VIEWER ROUTES
+    # =========================================================================
+
+    @app.route('/context')
+    def context_viewer_index():
+        """Serve the context viewer page."""
+        return render_template('context_viewer.html')
+
+    @app.route('/context/single')
+    def context_viewer_single():
+        """Serve a single-client context viewer page."""
+        client_key = request.args.get('client', '')
+        role = request.args.get('role', 'unknown')
+        return render_template('context_viewer_single.html', client_key=client_key, role=role)
+
+    @app.route('/api/context/clients', methods=['GET'])
+    def list_all_clients():
+        """List all cached client instances with basic info."""
+        clients = {}
+        for key, client in state['client_instances'].items():
+            clients[key] = {
+                'name': client.name,
+                'model': client.model,
+                'host': client.host,
+                'message_count': len(client.messages),
+                'total_tokens': client.total_tokens,
+                'thinking_enabled': client.thinking
+            }
+        return jsonify({'clients': clients})
+
+    @app.route('/api/context/client/<path:client_key>', methods=['GET'])
+    def get_client_context(client_key):
+        """Get full context for a specific client by cache key."""
+        if client_key not in state['client_instances']:
+            return jsonify({'error': f'Client not found: {client_key}'}), 404
+
+        client = state['client_instances'][client_key]
+        return jsonify(client.get_full_context())
+
+    @app.route('/api/context/dialog/<dialog_id>', methods=['GET'])
+    def get_dialog_context(dialog_id):
+        """Get context for all participants in a dialog."""
+        # Check active dialogs first
+        if dialog_id in state['dialog_instances']:
+            dialog = state['dialog_instances'][dialog_id]
+            return jsonify({
+                'dialog_id': dialog_id,
+                'status': 'active',
+                'topic': dialog.topic,
+                'turn_counter': dialog.turn_counter,
+                'intermediator': dialog.intermediator.get_full_context(),
+                'participant1': dialog.participant1.get_full_context(),
+                'participant2': dialog.participant2.get_full_context()
+            })
+
+        # Check completed dialogs
+        if dialog_id in state['complete_dialog_data']:
+            data = state['complete_dialog_data'][dialog_id]
+            return jsonify({
+                'dialog_id': dialog_id,
+                'status': 'completed',
+                'dialog_data': data.get('dialog_data'),
+                'prompt_config': data.get('prompt_config'),
+                'intermediator_config': data.get('intermediator_config'),
+                'participant1_config': data.get('participant1_config'),
+                'participant2_config': data.get('participant2_config')
+            })
+
+        return jsonify({'error': 'Dialog not found'}), 404
+
+    @app.route('/api/context/dialog/<dialog_id>/<role>', methods=['GET'])
+    def get_dialog_role_context(dialog_id, role):
+        """Get context for a specific participant in a dialog."""
+        valid_roles = ['intermediator', 'participant1', 'participant2']
+        if role not in valid_roles:
+            return jsonify({'error': f'Invalid role. Must be one of: {valid_roles}'}), 400
+
+        if dialog_id in state['dialog_instances']:
+            dialog = state['dialog_instances'][dialog_id]
+            client = getattr(dialog, role, None)
+            if client:
+                return jsonify({
+                    'dialog_id': dialog_id,
+                    'role': role,
+                    'status': 'active',
+                    **client.get_full_context()
+                })
+
+        return jsonify({'error': 'Dialog or role not found'}), 404
+
+    @app.route('/api/context/active_dialogs', methods=['GET'])
+    def list_active_dialogs():
+        """List all active dialog instances."""
+        dialogs = {}
+        for dialog_id, dialog in state['dialog_instances'].items():
+            dialogs[dialog_id] = {
+                'topic': dialog.topic,
+                'turn_counter': dialog.turn_counter,
+                'mode': dialog.config.mode.value if hasattr(dialog.config, 'mode') else 'unknown',
+                'intermediator': dialog.intermediator.name,
+                'participant1': dialog.participant1.name,
+                'participant2': dialog.participant2.name
+            }
+        return jsonify({'active_dialogs': dialogs})

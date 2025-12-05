@@ -45,6 +45,10 @@ class OllamaClient(BaseClient):
         self.be_brief = be_brief
         self.keep_alive = keep_alive
 
+        # Thinking content storage - stores thinking from each response
+        self.thinking_history: list = []
+        self.last_thinking: str = ""
+
     def preload_model(self) -> bool:
         """Preload the model into memory by sending a minimal request."""
         try:
@@ -150,6 +154,7 @@ class OllamaClient(BaseClient):
             response.raise_for_status()
 
             answer = ""
+            thinking_content = ""
             prompt_tokens = 0
             completion_tokens = 0
             first_token_time = None
@@ -159,19 +164,34 @@ class OllamaClient(BaseClient):
                 if line:
                     chunk = json.loads(line)
 
-                    if 'message' in chunk and 'content' in chunk['message']:
-                        content = chunk['message']['content']
-                        answer += content
+                    # Capture thinking content (for models like DeepSeek-R1)
+                    if 'message' in chunk:
+                        msg = chunk['message']
 
-                        if first_token_time is None and content:
-                            first_token_time = time.time() - start_time
+                        # Check for thinking content in various possible locations
+                        if 'thinking' in msg:
+                            thinking_content += msg['thinking']
+                            if self.stream_callback:
+                                self.stream_callback({
+                                    'type': 'thinking',
+                                    'content': msg['thinking'],
+                                    'name': self.name
+                                })
 
-                        if self.stream_callback:
-                            self.stream_callback({
-                                'type': 'content',
-                                'content': content,
-                                'name': self.name
-                            })
+                        # Regular content
+                        if 'content' in msg:
+                            content = msg['content']
+                            answer += content
+
+                            if first_token_time is None and content:
+                                first_token_time = time.time() - start_time
+
+                            if self.stream_callback:
+                                self.stream_callback({
+                                    'type': 'content',
+                                    'content': content,
+                                    'name': self.name
+                                })
 
                     if chunk.get('done', False):
                         prompt_tokens = chunk.get('prompt_eval_count', 0)
@@ -186,7 +206,20 @@ class OllamaClient(BaseClient):
 
             ttft = first_token_time if first_token_time else 0
 
-            self.messages.append({"role": "assistant", "content": answer})
+            # Store thinking content
+            self.last_thinking = thinking_content
+            if thinking_content:
+                self.thinking_history.append({
+                    'round': round_num,
+                    'phase': phase,
+                    'thinking': thinking_content
+                })
+
+            # Store message with thinking metadata
+            message_entry = {"role": "assistant", "content": answer}
+            if thinking_content:
+                message_entry["thinking"] = thinking_content
+            self.messages.append(message_entry)
 
             self.total_prompt_tokens += prompt_tokens
             self.total_completion_tokens += completion_tokens
@@ -197,7 +230,8 @@ class OllamaClient(BaseClient):
                 'completion_tokens': completion_tokens,
                 'total': total,
                 'tokens_per_second': tokens_per_second,
-                'time_to_first_token': ttft
+                'time_to_first_token': ttft,
+                'thinking': thinking_content if thinking_content else None
             }
 
             if self.stream_callback:
@@ -205,6 +239,7 @@ class OllamaClient(BaseClient):
                     'type': 'response_complete',
                     'answer': answer,
                     'tokens': token_info,
+                    'thinking': thinking_content if thinking_content else None,
                     'name': self.name
                 })
 
@@ -226,3 +261,38 @@ class OllamaClient(BaseClient):
         self.total_prompt_tokens = 0
         self.total_completion_tokens = 0
         self.total_tokens = 0
+        self.thinking_history = []
+        self.last_thinking = ""
+
+    def get_full_context(self) -> dict:
+        """Get the full context window contents and metadata for this client."""
+        total_chars = sum(len(msg.get('content', '')) for msg in self.messages)
+        thinking_chars = sum(len(msg.get('thinking', '')) for msg in self.messages if 'thinking' in msg)
+
+        return {
+            'name': self.name,
+            'model': self.model,
+            'host': self.host,
+            'thinking_enabled': self.thinking,
+            'messages': self.messages,
+            'thinking_history': self.thinking_history,
+            'last_thinking': self.last_thinking,
+            'stats': {
+                'message_count': len(self.messages),
+                'total_chars': total_chars,
+                'thinking_chars': thinking_chars,
+                'estimated_tokens': total_chars // 4,
+                'total_prompt_tokens': self.total_prompt_tokens,
+                'total_completion_tokens': self.total_completion_tokens,
+                'total_tokens': self.total_tokens,
+                'num_ctx': self.num_ctx
+            },
+            'parameters': {
+                'temperature': self.temperature,
+                'top_p': self.top_p,
+                'top_k': self.top_k,
+                'repeat_penalty': self.repeat_penalty,
+                'num_predict': self.num_predict,
+                'be_brief': self.be_brief
+            }
+        }
