@@ -104,7 +104,7 @@ class OllamaClient(BaseClient):
             print(f"Error: Failed to communicate with Ollama server: {e}")
             return False
 
-    def ask(self, question: str, round_num: int = 0) -> Tuple[str, Dict]:
+    def ask(self, question: str, round_num: int = 0, phase: str = None) -> Tuple[str, Dict]:
         """Send a question to Ollama and get response with token counts."""
         url = f"{self.host}/api/chat"
 

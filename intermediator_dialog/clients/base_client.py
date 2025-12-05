@@ -47,13 +47,14 @@ class BaseClient(ABC):
         self.stream_callback: Optional[Callable] = None
 
     @abstractmethod
-    def ask(self, question: str, round_num: int = 0) -> Tuple[str, Dict]:
+    def ask(self, question: str, round_num: int = 0, phase: str = None) -> Tuple[str, Dict]:
         """
         Send a question to the LLM and get response with token counts.
 
         Args:
             question: The question/prompt to send
             round_num: Current round number (for debugging/logging)
+            phase: Optional phase identifier (e.g., "draft", "critique", "final")
 
         Returns:
             Tuple of (response_text, token_info_dict)

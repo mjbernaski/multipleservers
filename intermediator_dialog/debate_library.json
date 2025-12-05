@@ -335,6 +335,18 @@
       "participant2_mid_prompt": "yes.    it is overly dependent on China and other overseas locations.",
       "participant_post_prompt": "You bottom line your response in 1 sentence.",
       "max_turns": 3
+    },
+    {
+      "id": "tail_flail_626357",
+      "name": "Tail Flail",
+      "description": "Should the US periodically flail its tail.",
+      "intermediator_pre_prompt": "You are the intermediator for a dialog between two AI participants.  Your role is to present the participants with the rules and the topic.  You review each response before passing control on to the other participant.  If you have to remind the participants of the rules you will.  If a participant misbehaves you will mention that in your final summary.  Encourage brevity and clarity.   You have to do an introduction and summary, but between turns you can just prompt the other participant to respond.",
+      "intermediator_topic_prompt": "Should the US use its power periodically to remind the world of our strength and relevance?",
+      "participant_pre_prompt": "You are the participant in a debate.\nYou follow the instructions of the intermediator, review the responses of your adversary, and develop thoughtful on-point responses.",
+      "participant1_mid_prompt": "Yes.    We should flail our tail periodically.   The world needs to know we will use it.",
+      "participant2_mid_prompt": "No, the world knows we are powerful.",
+      "participant_post_prompt": "You bottom line your response in 1 sentence is helpful.   Also, try to stay away from how and focus a bit more on the whether?",
+      "max_turns": 6
     }
   ]
 }

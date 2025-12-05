@@ -15,7 +15,7 @@ class MockClient(BaseClient):
         super().__init__(model=model, name=name)
         self.ask_count = 0
 
-    def ask(self, question: str, round_num: int = 0):
+    def ask(self, question: str, round_num: int = 0, phase: str = None):
         """Mock ask method."""
         self.ask_count += 1
         response = f"Response {self.ask_count} from {self.name}"
