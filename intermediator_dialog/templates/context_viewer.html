@@ -444,7 +444,19 @@
                 document.getElementById(`${prefix}MsgCount`).textContent = data.stats.message_count || 0;
                 document.getElementById(`${prefix}SpeakingTokens`).textContent = formatNumber(data.stats.total_speaking_tokens || 0);
                 document.getElementById(`${prefix}ThinkingTokens`).textContent = formatNumber(data.stats.total_thinking_tokens || 0);
-                document.getElementById(`${prefix}Thinking`).textContent = data.thinking_enabled ? 'Yes' : 'No';
+
+                // Show thinking status more accurately
+                const thinkingTokens = data.stats.total_thinking_tokens || 0;
+                const thinkingEnabled = data.thinking_enabled;
+                let thinkingStatus;
+                if (thinkingTokens > 0) {
+                    thinkingStatus = 'Active';
+                } else if (thinkingEnabled) {
+                    thinkingStatus = 'Enabled';
+                } else {
+                    thinkingStatus = 'No';
+                }
+                document.getElementById(`${prefix}Thinking`).textContent = thinkingStatus;
                 document.getElementById(`${prefix}Reasoning`).textContent = data.reasoning_effort || '-';
             }
 
