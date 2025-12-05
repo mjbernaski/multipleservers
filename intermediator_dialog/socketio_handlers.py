@@ -51,15 +51,28 @@ def register_socketio_handlers(socketio, state):
                           enable_tts: bool = True):
         """Run dialog in a separate thread."""
         try:
-            if thinking_params:
-                if 'thinking' in thinking_params:
-                    intermediator_client.thinking = thinking_params['thinking']
-                    participant1_client.thinking = thinking_params['thinking']
-                    participant2_client.thinking = thinking_params['thinking']
-                if 'temperature' in thinking_params:
-                    intermediator_client.temperature = thinking_params['temperature']
-                    participant1_client.temperature = thinking_params['temperature']
-                    participant2_client.temperature = thinking_params['temperature']
+            # Apply per-server thinking settings from each config
+            if intermediator_config:
+                if 'thinking' in intermediator_config:
+                    intermediator_client.thinking = intermediator_config['thinking']
+                if 'reasoning_effort' in intermediator_config:
+                    intermediator_client.reasoning_effort = intermediator_config['reasoning_effort'] if intermediator_client.thinking else None
+            if participant1_config:
+                if 'thinking' in participant1_config:
+                    participant1_client.thinking = participant1_config['thinking']
+                if 'reasoning_effort' in participant1_config:
+                    participant1_client.reasoning_effort = participant1_config['reasoning_effort'] if participant1_client.thinking else None
+            if participant2_config:
+                if 'thinking' in participant2_config:
+                    participant2_client.thinking = participant2_config['thinking']
+                if 'reasoning_effort' in participant2_config:
+                    participant2_client.reasoning_effort = participant2_config['reasoning_effort'] if participant2_client.thinking else None
+
+            # Apply global temperature if specified
+            if thinking_params and 'temperature' in thinking_params:
+                intermediator_client.temperature = thinking_params['temperature']
+                participant1_client.temperature = thinking_params['temperature']
+                participant2_client.temperature = thinking_params['temperature']
 
             prompt_config = prompt_config or {}
             
@@ -256,6 +269,7 @@ def register_socketio_handlers(socketio, state):
 
             if key in client_instances:
                 client = client_instances[key]
+                client.role = role_name  # Always update role
                 if thinking_params.get('num_ctx'):
                     client.num_ctx = thinking_params.get('num_ctx', 96000)
                 if thinking_params.get('temperature') is not None:
@@ -268,13 +282,19 @@ def register_socketio_handlers(socketio, state):
                     client.repeat_penalty = thinking_params.get('repeat_penalty')
                 if thinking_params.get('num_predict') is not None:
                     client.num_predict = thinking_params.get('num_predict')
-                if 'thinking' in thinking_params:
-                    client.thinking = thinking_params.get('thinking', False)
+                # Use per-server thinking settings from config
+                if 'thinking' in config:
+                    client.thinking = config.get('thinking', False)
+                if 'reasoning_effort' in config:
+                    client.reasoning_effort = config.get('reasoning_effort')
                 if 'be_brief' in thinking_params:
                     client.be_brief = thinking_params.get('be_brief', False)
-                debug_log('info', f"Reusing cached client for {role_name}: {key}", server=role_name, socketio=socketio)
+                debug_log('info', f"Reusing cached client for {role_name}: {key} (thinking={client.thinking}, effort={client.reasoning_effort})", server=role_name, socketio=socketio)
                 return client
             else:
+                # Use per-server thinking settings from config
+                thinking_enabled = config.get('thinking', False)
+                reasoning_effort = config.get('reasoning_effort') if thinking_enabled else None
                 client = OllamaClient(
                     config['host'],
                     config['model'],
@@ -285,11 +305,13 @@ def register_socketio_handlers(socketio, state):
                     top_k=thinking_params.get('top_k'),
                     repeat_penalty=thinking_params.get('repeat_penalty'),
                     num_predict=thinking_params.get('num_predict'),
-                    thinking=thinking_params.get('thinking', False),
-                    be_brief=thinking_params.get('be_brief', False)
+                    thinking=thinking_enabled,
+                    reasoning_effort=reasoning_effort,
+                    be_brief=thinking_params.get('be_brief', False),
+                    role=role_name
                 )
                 client_instances[key] = client
-                debug_log('info', f"Created new client for {role_name}: {key}", server=role_name, socketio=socketio)
+                debug_log('info', f"Created new client for {role_name}: {key} (thinking={thinking_enabled}, effort={reasoning_effort})", server=role_name, socketio=socketio)
                 return client
 
         intermediator_client = get_or_create_client(intermediator_config, 'intermediator')

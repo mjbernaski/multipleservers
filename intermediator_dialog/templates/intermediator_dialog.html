@@ -798,6 +798,17 @@
                         <label for="intermediator-name">Name:</label>
                         <input type="text" id="intermediator-name" value="RT5090" placeholder="Display name">
                     </div>
+                    <div class="form-group" style="display: flex; align-items: center; gap: 12px; margin-top: 4px;">
+                        <label style="display: flex; align-items: center; gap: 4px; margin: 0; cursor: pointer;">
+                            <input type="checkbox" id="intermediator-thinking" checked style="width: auto; cursor: pointer;">
+                            <span style="font-size: 12px;">🧠 Thinking</span>
+                        </label>
+                        <select id="intermediator-reasoning-effort" style="padding: 4px 8px; font-size: 12px; border-radius: 4px; border: 1px solid #d0d0d0;">
+                            <option value="low">Low</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="high">High</option>
+                        </select>
+                    </div>
                 </div>
 
                 <div class="ai-panel participant1">
@@ -829,6 +840,17 @@
                         <label for="participant1-name">Name:</label>
                         <input type="text" id="participant1-name" value="NVIDIA DGX Spark A" placeholder="Display name">
                     </div>
+                    <div class="form-group" style="display: flex; align-items: center; gap: 12px; margin-top: 4px;">
+                        <label style="display: flex; align-items: center; gap: 4px; margin: 0; cursor: pointer;">
+                            <input type="checkbox" id="participant1-thinking" checked style="width: auto; cursor: pointer;">
+                            <span style="font-size: 12px;">🧠 Thinking</span>
+                        </label>
+                        <select id="participant1-reasoning-effort" style="padding: 4px 8px; font-size: 12px; border-radius: 4px; border: 1px solid #d0d0d0;">
+                            <option value="low">Low</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="high">High</option>
+                        </select>
+                    </div>
                 </div>
 
                 <div class="ai-panel participant2">
@@ -859,6 +881,17 @@
                     <div class="form-group">
                         <label for="participant2-name">Name:</label>
                         <input type="text" id="participant2-name" value="NVIDIA DGX Spark B" placeholder="Display name">
+                    </div>
+                    <div class="form-group" style="display: flex; align-items: center; gap: 12px; margin-top: 4px;">
+                        <label style="display: flex; align-items: center; gap: 4px; margin: 0; cursor: pointer;">
+                            <input type="checkbox" id="participant2-thinking" checked style="width: auto; cursor: pointer;">
+                            <span style="font-size: 12px;">🧠 Thinking</span>
+                        </label>
+                        <select id="participant2-reasoning-effort" style="padding: 4px 8px; font-size: 12px; border-radius: 4px; border: 1px solid #d0d0d0;">
+                            <option value="low">Low</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="high">High</option>
+                        </select>
                     </div>
                 </div>
             </div>
@@ -1108,7 +1141,7 @@
 
         <div id="gpuMonitoringSection"
             style="display: none; margin-top: 20px; padding: 20px; background: #f8f8f8; border: 1px solid #d0d0d0; border-radius: 8px;">
-            <h3 style="margin-top: 0; color: #1f4e78; font-size: 18px;">GPU Power Consumption History</h3>
+            <h3 style="margin-top: 0; color: #1f4e78; font-size: 18px;">GPU Power Draw (GPU Only)</h3>
             <canvas id="gpuChart" width="800" height="300"
                 style="background: white; border: 1px solid #d0d0d0; border-radius: 4px;"></canvas>
             <div id="gpuLegend"
@@ -1978,7 +2011,7 @@ You follow the instructions of the intermediator, review the responses of your a
 
             let energyHTML = `<div style="margin-top: 15px; padding: 10px; background: ${bgColor}; border: 1px solid ${borderColor}; border-radius: 6px;">
                 <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap; font-size: 13px;">
-                    <span style="font-weight: 600; color: ${titleColor};">⚡ Energy:</span>
+                    <span style="font-weight: 600; color: ${titleColor};">⚡ GPU Energy (GPU Only):</span>
                     ${serverStats.join(' | ')}
                     <span style="font-weight: 700; color: ${titleColor}; margin-left: auto; padding: 4px 12px; background: ${totalBg}; border-radius: 4px;">Total: ${totalEnergy.toFixed(2)} Wh</span>
                 </div>
@@ -2231,19 +2264,28 @@ You follow the instructions of the intermediator, review the responses of your a
                 const intermediator = {
                     host: document.getElementById('intermediator-host').value.trim(),
                     model: document.getElementById('intermediator-model').value.trim(),
-                    name: document.getElementById('intermediator-name').value.trim()
+                    name: document.getElementById('intermediator-name').value.trim(),
+                    thinking: document.getElementById('intermediator-thinking').checked,
+                    reasoning_effort: document.getElementById('intermediator-thinking').checked ?
+                        document.getElementById('intermediator-reasoning-effort').value : null
                 };
 
                 const participant1 = {
                     host: document.getElementById('participant1-host').value.trim(),
                     model: document.getElementById('participant1-model').value.trim(),
-                    name: document.getElementById('participant1-name').value.trim()
+                    name: document.getElementById('participant1-name').value.trim(),
+                    thinking: document.getElementById('participant1-thinking').checked,
+                    reasoning_effort: document.getElementById('participant1-thinking').checked ?
+                        document.getElementById('participant1-reasoning-effort').value : null
                 };
 
                 const participant2 = {
                     host: document.getElementById('participant2-host').value.trim(),
                     model: document.getElementById('participant2-model').value.trim(),
-                    name: document.getElementById('participant2-name').value.trim()
+                    name: document.getElementById('participant2-name').value.trim(),
+                    thinking: document.getElementById('participant2-thinking').checked,
+                    reasoning_effort: document.getElementById('participant2-thinking').checked ?
+                        document.getElementById('participant2-reasoning-effort').value : null
                 };
 
                 const maxTurns = parseInt(document.getElementById('maxTurns').value) || 3;
@@ -2283,7 +2325,6 @@ You follow the instructions of the intermediator, review the responses of your a
                     participant1: participant1,
                     participant2: participant2,
                     max_turns: maxTurns,
-                    thinking_params: {thinking: true},
                     shared_spark_model: sharedSparkModel || null,
                     participant1_override_model: participant1Override ? participant1.model : null,
                     participant2_override_model: participant2Override ? participant2.model : null,
