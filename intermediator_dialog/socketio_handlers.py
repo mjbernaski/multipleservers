@@ -247,6 +247,32 @@ def register_socketio_handlers(socketio, state):
             emit('error', {'error': 'All three AI configurations required'})
             return
 
+        # Validate cloud provider models
+        def validate_cloud_model(config, role_label):
+            provider = config.get('provider', 'ollama')
+            model = config.get('model', '')
+            if provider == 'anthropic':
+                valid_models = list(AnthropicClient.MODELS.keys())
+                if model not in valid_models:
+                    return f'{role_label}: Invalid Anthropic model "{model}". Please select a Claude model (e.g., claude-opus-4.5)'
+            elif provider == 'openai':
+                valid_models = list(OpenAIClient.MODELS.keys())
+                if model not in valid_models:
+                    return f'{role_label}: Invalid OpenAI model "{model}". Please select an OpenAI model (e.g., gpt-4o)'
+            elif provider == 'gemini':
+                valid_models = list(GeminiClient.MODELS.keys())
+                if model not in valid_models:
+                    return f'{role_label}: Invalid Gemini model "{model}". Please select a Gemini model (e.g., gemini-2.5-pro)'
+            return None
+
+        for config, label in [(intermediator_config, 'Intermediator'),
+                              (participant1_config, 'Participant A'),
+                              (participant2_config, 'Participant B')]:
+            error = validate_cloud_model(config, label)
+            if error:
+                emit('error', {'error': error})
+                return
+
         if session_id and session_id in uploaded_files:
             context_file = uploaded_files[session_id]
             if context_file and os.path.exists(context_file):
