@@ -680,52 +680,83 @@ class IntermediatorDialogRefactored:
                 break
 
         # === FINAL SUMMARY ===
-        summary_prompt = self.prompts.get_summary_prompt(
-            participant1_name=self.names['participant1'],
-            participant2_name=self.names['participant2']
-        )
+        # Check if any participant turns actually occurred
+        participant_turns = [
+            entry for entry in self.conversation_history
+            if entry.get('speaker') in ('participant1', 'participant2')
+        ]
 
-        self._emit('intermediator_turn', {
-            'turn': self.turn_counter,
-            'speaker': 'intermediator',
-            'message': summary_prompt,
-            'is_summary': True,
-            'thinking': True,
-            'intermediator': self.names['intermediator']
-        })
+        if not participant_turns:
+            # No participant turns occurred - dialog failed before any debate happened
+            # Do NOT generate a summary (which would hallucinate a debate that never occurred)
+            error_msg = "[Dialog failed: No participant responses were generated. Check model availability and provider settings.]"
+            if dialog_error:
+                error_msg = f"[Dialog failed: {str(dialog_error)}]"
 
-        try:
-            summary_response, summary_tokens = self.intermediator.ask(summary_prompt, round_num=self.turn_counter, phase="summary")
-        except Exception as e:
-            self._emit('error', {
-                'type': 'llm_error',
-                'speaker': 'intermediator',
-                'turn': self.turn_counter,
-                'phase': 'summary',
-                'error': str(e)
+            self._emit('dialog_error', {
+                'turn': 0,
+                'error': error_msg,
+                'fatal': True,
+                'message': 'No participant turns occurred - skipping summary generation'
             })
-            # Even if summary fails, return what we have
-            summary_response = "[Summary generation failed]"
-            summary_tokens = {'prompt_tokens': 0, 'completion_tokens': 0, 'total': 0}
-        
-        self.conversation_history.append({
-            'turn': self.turn_counter,
-            'speaker': 'intermediator',
-            'message': summary_response,
-            'tokens': summary_tokens,
-            'is_summary': True,
-            'thinking_enabled': self.intermediator.thinking,
-            'thinking': summary_tokens.get('thinking') if summary_tokens else None
-        })
-        self.turn_counter += 1
 
-        if self.config.enable_tts and self.tts_callback:
-            self._queue_tts(summary_response, 'intermediator')
-        
-        # Share summary with participants
-        summary_content = f"Moderator's Final Summary: {summary_response}"
-        self.participant1.messages.append({"role": "user", "content": summary_content})
-        self.participant2.messages.append({"role": "user", "content": summary_content})
+            self.conversation_history.append({
+                'turn': self.turn_counter,
+                'speaker': 'system',
+                'message': error_msg,
+                'tokens': {'prompt_tokens': 0, 'completion_tokens': 0, 'total': 0},
+                'is_error': True
+            })
+            self.turn_counter += 1
+            summary_response = None
+        else:
+            # Normal summary generation - actual debate occurred
+            summary_prompt = self.prompts.get_summary_prompt(
+                participant1_name=self.names['participant1'],
+                participant2_name=self.names['participant2']
+            )
+
+            self._emit('intermediator_turn', {
+                'turn': self.turn_counter,
+                'speaker': 'intermediator',
+                'message': summary_prompt,
+                'is_summary': True,
+                'thinking': True,
+                'intermediator': self.names['intermediator']
+            })
+
+            try:
+                summary_response, summary_tokens = self.intermediator.ask(summary_prompt, round_num=self.turn_counter, phase="summary")
+            except Exception as e:
+                self._emit('error', {
+                    'type': 'llm_error',
+                    'speaker': 'intermediator',
+                    'turn': self.turn_counter,
+                    'phase': 'summary',
+                    'error': str(e)
+                })
+                # Even if summary fails, return what we have
+                summary_response = "[Summary generation failed]"
+                summary_tokens = {'prompt_tokens': 0, 'completion_tokens': 0, 'total': 0}
+
+            self.conversation_history.append({
+                'turn': self.turn_counter,
+                'speaker': 'intermediator',
+                'message': summary_response,
+                'tokens': summary_tokens,
+                'is_summary': True,
+                'thinking_enabled': self.intermediator.thinking,
+                'thinking': summary_tokens.get('thinking') if summary_tokens else None
+            })
+            self.turn_counter += 1
+
+            if self.config.enable_tts and self.tts_callback:
+                self._queue_tts(summary_response, 'intermediator')
+
+            # Share summary with participants
+            summary_content = f"Moderator's Final Summary: {summary_response}"
+            self.participant1.messages.append({"role": "user", "content": summary_content})
+            self.participant2.messages.append({"role": "user", "content": summary_content})
         
         # Wait for TTS to complete
         self._wait_for_tts()
