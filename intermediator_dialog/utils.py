@@ -117,16 +117,19 @@ def save_dialog_to_files(dialog_data: Dict, prompt_config: Dict,
             'timestamp': datetime.now().isoformat(),
             'metadata': {
                 'intermediator': {
+                    'provider': intermediator_config.get('provider', 'ollama'),
                     'host': intermediator_config.get('host'),
                     'model': intermediator_config.get('model'),
                     'name': intermediator_config.get('name')
                 },
                 'participant1': {
+                    'provider': participant1_config.get('provider', 'ollama'),
                     'host': participant1_config.get('host'),
                     'model': participant1_config.get('model'),
                     'name': participant1_config.get('name')
                 },
                 'participant2': {
+                    'provider': participant2_config.get('provider', 'ollama'),
                     'host': participant2_config.get('host'),
                     'model': participant2_config.get('model'),
                     'name': participant2_config.get('name')

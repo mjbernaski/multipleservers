@@ -411,24 +411,36 @@ def register_socketio_handlers(socketio, state):
         p1_provider = participant1_config.get('provider', 'ollama')
         p2_provider = participant2_config.get('provider', 'ollama')
 
+        debug_log('info', f"Provider check - Intermediator: {int_provider}, P1: {p1_provider}, P2: {p2_provider}", socketio=socketio)
+        debug_log('info', f"Models - Intermediator: {intermediator_config.get('model')}, P1: {participant1_config.get('model')}, P2: {participant2_config.get('model')}", socketio=socketio)
+
+        debug_log('info', f"Checking intermediator availability...", socketio=socketio)
         if not intermediator_client.check_server_available():
             if int_provider == 'ollama':
                 emit('error', {'error': f'Intermediator Ollama server ({intermediator_config.get("host")}) not available'})
             else:
                 emit('error', {'error': f'Intermediator {int_provider} API not available - check API key and model'})
             return
+        debug_log('info', f"✓ Intermediator check passed", socketio=socketio)
+
+        debug_log('info', f"Checking participant1 availability (provider={p1_provider}, model={participant1_config.get('model')})...", socketio=socketio)
         if not participant1_client.check_server_available():
             if p1_provider == 'ollama':
-                emit('error', {'error': f'Participant A Ollama server ({participant1_config.get("host")}) not available'})
+                emit('error', {'error': f'Participant A: Model "{participant1_config.get("model")}" not found on Ollama server {participant1_config.get("host")}. Check that the model exists or select a different provider.'})
             else:
-                emit('error', {'error': f'Participant A {p1_provider} API not available - check API key and model'})
+                emit('error', {'error': f'Participant A {p1_provider} API not available - check API key and model "{participant1_config.get("model")}"'})
             return
+        debug_log('info', f"✓ Participant1 check passed", socketio=socketio)
+
+        debug_log('info', f"Checking participant2 availability (provider={p2_provider}, model={participant2_config.get('model')})...", socketio=socketio)
         if not participant2_client.check_server_available():
             if p2_provider == 'ollama':
-                emit('error', {'error': f'Participant B Ollama server ({participant2_config.get("host")}) not available'})
+                emit('error', {'error': f'Participant B: Model "{participant2_config.get("model")}" not found on Ollama server {participant2_config.get("host")}. Check that the model exists or select a different provider.'})
             else:
-                emit('error', {'error': f'Participant B {p2_provider} API not available - check API key and model'})
+                emit('error', {'error': f'Participant B {p2_provider} API not available - check API key and model "{participant2_config.get("model")}"'})
             return
+        debug_log('info', f"✓ Participant2 check passed", socketio=socketio)
+        debug_log('info', f"All availability checks passed - starting dialog", socketio=socketio)
 
         if session_id and session_id in uploaded_files:
             file_usage_count[session_id] = 1
