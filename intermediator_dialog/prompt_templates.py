@@ -172,33 +172,41 @@ IMPORTANT: Use plain text only. No markdown formatting."""
     # INTRODUCTION PROMPTS
     # =========================================================================
 
-    INTRO_PROMPT_DEBATE = """Begin the debate by:
+    INTRO_PROMPT_DEBATE = """The topic for this debate is: "{topic}"
 
-1. Framing the central question in a way that reveals its complexity (avoid simple yes/no framing)
+Begin the debate by:
+
+1. Stating the topic exactly as given above, then framing it in a way that reveals its complexity
 2. Briefly noting why this matters or what's at stake
 3. Inviting {participant1_name} to open with their position
 
 Keep your intro to 3-4 sentences. Light the match, don't give a lecture."""
 
-    INTRO_PROMPT_EXPLORATION = """Begin the exploration by:
+    INTRO_PROMPT_EXPLORATION = """The topic for this exploration is: "{topic}"
 
-1. Framing the territory you'll explore together
+Begin the exploration by:
+
+1. Stating the topic exactly as given above, then framing the territory you'll explore together
 2. Noting what makes this question interesting or difficult
 3. Posing an opening question to both participants that invites initial perspectives
 
 Keep your intro to 3-4 sentences. Set the stage for genuine inquiry."""
 
-    INTRO_PROMPT_INTERVIEW = """Begin the interview by:
+    INTRO_PROMPT_INTERVIEW = """The topic for this interview is: "{topic}"
 
-1. Briefly introducing the topic and why it matters
+Begin the interview by:
+
+1. Stating the topic exactly as given above and why it matters
 2. Introducing {participant2_name} as the subject and {participant1_name} as the interviewer
 3. Inviting the first question
 
 Keep your intro brief. The interview itself is the main event."""
 
-    INTRO_PROMPT_CRITIQUE = """Begin the critique session by:
+    INTRO_PROMPT_CRITIQUE = """The topic for this critique session is: "{topic}"
 
-1. Introducing the topic under examination
+Begin the critique session by:
+
+1. Stating the topic exactly as given above
 2. Inviting {participant1_name} to present their initial position or proposal
 3. Setting expectations for constructive, substantive critique
 
@@ -510,7 +518,8 @@ Be direct about both strengths and weaknesses."""
     def get_intro_prompt(
         self,
         participant1_name: str,
-        participant2_name: str
+        participant2_name: str,
+        topic: str = ""
     ) -> str:
         """Get the introduction prompt for the current mode."""
         mode_prompts = {
@@ -519,12 +528,13 @@ Be direct about both strengths and weaknesses."""
             DialogMode.INTERVIEW: self.INTRO_PROMPT_INTERVIEW,
             DialogMode.CRITIQUE: self.INTRO_PROMPT_CRITIQUE,
         }
-        
+
         template = mode_prompts.get(self.mode, self.INTRO_PROMPT_EXPLORATION)
-        
+
         return template.format(
             participant1_name=participant1_name,
-            participant2_name=participant2_name
+            participant2_name=participant2_name,
+            topic=topic
         )
 
     def get_moderation_prompt(

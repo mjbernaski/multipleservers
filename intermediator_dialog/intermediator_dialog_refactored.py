@@ -583,7 +583,8 @@ class IntermediatorDialogRefactored:
         # === INTRODUCTION ===
         intro_prompt = self.prompts.get_intro_prompt(
             participant1_name=self.names['participant1'],
-            participant2_name=self.names['participant2']
+            participant2_name=self.names['participant2'],
+            topic=self.topic
         )
         
         self._emit('intermediator_turn', {
