@@ -9,7 +9,7 @@ Version information for Intermediator Dialog (IDi).
 __version__ = "1.0.0"
 
 # Build number: incremented with each commit/release
-__build__ = 1
+__build__ = 2
 
 # Full version string
 __version_full__ = f"{__version__}-build.{__build__}"

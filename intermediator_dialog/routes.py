@@ -494,11 +494,11 @@ def register_routes(app, socketio, state):
             clients[key] = {
                 'name': client.name,
                 'model': client.model,
-                'host': client.host,
+                'host': getattr(client, 'host', 'unknown'),
                 'role': getattr(client, 'role', None),
                 'message_count': len(client.messages),
                 'total_tokens': client.total_tokens,
-                'thinking_enabled': client.thinking,
+                'thinking_enabled': getattr(client, 'thinking', False),
                 'reasoning_effort': getattr(client, 'reasoning_effort', None)
             }
         return jsonify({'clients': clients})

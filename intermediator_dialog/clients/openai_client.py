@@ -51,7 +51,7 @@ class OpenAIClient(BaseClient):
             raise ImportError("openai package not installed. Run: pip install openai")
 
         actual_model = self.MODELS.get(model, model)
-        super().__init__(model=actual_model, name=name or f"OpenAI ({model})")
+        super().__init__(model=actual_model, name=name or f"OpenAI ({model})", host="api.openai.com")
 
         self.api_key = api_key or os.environ.get('OPENAI_API_KEY')
         if not self.api_key:
@@ -63,6 +63,7 @@ class OpenAIClient(BaseClient):
         self.reasoning_effort = reasoning_effort
         self.role = role
         self.model_alias = model
+        self.provider = 'openai'
 
         # Check if this is a reasoning model
         self.is_reasoning_model = model in self.REASONING_MODELS or actual_model in self.REASONING_MODELS

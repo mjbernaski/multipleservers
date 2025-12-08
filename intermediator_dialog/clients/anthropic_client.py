@@ -50,7 +50,7 @@ class AnthropicClient(BaseClient):
 
         # Resolve model alias to actual model ID
         actual_model = self.MODELS.get(model, model)
-        super().__init__(model=actual_model, name=name or f"Claude ({model})")
+        super().__init__(model=actual_model, name=name or f"Claude ({model})", host="api.anthropic.com")
 
         self.api_key = api_key or os.environ.get('ANTHROPIC_API_KEY')
         if not self.api_key:
@@ -63,6 +63,7 @@ class AnthropicClient(BaseClient):
         self.thinking_budget = thinking_budget
         self.role = role
         self.model_alias = model
+        self.provider = 'anthropic'
 
         # System prompt storage
         self.system_prompt: Optional[str] = None

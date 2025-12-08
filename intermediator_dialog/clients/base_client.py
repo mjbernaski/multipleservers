@@ -29,22 +29,26 @@ class TokenInfo:
 class BaseClient(ABC):
     """Abstract base class for all LLM clients."""
 
-    def __init__(self, model: str, name: str, **kwargs):
+    def __init__(self, model: str, name: str, host: str = None, **kwargs):
         """
         Initialize the client.
 
         Args:
             model: Model identifier
             name: Display name for the client
+            host: Server host (for Ollama) or API endpoint identifier (for cloud)
             **kwargs: Provider-specific parameters
         """
         self.model = model
         self.name = name
+        self.host = host or "cloud"  # Default for cloud providers
         self.messages: List[Dict] = []
         self.total_prompt_tokens = 0
         self.total_completion_tokens = 0
         self.total_tokens = 0
         self.stream_callback: Optional[Callable] = None
+        self.thinking = False  # Extended thinking/reasoning enabled
+        self.role: Optional[str] = None  # Role in dialog (intermediator, participant1, participant2)
 
     @abstractmethod
     def ask(self, question: str, round_num: int = 0, phase: str = None) -> Tuple[str, Dict]:
@@ -115,3 +119,39 @@ class BaseClient(ABC):
             Total token count
         """
         return self.total_tokens
+
+    def preload_model(self) -> bool:
+        """
+        Preload the model (for local servers like Ollama).
+        Cloud providers don't need preloading, so this is a no-op by default.
+
+        Returns:
+            True if preload successful or not needed
+        """
+        return True  # No-op for cloud providers
+
+    def get_full_context(self) -> dict:
+        """
+        Get the full context window contents and metadata.
+        Subclasses should override this for provider-specific data.
+
+        Returns:
+            Dictionary with context information
+        """
+        total_chars = sum(len(msg.get('content', '')) for msg in self.messages)
+        return {
+            'name': self.name,
+            'model': self.model,
+            'provider': getattr(self, 'provider', 'unknown'),
+            'role': self.role,
+            'thinking_enabled': self.thinking,
+            'messages': self.messages,
+            'stats': {
+                'message_count': len(self.messages),
+                'total_chars': total_chars,
+                'estimated_tokens': total_chars // 4,
+                'total_prompt_tokens': self.total_prompt_tokens,
+                'total_completion_tokens': self.total_completion_tokens,
+                'total_tokens': self.total_tokens,
+            }
+        }

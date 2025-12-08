@@ -51,7 +51,7 @@ class GeminiClient(BaseClient):
             raise ImportError("google-generativeai package not installed. Run: pip install google-generativeai")
 
         actual_model = self.MODELS.get(model, model)
-        super().__init__(model=actual_model, name=name or f"Gemini ({model})")
+        super().__init__(model=actual_model, name=name or f"Gemini ({model})", host="generativelanguage.googleapis.com")
 
         self.api_key = api_key or os.environ.get('GOOGLE_API_KEY')
         if not self.api_key:
@@ -63,6 +63,7 @@ class GeminiClient(BaseClient):
         self.max_tokens = max_tokens
         self.thinking_level = thinking_level
         self.role = role
+        self.provider = 'gemini'
 
         # Check if this is a thinking model
         self.is_thinking_model = model in self.THINKING_MODELS or actual_model in self.THINKING_MODELS
