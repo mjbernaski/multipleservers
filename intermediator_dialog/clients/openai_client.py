@@ -17,20 +17,23 @@ class OpenAIClient(BaseClient):
     """Client for communicating with OpenAI's API."""
 
     MODELS = {
-        # Latest models (Dec 2025)
-        'o3': 'o3',
-        'o3-pro': 'o3-pro',
-        'o4-mini': 'o4-mini',
-        'gpt-4.5': 'gpt-4.5-turbo',
-        # Older models
+        # GPT-5 series (latest - Dec 2025)
+        'gpt-5.1': 'gpt-5.1',
+        'gpt-5-mini': 'gpt-5-mini',
+        'gpt-5-nano': 'gpt-5-nano',
+        # GPT-4o series
         'gpt-4o': 'gpt-4o',
         'gpt-4o-mini': 'gpt-4o-mini',
+        # GPT-4 Turbo
+        'gpt-4-turbo': 'gpt-4-turbo',
+        # o1 reasoning models
         'o1': 'o1',
         'o1-mini': 'o1-mini',
+        'o1-preview': 'o1-preview',
     }
 
     # Models that support reasoning/thinking
-    REASONING_MODELS = {'o3', 'o3-pro', 'o4-mini', 'o1', 'o1-mini'}
+    REASONING_MODELS = {'gpt-5.1', 'o1', 'o1-mini', 'o1-preview'}
 
     def __init__(self, model: str, name: str = None, api_key: str = None,
                  temperature: float = None, max_tokens: int = 4096,
@@ -100,8 +103,17 @@ class OpenAIClient(BaseClient):
         """Send a question to OpenAI and get response with token counts."""
         self.messages.append({"role": "user", "content": question})
 
+        # Extract system prompt from messages if set there (dialog system compatibility)
+        system_msgs = self.system_messages
+        if not system_msgs:
+            for msg in self.messages:
+                if msg.get("role") in ("system", "developer"):
+                    role = "developer" if self.is_reasoning_model else "system"
+                    system_msgs = [{"role": role, "content": msg.get("content", "")}]
+                    break
+
         # Build messages list with system messages first
-        api_messages = self.system_messages + self._get_api_messages()
+        api_messages = system_msgs + self._get_api_messages()
 
         # Build request parameters
         params = {
@@ -229,11 +241,28 @@ class OpenAIClient(BaseClient):
             raise Exception(error_msg)
 
     def _get_api_messages(self) -> list:
-        """Get messages formatted for the API."""
-        return [
-            {"role": msg["role"], "content": msg["content"]}
-            for msg in self.messages
-        ]
+        """Get messages formatted for the API.
+
+        OpenAI works best with alternating user/assistant messages.
+        This method filters out system messages (handled separately)
+        and merges consecutive messages from the same role.
+        """
+        # Filter out system messages (they're handled separately)
+        filtered = [msg for msg in self.messages if msg["role"] not in ("system", "developer")]
+
+        if not filtered:
+            return []
+
+        # Merge consecutive messages with the same role
+        merged = []
+        for msg in filtered:
+            if merged and merged[-1]["role"] == msg["role"]:
+                # Merge with previous message
+                merged[-1]["content"] += "\n\n" + msg["content"]
+            else:
+                merged.append({"role": msg["role"], "content": msg["content"]})
+
+        return merged
 
     def reset_conversation(self):
         """Reset conversation history and token counts."""
@@ -248,10 +277,14 @@ class OpenAIClient(BaseClient):
         self.last_thinking = ""
 
     def set_system_prompt(self, prompt: str):
-        """Set the system prompt for conversations."""
+        """Set the system prompt for conversations.
+
+        Also clears the messages list to ensure a fresh conversation.
+        """
         # For reasoning models, use developer role; otherwise system
         role = "developer" if self.is_reasoning_model else "system"
         self.system_messages = [{"role": role, "content": prompt}]
+        self.messages = []
 
     def get_full_context(self) -> dict:
         """Get the full context window contents and metadata."""

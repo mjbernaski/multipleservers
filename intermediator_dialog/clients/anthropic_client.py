@@ -104,6 +104,14 @@ class AnthropicClient(BaseClient):
         """Send a question to Claude and get response with token counts."""
         self.messages.append({"role": "user", "content": question})
 
+        # Extract system prompt from messages if set there (dialog system compatibility)
+        system_prompt = self.system_prompt
+        if not system_prompt:
+            for msg in self.messages:
+                if msg.get("role") == "system":
+                    system_prompt = msg.get("content", "")
+                    break
+
         # Build request parameters
         params = {
             "model": self.model,
@@ -112,8 +120,8 @@ class AnthropicClient(BaseClient):
         }
 
         # Add system prompt if set
-        if self.system_prompt:
-            params["system"] = self.system_prompt
+        if system_prompt:
+            params["system"] = system_prompt
 
         # Add temperature if set (not compatible with extended thinking)
         if self.temperature is not None and not self.thinking:
@@ -235,6 +243,19 @@ class AnthropicClient(BaseClient):
 
         except anthropic.APIError as e:
             error_msg = f"Anthropic API error: {e}"
+            print(f"[AnthropicClient] Error in ask(): {error_msg}")
+            print(f"[AnthropicClient] Message count: {len(self.messages)}, API message count: {len(self._get_api_messages())}")
+            if self.stream_callback:
+                self.stream_callback({
+                    'type': 'error',
+                    'error': error_msg,
+                    'name': self.name
+                })
+            raise Exception(error_msg)
+        except Exception as e:
+            error_msg = f"Anthropic error: {type(e).__name__}: {e}"
+            print(f"[AnthropicClient] Unexpected error in ask(): {error_msg}")
+            print(f"[AnthropicClient] Message count: {len(self.messages)}, API message count: {len(self._get_api_messages())}")
             if self.stream_callback:
                 self.stream_callback({
                     'type': 'error',
@@ -244,12 +265,27 @@ class AnthropicClient(BaseClient):
             raise Exception(error_msg)
 
     def _get_api_messages(self) -> list:
-        """Get messages formatted for the API (excluding system prompt)."""
-        return [
-            {"role": msg["role"], "content": msg["content"]}
-            for msg in self.messages
-            if msg["role"] != "system"
-        ]
+        """Get messages formatted for the API (excluding system prompt).
+
+        Anthropic API requires alternating user/assistant messages.
+        This method merges consecutive messages from the same role.
+        """
+        # Filter out system messages first
+        filtered = [msg for msg in self.messages if msg["role"] != "system"]
+
+        if not filtered:
+            return []
+
+        # Merge consecutive messages with the same role
+        merged = []
+        for msg in filtered:
+            if merged and merged[-1]["role"] == msg["role"]:
+                # Merge with previous message
+                merged[-1]["content"] += "\n\n" + msg["content"]
+            else:
+                merged.append({"role": msg["role"], "content": msg["content"]})
+
+        return merged
 
     def reset_conversation(self):
         """Reset conversation history and token counts."""
@@ -264,8 +300,12 @@ class AnthropicClient(BaseClient):
         self.last_thinking = ""
 
     def set_system_prompt(self, prompt: str):
-        """Set the system prompt for conversations."""
+        """Set the system prompt for conversations.
+
+        Also clears the messages list to ensure a fresh conversation.
+        """
         self.system_prompt = prompt
+        self.messages = []
 
     def get_full_context(self) -> dict:
         """Get the full context window contents and metadata."""

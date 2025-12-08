@@ -491,15 +491,22 @@ class IntermediatorDialogRefactored:
     # =========================================================================
 
     def _initialize_system_prompts(self, context_content: str = None):
-        """Set up system prompts for all participants."""
-        
+        """Set up system prompts for all participants.
+
+        Uses set_system_prompt() method which handles provider-specific storage:
+        - Ollama: Sets messages list with system role
+        - Anthropic: Sets self.system_prompt
+        - OpenAI: Sets self.system_messages
+        - Gemini: Sets self.system_instruction and reinitializes model
+        """
+
         # Moderator system prompt
         moderator_prompt = self.prompts.get_moderator_system_prompt(
             topic=self.topic,
             custom_instructions=self.config.moderator_instructions
         )
-        self.intermediator.messages = [{"role": "system", "content": moderator_prompt}]
-        
+        self.intermediator.set_system_prompt(moderator_prompt)
+
         # Participant 1 system prompt
         p1_role = "questioner" if self.config.mode == DialogMode.INTERVIEW else None
         p1_prompt = self.prompts.get_participant_system_prompt(
@@ -508,8 +515,8 @@ class IntermediatorDialogRefactored:
             role=p1_role,
             custom_instructions=self.config.participant1_instructions
         )
-        self.participant1.messages = [{"role": "system", "content": p1_prompt}]
-        
+        self.participant1.set_system_prompt(p1_prompt)
+
         # Participant 2 system prompt
         p2_role = "subject" if self.config.mode == DialogMode.INTERVIEW else None
         p2_prompt = self.prompts.get_participant_system_prompt(
@@ -518,8 +525,8 @@ class IntermediatorDialogRefactored:
             role=p2_role,
             custom_instructions=self.config.participant2_instructions
         )
-        self.participant2.messages = [{"role": "system", "content": p2_prompt}]
-        
+        self.participant2.set_system_prompt(p2_prompt)
+
         # Add context if provided
         if context_content:
             context_msg = f"Here is context for our discussion:\n\n{context_content}\n\nPlease use this context to inform your responses."

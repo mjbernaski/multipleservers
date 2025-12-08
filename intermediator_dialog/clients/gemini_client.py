@@ -17,16 +17,16 @@ class GeminiClient(BaseClient):
     """Client for communicating with Google's Gemini API."""
 
     MODELS = {
-        # Latest models (Dec 2025)
-        'gemini-3-pro': 'gemini-3.0-pro',
-        'gemini-3-deep-think': 'gemini-3.0-deep-think',
+        # Gemini 3.0 series (preview)
+        'gemini-3-pro': 'gemini-3-pro-preview',
         # Gemini 2.5 series
-        'gemini-2.5-pro': 'gemini-2.5-pro-preview-06-05',
-        'gemini-2.5-flash': 'gemini-2.5-flash-preview-05-20',
-        'gemini-2.5-flash-lite': 'gemini-2.5-flash-lite-preview-06-17',
+        'gemini-2.5-pro': 'gemini-2.5-pro',
+        'gemini-2.5-flash': 'gemini-2.5-flash',
+        'gemini-2.5-flash-lite': 'gemini-2.5-flash-lite',
         # Gemini 2.0 series
         'gemini-2-flash': 'gemini-2.0-flash',
         'gemini-2-flash-lite': 'gemini-2.0-flash-lite',
+        'gemini-2-pro-exp': 'gemini-2.0-pro-exp',
     }
 
     # Models that support deep thinking
@@ -124,6 +124,14 @@ class GeminiClient(BaseClient):
 
     def ask(self, question: str, round_num: int = 0, phase: str = None) -> Tuple[str, Dict]:
         """Send a question to Gemini and get response with token counts."""
+        # Extract system prompt from messages if set there (dialog system compatibility)
+        if not self.system_instruction:
+            for msg in self.messages:
+                if msg.get("role") == "system":
+                    self.system_instruction = msg.get("content", "")
+                    self._init_model()  # Reinitialize with system instruction
+                    break
+
         self.messages.append({"role": "user", "content": question})
 
         try:
@@ -257,9 +265,13 @@ class GeminiClient(BaseClient):
         self.chat = self.genai_model.start_chat(history=[])
 
     def set_system_prompt(self, prompt: str):
-        """Set the system instruction for conversations."""
+        """Set the system instruction for conversations.
+
+        Also clears the messages list to ensure a fresh conversation.
+        """
         self.system_instruction = prompt
-        # Reinitialize model with new system instruction
+        self.messages = []
+        # Reinitialize model with new system instruction (also resets chat session)
         self._init_model()
 
     def get_full_context(self) -> dict:

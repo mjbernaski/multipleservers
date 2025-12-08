@@ -296,6 +296,13 @@ class OllamaClient(BaseClient):
         self.thinking_history = []
         self.last_thinking = ""
 
+    def set_system_prompt(self, prompt: str):
+        """Set the system prompt for conversations.
+
+        For Ollama, this clears any existing messages and sets a new system message.
+        """
+        self.messages = [{"role": "system", "content": prompt}]
+
     def get_full_context(self) -> dict:
         """Get the full context window contents and metadata for this client."""
         total_chars = sum(len(msg.get('content', '')) for msg in self.messages)
