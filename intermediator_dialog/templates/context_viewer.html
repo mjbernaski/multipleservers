@@ -475,18 +475,27 @@
                     return;
                 }
 
-                clientList.innerHTML = Object.entries(data.clients).map(([key, client]) => {
+                // Sort by message count descending so most active clients appear first
+                const sortedForDisplay = Object.entries(data.clients)
+                    .sort((a, b) => (b[1].message_count || 0) - (a[1].message_count || 0));
+
+                clientList.innerHTML = sortedForDisplay.map(([key, client]) => {
                     const role = client.role || '';
                     const roleLabel = role === 'intermediator' ? ' [MOD]' : (role ? ` [${role.toUpperCase()}]` : '');
+                    const escapedKey = key.replace(/'/g, "\\'");
                     return `
-                    <div class="client-badge" data-key="${key}" data-role="${role}" onclick="selectClient('${key}')">
+                    <div class="client-badge" data-key="${key}" data-role="${role}" onclick="selectClient('${escapedKey}', '${role}')">
                         <div class="client-name">${client.name}${roleLabel}</div>
                         <div class="client-model">${client.model} (${client.message_count} msgs) ${client.thinking_enabled ? '🧠' : ''}${client.reasoning_effort ? ' R:' + client.reasoning_effort : ''}</div>
                     </div>
                 `}).join('');
 
                 // Auto-assign clients to panels based on their role property
-                Object.entries(data.clients).forEach(([key, client]) => {
+                // Sort by message count (descending) to prefer most active clients
+                const sortedClients = Object.entries(data.clients)
+                    .sort((a, b) => (b[1].message_count || 0) - (a[1].message_count || 0));
+
+                sortedClients.forEach(([key, client]) => {
                     const role = client.role;
                     if (role === 'intermediator' && !selectedClients.intermediator) {
                         selectedClients.intermediator = key;
@@ -494,6 +503,16 @@
                         selectedClients.participant1 = key;
                     } else if (role === 'participant2' && !selectedClients.participant2) {
                         selectedClients.participant2 = key;
+                    }
+                });
+
+                // Highlight selected clients
+                document.querySelectorAll('.client-badge').forEach(badge => {
+                    const badgeKey = badge.dataset.key;
+                    if (badgeKey === selectedClients.intermediator ||
+                        badgeKey === selectedClients.participant1 ||
+                        badgeKey === selectedClients.participant2) {
+                        badge.classList.add('selected');
                     }
                 });
 
@@ -506,22 +525,34 @@
             }
         }
 
-        function selectClient(key) {
-            // Toggle selection - cycle through panels
-            const badges = document.querySelectorAll('.client-badge');
-            badges.forEach(b => b.classList.remove('selected'));
-
-            // Simple assignment logic
-            if (!selectedClients.intermediator) {
-                selectedClients.intermediator = key;
-            } else if (!selectedClients.participant1) {
-                selectedClients.participant1 = key;
-            } else if (!selectedClients.participant2) {
-                selectedClients.participant2 = key;
+        function selectClient(key, role) {
+            // Assign client to its role panel, or cycle through if no role
+            if (role && (role === 'intermediator' || role === 'participant1' || role === 'participant2')) {
+                selectedClients[role] = key;
             } else {
-                // Reset and assign to first
-                selectedClients = { intermediator: key, participant1: null, participant2: null };
+                // Fallback: cycle through panels
+                if (!selectedClients.intermediator) {
+                    selectedClients.intermediator = key;
+                } else if (!selectedClients.participant1) {
+                    selectedClients.participant1 = key;
+                } else if (!selectedClients.participant2) {
+                    selectedClients.participant2 = key;
+                } else {
+                    selectedClients = { intermediator: key, participant1: null, participant2: null };
+                }
             }
+
+            // Update visual selection
+            document.querySelectorAll('.client-badge').forEach(badge => {
+                const badgeKey = badge.dataset.key;
+                if (badgeKey === selectedClients.intermediator ||
+                    badgeKey === selectedClients.participant1 ||
+                    badgeKey === selectedClients.participant2) {
+                    badge.classList.add('selected');
+                } else {
+                    badge.classList.remove('selected');
+                }
+            });
 
             refresh();
         }
