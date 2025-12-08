@@ -30,6 +30,7 @@ from clients.gemini_client import GeminiClient
 from models import IntermediatorDialog
 from pdf_generator import generate_pdf_from_dialog
 from utils import debug_log, generate_filename_from_topic
+from version import get_version_info
 
 
 def register_routes(app, socketio, state):
@@ -56,6 +57,11 @@ def register_routes(app, socketio, state):
     def live_viewer():
         """Serve the live debate viewer page."""
         return render_template('live.html')
+
+    @app.route('/api/version', methods=['GET'])
+    def get_version():
+        """Get application version information."""
+        return jsonify(get_version_info())
 
     @app.route('/api/providers', methods=['GET'])
     def get_providers():

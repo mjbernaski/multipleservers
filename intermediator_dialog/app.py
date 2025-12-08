@@ -14,6 +14,7 @@ from threading import Timer
 import config
 from routes import register_routes
 from socketio_handlers import register_socketio_handlers
+from version import __version_full__, __version__, __build__
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -61,8 +62,9 @@ def main():
     args = parser.parse_args()
 
     print("=" * 60)
-    print("🤖 Intermediator Dialog System")
+    print(f"🤖 Intermediator Dialog System v{__version_full__}")
     print("=" * 60)
+    print(f"Version: {__version__} (build {__build__})")
     print(f"Host: {args.host}")
     print(f"Port: {args.port}")
     print(f"Debug: {args.debug}")

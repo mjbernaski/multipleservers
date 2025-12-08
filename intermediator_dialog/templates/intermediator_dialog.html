@@ -758,7 +758,7 @@
         <div class="flex-between" style="margin-bottom: 10px;">
             <h1 style="margin: 0; font-size: 24px;">Intermediated Dialog <span
                     style="font-size: 16px; color: #808080; font-weight: 400;">(IDi)</span> <span
-                    style="font-size: 11px; color: #9d60d6; font-weight: 500; background: #f5f0ff; padding: 2px 6px; border-radius: 3px; margin-left: 6px;">v1.6.2</span>
+                    id="version-badge" style="font-size: 11px; color: #9d60d6; font-weight: 500; background: #f5f0ff; padding: 2px 6px; border-radius: 3px; margin-left: 6px;">loading...</span>
             </h1>
             <div class="flex-center" style="gap: 6px;">
                 <input type="checkbox" id="enableTTS" onchange="toggleAudioGeneration()">
@@ -2724,8 +2724,26 @@ You follow the instructions of the intermediator, review the responses of your a
             }
         }
 
+        // Load and display version from API
+        async function loadVersion() {
+            try {
+                const response = await fetch('/api/version');
+                const data = await response.json();
+                const badge = document.getElementById('version-badge');
+                if (badge && data.full_version) {
+                    badge.textContent = 'v' + data.full_version;
+                    badge.title = `Build: ${data.build}\nRelease: ${data.release_date}`;
+                }
+            } catch (e) {
+                console.log('Could not load version:', e);
+                const badge = document.getElementById('version-badge');
+                if (badge) badge.textContent = 'v1.0.0';
+            }
+        }
+
         // Handle PDF auto-generate toggle change
         document.addEventListener('DOMContentLoaded', function() {
+            loadVersion();
             const autoGenerateCheckbox = document.getElementById('autoGeneratePdf');
             if (autoGenerateCheckbox) {
                 autoGenerateCheckbox.addEventListener('change', function() {
