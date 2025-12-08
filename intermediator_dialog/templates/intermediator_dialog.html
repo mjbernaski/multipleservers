@@ -782,6 +782,16 @@
                             style="margin-left: auto;">Checking...</span>
                     </div>
                     <div class="form-group">
+                        <label for="intermediator-provider">Provider:</label>
+                        <select id="intermediator-provider" onchange="onProviderChange('intermediator')"
+                            style="width: 100%; padding: 7px 10px; border: 1px solid #d0d0d0; border-radius: 4px; font-size: 13px; background: #ffffff; color: #000000;">
+                            <option value="ollama" selected>Ollama (Local)</option>
+                            <option value="anthropic">Anthropic (Claude)</option>
+                            <option value="openai">OpenAI</option>
+                            <option value="gemini">Google Gemini</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="intermediator-host-group">
                         <label for="intermediator-host">Host:</label>
                         <input type="text" id="intermediator-host" value="http://192.168.6.40:11434"
                             placeholder="http://host:port"
@@ -819,6 +829,16 @@
                             style="margin-left: auto;">Checking...</span>
                     </div>
                     <div class="form-group">
+                        <label for="participant1-provider">Provider:</label>
+                        <select id="participant1-provider" onchange="onProviderChange('participant1')"
+                            style="width: 100%; padding: 7px 10px; border: 1px solid #d0d0d0; border-radius: 4px; font-size: 13px; background: #ffffff; color: #000000;">
+                            <option value="ollama" selected>Ollama (Local)</option>
+                            <option value="anthropic">Anthropic (Claude)</option>
+                            <option value="openai">OpenAI</option>
+                            <option value="gemini">Google Gemini</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="participant1-host-group">
                         <label for="participant1-host">Host:</label>
                         <input type="text" id="participant1-host" value="http://192.168.5.40:11434"
                             placeholder="http://host:port"
@@ -861,6 +881,16 @@
                             style="margin-left: auto;">Checking...</span>
                     </div>
                     <div class="form-group">
+                        <label for="participant2-provider">Provider:</label>
+                        <select id="participant2-provider" onchange="onProviderChange('participant2')"
+                            style="width: 100%; padding: 7px 10px; border: 1px solid #d0d0d0; border-radius: 4px; font-size: 13px; background: #ffffff; color: #000000;">
+                            <option value="ollama" selected>Ollama (Local)</option>
+                            <option value="anthropic">Anthropic (Claude)</option>
+                            <option value="openai">OpenAI</option>
+                            <option value="gemini">Google Gemini</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="participant2-host-group">
                         <label for="participant2-host">Host:</label>
                         <input type="text" id="participant2-host" value="http://192.168.5.46:11434"
                             placeholder="http://host:port"
@@ -960,14 +990,14 @@
 
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
                         <div class="form-group">
-                            <label for="participant1-mid-prompt">Participant 1 Mid-Prompt:</label>
+                            <label for="participant1-mid-prompt">Participant A Mid-Prompt:</label>
                             <textarea id="participant1-mid-prompt"
-                                placeholder="Custom prompt for Participant 1 (Spark 1)..."></textarea>
+                                placeholder="Custom prompt for Participant A..."></textarea>
                         </div>
                         <div class="form-group">
-                            <label for="participant2-mid-prompt">Participant 2 Mid-Prompt:</label>
+                            <label for="participant2-mid-prompt">Participant B Mid-Prompt:</label>
                             <textarea id="participant2-mid-prompt"
-                                placeholder="Custom prompt for Participant 2 (Spark 2)..."></textarea>
+                                placeholder="Custom prompt for Participant B..."></textarea>
                         </div>
                     </div>
 
@@ -1451,8 +1481,85 @@ You follow the instructions of the intermediator, review the responses of your a
             }
         });
 
+        // Cloud provider models cache
+        let cloudProvidersCache = null;
+
+        // Load cloud providers info
+        async function loadCloudProviders() {
+            if (cloudProvidersCache) return cloudProvidersCache;
+            try {
+                const response = await fetch('/api/providers');
+                cloudProvidersCache = await response.json();
+                return cloudProvidersCache;
+            } catch (error) {
+                console.error('Error loading providers:', error);
+                return null;
+            }
+        }
+
+        // Handle provider change
+        async function onProviderChange(serverType) {
+            const provider = document.getElementById(`${serverType}-provider`).value;
+            const hostGroup = document.getElementById(`${serverType}-host-group`);
+            const modelSelect = document.getElementById(`${serverType}-model`);
+            const statusIndicator = document.getElementById(`${serverType}-status-indicator`);
+            const statusText = document.getElementById(`${serverType}-status-text`);
+
+            if (provider === 'ollama') {
+                // Show host field for Ollama
+                hostGroup.style.display = 'block';
+                loadModels(serverType);
+            } else {
+                // Hide host field for cloud providers
+                hostGroup.style.display = 'none';
+
+                // Load cloud provider models
+                const providersData = await loadCloudProviders();
+                if (providersData && providersData.providers[provider]) {
+                    const providerInfo = providersData.providers[provider];
+                    const models = providerInfo.models || [];
+                    const apiKeyConfigured = providersData.api_keys_configured[providerInfo.api_key_env];
+
+                    modelSelect.innerHTML = '';
+                    if (models.length > 0) {
+                        models.forEach((model, idx) => {
+                            const option = document.createElement('option');
+                            option.value = model;
+                            option.textContent = model;
+                            if (idx === 0) option.selected = true;
+                            modelSelect.appendChild(option);
+                        });
+                    } else {
+                        const option = document.createElement('option');
+                        option.value = '';
+                        option.textContent = 'No models available';
+                        modelSelect.appendChild(option);
+                    }
+
+                    // Update status based on API key
+                    if (apiKeyConfigured) {
+                        statusIndicator.className = 'status-indicator available';
+                        statusText.textContent = 'API Key Set';
+                        statusText.className = 'status-text available';
+                    } else {
+                        statusIndicator.className = 'status-indicator unavailable';
+                        statusText.textContent = 'API Key Missing';
+                        statusText.className = 'status-text unavailable';
+                    }
+                }
+            }
+        }
+
         // Load models for a server
         async function loadModels(serverType) {
+            const providerSelect = document.getElementById(`${serverType}-provider`);
+            const provider = providerSelect ? providerSelect.value : 'ollama';
+
+            // For cloud providers, use onProviderChange instead
+            if (provider !== 'ollama') {
+                return onProviderChange(serverType);
+            }
+
             const hostInput = document.getElementById(`${serverType}-host`);
             const modelSelect = document.getElementById(`${serverType}-model`);
 
@@ -1511,13 +1618,35 @@ You follow the instructions of the intermediator, review the responses of your a
         }
 
         async function checkServerStatus(serverType) {
+            const providerSelect = document.getElementById(`${serverType}-provider`);
+            const provider = providerSelect ? providerSelect.value : 'ollama';
             const hostInput = document.getElementById(`${serverType}-host`);
             const modelSelect = document.getElementById(`${serverType}-model`);
             const statusIndicator = document.getElementById(`${serverType}-status-indicator`);
             const statusText = document.getElementById(`${serverType}-status-text`);
 
-            if (!hostInput || !modelSelect || !statusIndicator || !statusText) return;
+            if (!modelSelect || !statusIndicator || !statusText) return;
 
+            // For cloud providers, check API key status
+            if (provider !== 'ollama') {
+                const providersData = await loadCloudProviders();
+                if (providersData && providersData.providers[provider]) {
+                    const providerInfo = providersData.providers[provider];
+                    const apiKeyConfigured = providersData.api_keys_configured[providerInfo.api_key_env];
+                    if (apiKeyConfigured) {
+                        statusIndicator.className = 'status-indicator available';
+                        statusText.textContent = 'API Key Set';
+                        statusText.className = 'status-text available';
+                    } else {
+                        statusIndicator.className = 'status-indicator unavailable';
+                        statusText.textContent = 'API Key Missing';
+                        statusText.className = 'status-text unavailable';
+                    }
+                }
+                return;
+            }
+
+            if (!hostInput) return;
             const host = hostInput.value.trim();
 
             if (!host) {
@@ -2262,6 +2391,7 @@ You follow the instructions of the intermediator, review the responses of your a
                 }
 
                 const intermediator = {
+                    provider: document.getElementById('intermediator-provider').value,
                     host: document.getElementById('intermediator-host').value.trim(),
                     model: document.getElementById('intermediator-model').value.trim(),
                     name: document.getElementById('intermediator-name').value.trim(),
@@ -2271,6 +2401,7 @@ You follow the instructions of the intermediator, review the responses of your a
                 };
 
                 const participant1 = {
+                    provider: document.getElementById('participant1-provider').value,
                     host: document.getElementById('participant1-host').value.trim(),
                     model: document.getElementById('participant1-model').value.trim(),
                     name: document.getElementById('participant1-name').value.trim(),
@@ -2280,6 +2411,7 @@ You follow the instructions of the intermediator, review the responses of your a
                 };
 
                 const participant2 = {
+                    provider: document.getElementById('participant2-provider').value,
                     host: document.getElementById('participant2-host').value.trim(),
                     model: document.getElementById('participant2-model').value.trim(),
                     name: document.getElementById('participant2-name').value.trim(),

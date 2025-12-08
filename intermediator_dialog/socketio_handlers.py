@@ -8,7 +8,9 @@ import threading
 from typing import Dict
 from datetime import datetime
 from flask_socketio import emit
-from clients.ollama_client import OllamaClient
+from clients import OllamaClient, create_client, get_available_providers
+from clients import AnthropicClient, OpenAIClient, GeminiClient
+from clients import ANTHROPIC_AVAILABLE, OPENAI_AVAILABLE, GEMINI_AVAILABLE
 from models import IntermediatorDialog
 from intermediator_dialog_refactored import IntermediatorDialogRefactored, DialogConfig
 from prompt_templates import DialogMode
@@ -267,67 +269,133 @@ def register_socketio_handlers(socketio, state):
 
         def get_or_create_client(config, role_name):
             """Get existing client instance or create new one to maintain cache."""
-            key = f"{config['host']}:{config['model']}:{config.get('name', role_name)}"
+            provider = config.get('provider', 'ollama')
+
+            # Build cache key based on provider
+            if provider == 'ollama':
+                key = f"{config['host']}:{config['model']}:{config.get('name', role_name)}"
+            else:
+                key = f"{provider}:{config['model']}:{config.get('name', role_name)}"
 
             if key in client_instances:
                 client = client_instances[key]
                 client.role = role_name  # Always update role
-                if thinking_params.get('num_ctx'):
-                    client.num_ctx = thinking_params.get('num_ctx', 96000)
+
+                # Update parameters based on provider
+                if provider == 'ollama':
+                    if thinking_params.get('num_ctx'):
+                        client.num_ctx = thinking_params.get('num_ctx', 96000)
+                    if thinking_params.get('top_p') is not None:
+                        client.top_p = thinking_params.get('top_p')
+                    if thinking_params.get('top_k') is not None:
+                        client.top_k = thinking_params.get('top_k')
+                    if thinking_params.get('repeat_penalty') is not None:
+                        client.repeat_penalty = thinking_params.get('repeat_penalty')
+                    if thinking_params.get('num_predict') is not None:
+                        client.num_predict = thinking_params.get('num_predict')
+                    if 'be_brief' in thinking_params:
+                        client.be_brief = thinking_params.get('be_brief', False)
+
                 if thinking_params.get('temperature') is not None:
                     client.temperature = thinking_params.get('temperature')
-                if thinking_params.get('top_p') is not None:
-                    client.top_p = thinking_params.get('top_p')
-                if thinking_params.get('top_k') is not None:
-                    client.top_k = thinking_params.get('top_k')
-                if thinking_params.get('repeat_penalty') is not None:
-                    client.repeat_penalty = thinking_params.get('repeat_penalty')
-                if thinking_params.get('num_predict') is not None:
-                    client.num_predict = thinking_params.get('num_predict')
-                # Use per-server thinking settings from config
                 if 'thinking' in config:
                     client.thinking = config.get('thinking', False)
                 if 'reasoning_effort' in config:
                     client.reasoning_effort = config.get('reasoning_effort')
-                if 'be_brief' in thinking_params:
-                    client.be_brief = thinking_params.get('be_brief', False)
-                debug_log('info', f"Reusing cached client for {role_name}: {key} (thinking={client.thinking}, effort={client.reasoning_effort})", server=role_name, socketio=socketio)
+
+                debug_log('info', f"Reusing cached client for {role_name}: {key} (provider={provider}, thinking={getattr(client, 'thinking', False)})", server=role_name, socketio=socketio)
                 return client
             else:
-                # Use per-server thinking settings from config
+                # Create new client based on provider
                 thinking_enabled = config.get('thinking', False)
                 reasoning_effort = config.get('reasoning_effort') if thinking_enabled else None
-                client = OllamaClient(
-                    config['host'],
-                    config['model'],
-                    config.get('name'),
-                    num_ctx=thinking_params.get('num_ctx', 96000),
-                    temperature=thinking_params.get('temperature'),
-                    top_p=thinking_params.get('top_p'),
-                    top_k=thinking_params.get('top_k'),
-                    repeat_penalty=thinking_params.get('repeat_penalty'),
-                    num_predict=thinking_params.get('num_predict'),
-                    thinking=thinking_enabled,
-                    reasoning_effort=reasoning_effort,
-                    be_brief=thinking_params.get('be_brief', False),
-                    role=role_name
-                )
+
+                if provider == 'ollama':
+                    client = OllamaClient(
+                        config['host'],
+                        config['model'],
+                        config.get('name'),
+                        num_ctx=thinking_params.get('num_ctx', 96000),
+                        temperature=thinking_params.get('temperature'),
+                        top_p=thinking_params.get('top_p'),
+                        top_k=thinking_params.get('top_k'),
+                        repeat_penalty=thinking_params.get('repeat_penalty'),
+                        num_predict=thinking_params.get('num_predict'),
+                        thinking=thinking_enabled,
+                        reasoning_effort=reasoning_effort,
+                        be_brief=thinking_params.get('be_brief', False),
+                        role=role_name
+                    )
+                elif provider == 'anthropic':
+                    if not ANTHROPIC_AVAILABLE:
+                        raise ValueError("Anthropic client not available. Install: pip install anthropic")
+                    client = AnthropicClient(
+                        model=config['model'],
+                        name=config.get('name'),
+                        api_key=config.get('api_key'),
+                        temperature=thinking_params.get('temperature'),
+                        max_tokens=thinking_params.get('num_predict', 4096),
+                        thinking=thinking_enabled,
+                        thinking_budget=config.get('thinking_budget', 10000),
+                        role=role_name
+                    )
+                elif provider == 'openai':
+                    if not OPENAI_AVAILABLE:
+                        raise ValueError("OpenAI client not available. Install: pip install openai")
+                    client = OpenAIClient(
+                        model=config['model'],
+                        name=config.get('name'),
+                        api_key=config.get('api_key'),
+                        temperature=thinking_params.get('temperature'),
+                        max_tokens=thinking_params.get('num_predict', 4096),
+                        reasoning_effort=reasoning_effort,
+                        role=role_name
+                    )
+                elif provider == 'gemini':
+                    if not GEMINI_AVAILABLE:
+                        raise ValueError("Gemini client not available. Install: pip install google-generativeai")
+                    client = GeminiClient(
+                        model=config['model'],
+                        name=config.get('name'),
+                        api_key=config.get('api_key'),
+                        temperature=thinking_params.get('temperature'),
+                        max_tokens=thinking_params.get('num_predict', 4096),
+                        thinking_level=config.get('thinking_level'),
+                        role=role_name
+                    )
+                else:
+                    raise ValueError(f"Unknown provider: {provider}")
+
                 client_instances[key] = client
-                debug_log('info', f"Created new client for {role_name}: {key} (thinking={thinking_enabled}, effort={reasoning_effort})", server=role_name, socketio=socketio)
+                debug_log('info', f"Created new client for {role_name}: {key} (provider={provider}, thinking={thinking_enabled})", server=role_name, socketio=socketio)
                 return client
 
         intermediator_client = get_or_create_client(intermediator_config, 'intermediator')
         participant1_client = get_or_create_client(participant1_config, 'participant1')
         participant2_client = get_or_create_client(participant2_config, 'participant2')
 
+        # Check server availability
+        int_provider = intermediator_config.get('provider', 'ollama')
+        p1_provider = participant1_config.get('provider', 'ollama')
+        p2_provider = participant2_config.get('provider', 'ollama')
+
         if not intermediator_client.check_server_available():
-            emit('error', {'error': f'Intermediator server {intermediator_config["host"]} not available'})
+            if int_provider == 'ollama':
+                emit('error', {'error': f'Intermediator Ollama server ({intermediator_config.get("host")}) not available'})
+            else:
+                emit('error', {'error': f'Intermediator {int_provider} API not available - check API key and model'})
             return
         if not participant1_client.check_server_available():
-            emit('error', {'error': f'Participant 1 server {participant1_config["host"]} not available'})
+            if p1_provider == 'ollama':
+                emit('error', {'error': f'Participant A Ollama server ({participant1_config.get("host")}) not available'})
+            else:
+                emit('error', {'error': f'Participant A {p1_provider} API not available - check API key and model'})
             return
         if not participant2_client.check_server_available():
-            emit('error', {'error': f'Participant 2 server {participant2_config["host"]} not available'})
+            if p2_provider == 'ollama':
+                emit('error', {'error': f'Participant B Ollama server ({participant2_config.get("host")}) not available'})
+            else:
+                emit('error', {'error': f'Participant B {p2_provider} API not available - check API key and model'})
             return
 
         if session_id and session_id in uploaded_files:

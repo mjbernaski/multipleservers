@@ -23,6 +23,10 @@ import requests
 import shutil
 
 from clients.ollama_client import OllamaClient
+from clients import get_available_providers, ANTHROPIC_AVAILABLE, OPENAI_AVAILABLE, GEMINI_AVAILABLE
+from clients.anthropic_client import AnthropicClient
+from clients.openai_client import OpenAIClient
+from clients.gemini_client import GeminiClient
 from models import IntermediatorDialog
 from pdf_generator import generate_pdf_from_dialog
 from utils import debug_log, generate_filename_from_topic
@@ -52,6 +56,52 @@ def register_routes(app, socketio, state):
     def live_viewer():
         """Serve the live debate viewer page."""
         return render_template('live.html')
+
+    @app.route('/api/providers', methods=['GET'])
+    def get_providers():
+        """Get available AI providers and their models."""
+        providers = {
+            'ollama': {
+                'available': True,
+                'name': 'Ollama (Local)',
+                'requires_api_key': False,
+                'models': []  # Populated dynamically from server
+            },
+            'anthropic': {
+                'available': ANTHROPIC_AVAILABLE,
+                'name': 'Anthropic (Claude)',
+                'requires_api_key': True,
+                'api_key_env': 'ANTHROPIC_API_KEY',
+                'models': list(AnthropicClient.MODELS.keys()) if ANTHROPIC_AVAILABLE else []
+            },
+            'openai': {
+                'available': OPENAI_AVAILABLE,
+                'name': 'OpenAI',
+                'requires_api_key': True,
+                'api_key_env': 'OPENAI_API_KEY',
+                'models': list(OpenAIClient.MODELS.keys()) if OPENAI_AVAILABLE else []
+            },
+            'gemini': {
+                'available': GEMINI_AVAILABLE,
+                'name': 'Google Gemini',
+                'requires_api_key': True,
+                'api_key_env': 'GOOGLE_API_KEY',
+                'models': list(GeminiClient.MODELS.keys()) if GEMINI_AVAILABLE else []
+            }
+        }
+
+        # Check which API keys are configured
+        import os
+        api_keys_status = {
+            'ANTHROPIC_API_KEY': bool(os.environ.get('ANTHROPIC_API_KEY')),
+            'OPENAI_API_KEY': bool(os.environ.get('OPENAI_API_KEY')),
+            'GOOGLE_API_KEY': bool(os.environ.get('GOOGLE_API_KEY')),
+        }
+
+        return jsonify({
+            'providers': providers,
+            'api_keys_configured': api_keys_status
+        })
 
     @app.route('/debate_library', methods=['GET'])
     def get_debate_library():

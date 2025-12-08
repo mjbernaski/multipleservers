@@ -1547,7 +1547,7 @@ def generate_pdf_from_dialog(dialog_data: Dict, prompt_config: Dict,
             total_energy = sum(server_energy.values())
 
             if total_energy > 0:
-                elements.append(Paragraph("Estimated Energy Consumption", heading_style))
+                elements.append(Paragraph("Estimated GPU Energy (GPU Only)", heading_style))
 
                 # Show breakdown by server
                 energy_text = f"Total Energy: {total_energy:.4f} Wh<br/>"
