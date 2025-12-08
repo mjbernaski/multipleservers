@@ -233,15 +233,21 @@ def register_socketio_handlers(socketio, state):
         participant1_override_model = data.get('participant1_override_model')
         participant2_override_model = data.get('participant2_override_model')
 
+        # Only apply shared model to Ollama providers (cloud providers have their own models)
         if shared_spark_model:
-            if participant1_override_model:
-                participant1_config['model'] = participant1_override_model
-            else:
-                participant1_config['model'] = shared_spark_model
-            if participant2_override_model:
-                participant2_config['model'] = participant2_override_model
-            else:
-                participant2_config['model'] = shared_spark_model
+            p1_provider = participant1_config.get('provider', 'ollama')
+            p2_provider = participant2_config.get('provider', 'ollama')
+
+            if p1_provider == 'ollama':
+                if participant1_override_model:
+                    participant1_config['model'] = participant1_override_model
+                else:
+                    participant1_config['model'] = shared_spark_model
+            if p2_provider == 'ollama':
+                if participant2_override_model:
+                    participant2_config['model'] = participant2_override_model
+                else:
+                    participant2_config['model'] = shared_spark_model
 
         if not intermediator_config or not participant1_config or not participant2_config:
             emit('error', {'error': 'All three AI configurations required'})
