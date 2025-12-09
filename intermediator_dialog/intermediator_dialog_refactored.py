@@ -228,8 +228,13 @@ class IntermediatorDialogRefactored:
             participant = self.participant2
             speaker_key = 'participant2'
             exclude_speakers = ['participant2']
-        
+
         participant_name = self.names[speaker_key]
+
+        # Debug logging for participant turn
+        provider = getattr(participant, 'provider', 'unknown')
+        model = getattr(participant, 'model', 'unknown')
+        print(f"[Dialog] Starting {speaker_key} turn {turn}: provider={provider}, model={model}, client_type={type(participant).__name__}")
         
         # Get context and last message
         context_summary = self._build_context_summary(for_participant=speaker_key)

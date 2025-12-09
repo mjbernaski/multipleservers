@@ -423,7 +423,7 @@ def register_socketio_handlers(socketio, state):
             return
         debug_log('info', f"✓ Intermediator check passed", socketio=socketio)
 
-        debug_log('info', f"Checking participant1 availability (provider={p1_provider}, model={participant1_config.get('model')})...", socketio=socketio)
+        debug_log('info', f"Checking participant1 availability (provider={p1_provider}, model={participant1_config.get('model')}, client_type={type(participant1_client).__name__})...", socketio=socketio)
         if not participant1_client.check_server_available():
             if p1_provider == 'ollama':
                 emit('error', {'error': f'Participant A: Model "{participant1_config.get("model")}" not found on Ollama server {participant1_config.get("host")}. Check that the model exists or select a different provider.'})
@@ -432,7 +432,7 @@ def register_socketio_handlers(socketio, state):
             return
         debug_log('info', f"✓ Participant1 check passed", socketio=socketio)
 
-        debug_log('info', f"Checking participant2 availability (provider={p2_provider}, model={participant2_config.get('model')})...", socketio=socketio)
+        debug_log('info', f"Checking participant2 availability (provider={p2_provider}, model={participant2_config.get('model')}, client_type={type(participant2_client).__name__})...", socketio=socketio)
         if not participant2_client.check_server_available():
             if p2_provider == 'ollama':
                 emit('error', {'error': f'Participant B: Model "{participant2_config.get("model")}" not found on Ollama server {participant2_config.get("host")}. Check that the model exists or select a different provider.'})
