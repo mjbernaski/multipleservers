@@ -17,16 +17,15 @@ class AnthropicClient(BaseClient):
     """Client for communicating with Anthropic's Claude API."""
 
     MODELS = {
-        # Claude 4 series (2025)
-        'claude-sonnet-4': 'claude-sonnet-4-20250514',
+        # Claude 4.5 series (Latest - Nov 2025)
+        'claude-opus-4.5': 'claude-opus-4-5-20251101',
+        'claude-sonnet-4.5': 'claude-sonnet-4-5-20250929',
+        'claude-haiku-4.5': 'claude-haiku-4-5-20251001',
+        # Claude 4.1 series (Aug 2025)
+        'claude-opus-4.1': 'claude-opus-4-1-20250805',
+        # Claude 4 series (May 2025)
         'claude-opus-4': 'claude-opus-4-20250514',
-        # Claude 3.5 series
-        'claude-sonnet-3.5': 'claude-3-5-sonnet-20241022',
-        'claude-haiku-3.5': 'claude-3-5-haiku-20241022',
-        # Claude 3 series (legacy)
-        'claude-opus-3': 'claude-3-opus-20240229',
-        'claude-sonnet-3': 'claude-3-sonnet-20240229',
-        'claude-haiku-3': 'claude-3-haiku-20240307',
+        'claude-sonnet-4': 'claude-sonnet-4-20250514',
     }
 
     def __init__(self, model: str, name: str = None, api_key: str = None,

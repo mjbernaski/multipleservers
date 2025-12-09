@@ -17,23 +17,31 @@ class OpenAIClient(BaseClient):
     """Client for communicating with OpenAI's API."""
 
     MODELS = {
-        # GPT-4o series (latest)
+        # GPT-5.1 series (Latest - Nov 2025)
+        'gpt-5.1': 'gpt-5.1',
+        'gpt-5.1-codex': 'gpt-5.1-codex',
+        'gpt-5.1-codex-mini': 'gpt-5.1-codex-mini',
+        # GPT-5 series
+        'gpt-5': 'gpt-5',
+        'gpt-5-mini': 'gpt-5-mini',
+        'gpt-5-nano': 'gpt-5-nano',
+        # GPT-4.1 series (Apr 2025)
+        'gpt-4.1': 'gpt-4.1',
+        'gpt-4.1-mini': 'gpt-4.1-mini',
+        'gpt-4.1-nano': 'gpt-4.1-nano',
+        # GPT-4o series
         'gpt-4o': 'gpt-4o',
         'gpt-4o-mini': 'gpt-4o-mini',
-        # GPT-4 Turbo
-        'gpt-4-turbo': 'gpt-4-turbo',
-        # GPT-4
-        'gpt-4': 'gpt-4',
-        # GPT-3.5
-        'gpt-3.5-turbo': 'gpt-3.5-turbo',
-        # o1 reasoning models
+        # o-series reasoning models
         'o1': 'o1',
         'o1-mini': 'o1-mini',
-        'o1-preview': 'o1-preview',
+        'o1-pro': 'o1-pro',
+        'o3-mini': 'o3-mini',
+        'o4-mini-deep-research': 'o4-mini-deep-research',
     }
 
     # Models that support reasoning/thinking
-    REASONING_MODELS = {'o1', 'o1-mini', 'o1-preview'}
+    REASONING_MODELS = {'gpt-5.1', 'o1', 'o1-mini', 'o1-pro', 'o3-mini', 'o4-mini-deep-research'}
 
     def __init__(self, model: str, name: str = None, api_key: str = None,
                  temperature: float = None, max_tokens: int = 4096,
@@ -122,8 +130,15 @@ class OpenAIClient(BaseClient):
             "stream": True,
         }
 
-        # Add max_tokens (different param name for reasoning models)
-        if self.is_reasoning_model:
+        # Add max_tokens (GPT-5.x and reasoning models use max_completion_tokens)
+        uses_completion_tokens = (
+            self.is_reasoning_model or
+            self.model.startswith('gpt-5') or
+            self.model.startswith('o1') or
+            self.model.startswith('o3') or
+            self.model.startswith('o4')
+        )
+        if uses_completion_tokens:
             params["max_completion_tokens"] = self.max_tokens
         else:
             params["max_tokens"] = self.max_tokens
