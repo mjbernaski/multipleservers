@@ -17,15 +17,15 @@ class OpenAIClient(BaseClient):
     """Client for communicating with OpenAI's API."""
 
     MODELS = {
-        # GPT-5 series (latest - Dec 2025)
-        'gpt-5.1': 'gpt-5.1',
-        'gpt-5-mini': 'gpt-5-mini',
-        'gpt-5-nano': 'gpt-5-nano',
-        # GPT-4o series
+        # GPT-4o series (latest)
         'gpt-4o': 'gpt-4o',
         'gpt-4o-mini': 'gpt-4o-mini',
         # GPT-4 Turbo
         'gpt-4-turbo': 'gpt-4-turbo',
+        # GPT-4
+        'gpt-4': 'gpt-4',
+        # GPT-3.5
+        'gpt-3.5-turbo': 'gpt-3.5-turbo',
         # o1 reasoning models
         'o1': 'o1',
         'o1-mini': 'o1-mini',
@@ -33,7 +33,7 @@ class OpenAIClient(BaseClient):
     }
 
     # Models that support reasoning/thinking
-    REASONING_MODELS = {'gpt-5.1', 'o1', 'o1-mini', 'o1-preview'}
+    REASONING_MODELS = {'o1', 'o1-mini', 'o1-preview'}
 
     def __init__(self, model: str, name: str = None, api_key: str = None,
                  temperature: float = None, max_tokens: int = 4096,
