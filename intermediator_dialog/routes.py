@@ -109,6 +109,21 @@ def register_routes(app, socketio, state):
             'api_keys_configured': api_keys_status
         })
 
+    @app.route('/server_config', methods=['GET'])
+    def get_server_config():
+        """Serve the server configuration JSON."""
+        try:
+            config_path = Path(__file__).parent / 'server_config.json'
+            if not config_path.exists():
+                return jsonify({'error': 'Server config not found'}), 404
+
+            with open(config_path, 'r', encoding='utf-8') as f:
+                config_data = json.load(f)
+
+            return jsonify(config_data)
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+
     @app.route('/debate_library', methods=['GET'])
     def get_debate_library():
         """Serve the debate library JSON."""
@@ -566,6 +581,9 @@ def register_routes(app, socketio, state):
     @app.route('/api/context/active_dialogs', methods=['GET'])
     def list_active_dialogs():
         """List all active dialog instances."""
+        # Create a reverse lookup for client keys
+        client_map = {v: k for k, v in state['client_instances'].items()}
+        
         dialogs = {}
         for dialog_id, dialog in state['dialog_instances'].items():
             dialogs[dialog_id] = {
@@ -574,6 +592,9 @@ def register_routes(app, socketio, state):
                 'mode': dialog.config.mode.value if hasattr(dialog.config, 'mode') else 'unknown',
                 'intermediator': dialog.intermediator.name,
                 'participant1': dialog.participant1.name,
-                'participant2': dialog.participant2.name
+                'participant2': dialog.participant2.name,
+                'intermediator_key': client_map.get(dialog.intermediator),
+                'participant1_key': client_map.get(dialog.participant1),
+                'participant2_key': client_map.get(dialog.participant2)
             }
         return jsonify({'active_dialogs': dialogs})

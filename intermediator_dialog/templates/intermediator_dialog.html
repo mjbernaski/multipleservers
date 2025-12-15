@@ -1333,6 +1333,48 @@ You follow the instructions of the intermediator, review the responses of your a
             }
         }
 
+        // Load server configuration from JSON file
+        async function loadServerConfig() {
+            try {
+                const response = await fetch('/server_config');
+                const data = await response.json();
+
+                if (response.ok && data.servers) {
+                    const servers = data.servers;
+
+                    if (servers.intermediator) {
+                        document.getElementById('intermediator-host').value = servers.intermediator.host || '';
+                        document.getElementById('intermediator-name').value = servers.intermediator.name || '';
+                        if (servers.intermediator.provider) {
+                            document.getElementById('intermediator-provider').value = servers.intermediator.provider;
+                        }
+                    }
+
+                    if (servers.participant1) {
+                        document.getElementById('participant1-host').value = servers.participant1.host || '';
+                        document.getElementById('participant1-name').value = servers.participant1.name || '';
+                        if (servers.participant1.provider) {
+                            document.getElementById('participant1-provider').value = servers.participant1.provider;
+                        }
+                    }
+
+                    if (servers.participant2) {
+                        document.getElementById('participant2-host').value = servers.participant2.host || '';
+                        document.getElementById('participant2-name').value = servers.participant2.name || '';
+                        if (servers.participant2.provider) {
+                            document.getElementById('participant2-provider').value = servers.participant2.provider;
+                        }
+                    }
+
+                    console.log('Server config loaded from server_config.json');
+                } else {
+                    console.warn('Failed to load server config, using HTML defaults');
+                }
+            } catch (error) {
+                console.warn('Error loading server config:', error, '- using HTML defaults');
+            }
+        }
+
         // Load persisted prompt fields
         async function loadPersistedFields() {
             // First, load default prompts from server
@@ -1441,6 +1483,7 @@ You follow the instructions of the intermediator, review the responses of your a
 
         // Initialize on page load - properly await async loading
         async function initializePage() {
+            await loadServerConfig();     // Load server hosts/names from config file
             await loadPersistedFields();  // Wait for defaults to load from server
             ensureMaxTurnsDefault();
             loadDebateCount();
