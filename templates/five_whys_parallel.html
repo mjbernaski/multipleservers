@@ -669,6 +669,27 @@
         let currentAnalysisId = null;
         let currentNumWhys = 3;  // Default number of whys
         const completedServers = new Set();
+        let configuredServers = [];  // Will be populated from config.json
+
+        // Load server configuration from config.json
+        async function loadServerConfig() {
+            try {
+                const response = await fetch('/config');
+                const data = await response.json();
+                if (data.servers && data.servers.length > 0) {
+                    configuredServers = data.servers.map(server => ({
+                        host: server.host,
+                        model: server.model,
+                        name: server.name
+                    }));
+                    console.log('Loaded server config:', configuredServers);
+                    // Refresh server status after loading config
+                    checkServerStatus();
+                }
+            } catch (error) {
+                console.error('Error loading server config:', error);
+            }
+        }
 
         // Dark mode functionality
         function toggleDarkMode() {
@@ -701,26 +722,11 @@
         // Initialize dark mode on page load
         loadDarkModePreference();
 
-        // Get server configuration
+        // Get server configuration from config.json (loaded on page init)
         function getServerConfig() {
-            const servers = [
-                {
-                    host: 'http://192.168.5.40:11434',
-                    model: 'gpt-oss:20b',
-                    name: 'NVIDIA DGX Spark 1'
-                },
-                {
-                    host: 'http://192.168.5.46:11434',
-                    model: 'gpt-oss:120b',
-                    name: 'NVIDIA DGX Spark 2'
-                },
-                {
-                    host: 'http://192.168.6.40:11434',
-                    model: 'gpt-oss:20b',
-                    name: 'RT5090'
-                }
-            ];
-            
+            // Use configured servers from config.json, or fallback to empty array
+            const servers = configuredServers.length > 0 ? [...configuredServers] : [];
+
             // Update models from selected dropdowns if they exist
             servers.forEach(server => {
                 const modelSelect = document.getElementById(`model-select-${server.name}`);
@@ -728,7 +734,7 @@
                     server.model = modelSelect.value;
                 }
             });
-            
+
             return servers;
         }
 
@@ -827,8 +833,8 @@
             }
         }
 
-        // Check server status on page load
-        checkServerStatus();
+        // Load config and check server status on page load
+        loadServerConfig();
 
         socket.on('connect', () => {
             console.log('Connected to server');

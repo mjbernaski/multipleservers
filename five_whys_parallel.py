@@ -15,6 +15,7 @@ import uuid
 import time
 from typing import Dict, List, Tuple, Callable, Optional
 from datetime import datetime
+from pathlib import Path
 from flask import Flask, render_template, request, jsonify, send_file
 from flask_socketio import SocketIO, emit
 from werkzeug.utils import secure_filename
@@ -518,6 +519,15 @@ Remember: The content above IS the writing/content being referenced. Use it to a
             })
 
 
+def load_config():
+    """Load server configuration from config.json."""
+    config_path = Path(__file__).parent / 'config.json'
+    if config_path.exists():
+        with open(config_path, 'r') as f:
+            return json.load(f)
+    return None
+
+
 # Global state for web interface
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'five-whys-secret-key'
@@ -604,6 +614,25 @@ def index():
 def debug():
     """Serve the debug log page."""
     return render_template('debug.html')
+
+
+@app.route('/config')
+def get_config():
+    """Return server configuration from config.json."""
+    config = load_config()
+    if config and 'servers' in config:
+        servers = []
+        for key, server in config['servers'].items():
+            host = server.get('host', '')
+            port = server.get('port', 11434)
+            servers.append({
+                'key': key,
+                'name': server.get('name', key),
+                'host': f"{host}:{port}",
+                'model': server.get('default_model', '')
+            })
+        return jsonify({'servers': servers})
+    return jsonify({'servers': []})
 
 
 def format_runtime(seconds):
