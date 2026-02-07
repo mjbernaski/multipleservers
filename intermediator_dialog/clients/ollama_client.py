@@ -5,7 +5,7 @@ import requests
 import json
 import time
 from typing import Dict, Tuple
-from .base_client import BaseClient
+from .base_client import BaseClient, ClientConnectionError, ClientTimeoutError
 
 
 class OllamaClient(BaseClient):
@@ -38,6 +38,7 @@ class OllamaClient(BaseClient):
         super().__init__(model=model, name=name or f"{host} ({model})")
 
         self.host = host.rstrip('/')
+        self.provider = 'ollama'
         self.num_ctx = num_ctx
         self.temperature = temperature
         self.top_p = top_p
@@ -117,6 +118,20 @@ class OllamaClient(BaseClient):
             print(f"Error: Failed to communicate with Ollama server: {e}")
             return False
 
+    def _get_api_messages(self) -> list:
+        """Merge consecutive same-role messages for Ollama API compatibility."""
+        if not self.messages:
+            return []
+
+        merged = []
+        for msg in self.messages:
+            if merged and merged[-1]["role"] == msg["role"]:
+                merged[-1]["content"] += "\n\n" + msg["content"]
+            else:
+                merged.append({"role": msg["role"], "content": msg["content"]})
+
+        return merged
+
     def ask(self, question: str, round_num: int = 0, phase: str = None) -> Tuple[str, Dict]:
         """Send a question to Ollama and get response with token counts."""
         url = f"{self.host}/api/chat"
@@ -128,7 +143,7 @@ class OllamaClient(BaseClient):
 
         payload = {
             "model": self.model,
-            "messages": self.messages,
+            "messages": self._get_api_messages(),
             "stream": True,
             "keep_alive": self.keep_alive
         }
@@ -152,8 +167,14 @@ class OllamaClient(BaseClient):
         if self.num_predict is not None:
             payload["num_predict"] = self.num_predict
 
+        def _do_request():
+            return requests.post(url, json=payload, timeout=self.timeout, stream=True)
+
         try:
-            response = requests.post(url, json=payload, timeout=300, stream=True)
+            response = self._retry_with_backoff(
+                _do_request,
+                (requests.exceptions.ConnectionError, requests.exceptions.Timeout)
+            )
 
             if response.status_code >= 400:
                 try:
@@ -275,15 +296,21 @@ class OllamaClient(BaseClient):
 
             return answer, token_info
 
+        except requests.exceptions.ConnectionError as e:
+            error_msg = f"Connection error with Ollama at {self.host}: {e}"
+            if self.stream_callback:
+                self.stream_callback({'type': 'error', 'error': error_msg, 'name': self.name})
+            raise ClientConnectionError(error_msg)
+        except requests.exceptions.Timeout as e:
+            error_msg = f"Timeout communicating with Ollama at {self.host}: {e}"
+            if self.stream_callback:
+                self.stream_callback({'type': 'error', 'error': error_msg, 'name': self.name})
+            raise ClientTimeoutError(error_msg)
         except requests.exceptions.RequestException as e:
             error_msg = f"Error communicating with Ollama: {e}"
             if self.stream_callback:
-                self.stream_callback({
-                    'type': 'error',
-                    'error': error_msg,
-                    'name': self.name
-                })
-            raise Exception(error_msg)
+                self.stream_callback({'type': 'error', 'error': error_msg, 'name': self.name})
+            raise ClientConnectionError(error_msg)
 
     def reset_conversation(self):
         """Reset conversation history and token counts."""

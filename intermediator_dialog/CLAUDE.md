@@ -15,7 +15,7 @@ Intermediated Dialog (IDi) is a three-AI dialog system where one AI acts as an i
 ./run_intermediator_dialog.sh
 
 # Or with custom host/port
-./run_intermediator_dialog.sh 0.0.0.0 5006
+./run_intermediator_dialog.sh 0.0.0.0 5005
 
 # Or directly with Python (main app only)
 python app.py --host 0.0.0.0 --port 5005
@@ -51,21 +51,32 @@ Required for the Text-to-Speech (TTS) feature.
 The codebase uses a modular architecture:
 
 ```
-app.py                          # Flask entry point, initializes SocketIO
-├── config.py                   # Global state dictionaries and configuration
-├── routes.py                   # HTTP endpoints (/, /generate_pdf, /check_servers, etc.)
-├── socketio_handlers.py        # WebSocket event handlers (start_dialog, reset_cache)
-├── models.py                   # IntermediatorDialog class (original implementation)
+app.py                              # Flask entry point, initializes SocketIO
+├── config.py                       # Global state dictionaries and configuration
+├── server_config.json              # Single source of truth for server/service config
+├── routes.py                       # HTTP endpoints (/, /generate_pdf, /check_servers, etc.)
+├── socketio_handlers.py            # WebSocket event handlers (start_dialog, reset_cache)
 ├── intermediator_dialog_refactored.py  # Refactored dialog with phase-aware prompts
-├── prompt_templates.py         # PromptTemplates class with DialogMode/DialogPhase enums
+├── prompt_templates.py             # PromptTemplates class with DialogMode/DialogPhase enums
 ├── clients/
-│   ├── base_client.py          # Abstract BaseClient with TokenInfo dataclass
-│   └── ollama_client.py        # OllamaClient implementation
-├── tts.py                      # OpenAI TTS generation and participant summaries
-├── pdf_generator.py            # ReportLab-based PDF generation
-├── gpu_monitor.py              # Optional GPU status polling (port 9999)
-└── utils.py                    # Helper functions (save_dialog_to_files, debug_log)
+│   ├── base_client.py              # Abstract BaseClient with TokenInfo, retry logic, error hierarchy
+│   ├── ollama_client.py            # OllamaClient implementation
+│   ├── anthropic_client.py         # AnthropicClient for Claude API
+│   ├── openai_client.py            # OpenAIClient for OpenAI API
+│   └── gemini_client.py            # GeminiClient for Google Gemini
+├── tts.py                          # OpenAI TTS generation and participant summaries
+├── pdf_generator.py                # ReportLab-based PDF generation
+├── gpu_monitor.py                  # Optional GPU status polling
+└── utils.py                        # Helper functions (save_dialog_to_files, debug_log)
 ```
+
+### Configuration
+
+All server addresses, service ports, and defaults are in `server_config.json`:
+- `servers` - Ollama server hosts, names, providers, default models
+- `services` - diagram service URL, GPU monitor port, audio player port, app port
+- `defaults` - default max_turns
+- `tts` - TTS model and voice mapping
 
 ### Core Classes
 
@@ -73,6 +84,8 @@ app.py                          # Flask entry point, initializes SocketIO
 - Abstract base class for LLM providers
 - Defines `ask()`, `check_server_available()`, `reset_conversation()` methods
 - Tracks conversation history and token counts
+- Retry logic with exponential backoff via `RetryConfig` and `_retry_with_backoff()`
+- Typed error hierarchy: `ClientError`, `ClientConnectionError`, `ClientAuthError`, `ClientRateLimitError`, `ClientTimeoutError`
 
 **OllamaClient** (`clients/ollama_client.py`)
 - Implements BaseClient for Ollama servers
@@ -82,9 +95,10 @@ app.py                          # Flask entry point, initializes SocketIO
 **IntermediatorDialogRefactored** (`intermediator_dialog_refactored.py`)
 - Uses DialogConfig dataclass for configuration
 - Supports four dialog modes: DEBATE, EXPLORATION, INTERVIEW, CRITIQUE
-- Implements draft → critique → final response flow for participants
+- Implements draft -> critique -> final response flow for participants
 - Phase-aware prompting (EARLY, MIDDLE, LATE phases affect moderation style)
 - Consolidated `_handle_participant_turn()` method replaces duplicate code
+- Pause/resume/stop support via threading.Event
 
 **PromptTemplates** (`prompt_templates.py`)
 - Centralized prompt management
@@ -97,14 +111,14 @@ app.py                          # Flask entry point, initializes SocketIO
 1. **Initialization**: System prompts set per mode, models preloaded in parallel
 2. **Introduction**: Moderator introduces topic (mode-specific intro prompt)
 3. **Turn Loop**:
-   - Participant responds using draft → self-critique → final response pipeline
-   - Moderator intervenes with phase-aware prompt (can signal early conclusion via "CONCLUDE")
+   - Participant responds using draft -> self-critique -> final response pipeline
+   - Moderator intervenes with phase-aware prompt (can signal early conclusion via `[CONCLUDE]`)
    - Context built with priority weighting (recent moderator/opponent messages prioritized)
 4. **Summary**: Mode-specific summary prompt, declares winner for debates
 
 ### Client Caching
 
-Global `client_instances` dictionary in `config.py` caches OllamaClient instances by `{host}:{model}:{name}`. This preserves conversation history across sequential dialogs. Reset via "Reset Cache" button or `reset_dialog_cache` SocketIO event.
+Global `client_instances` dictionary in `config.py` caches client instances by `{host}:{model}:{name}` (Ollama) or `{provider}:{model}:{name}` (cloud). This preserves conversation history across sequential dialogs. Reset via "Reset Cache" button or `reset_dialog_cache` SocketIO event. Access is thread-safe via locking.
 
 ### Output Files
 
@@ -114,22 +128,24 @@ Saved to `output/` directory:
 - **PDF**: Formatted report with participant table, token stats, GPU energy (if available)
 
 Audio files saved to `output/audio/Debate_{topic}/`:
-- TTS audio: `{sequence}_{speaker}.mp3`
+- TTS audio: `{sequence}_{speaker}.mp3` (with sentence-boundary chunking for long text)
 - Argument summaries: `summary_{participant_name}.txt`
-- Diagrams: `diagram_{participant_name}.png` (requires diagram service at port 7777)
+- Diagrams: `diagram_{participant_name}.png` (requires diagram service)
 
 ### Key SocketIO Events
 
-**Client → Server:**
+**Client -> Server:**
 - `start_dialog`: Initiates dialog with server configs, prompt_config, thinking_params
 - `reset_dialog_cache`: Clears conversation cache
+- `pause_dialog`, `resume_dialog`, `stop_dialog`: Dialog flow control
 
-**Server → Client:**
+**Server -> Client:**
 - `dialog_update`: Streaming content chunks
 - `dialog_started`, `dialog_complete`: Lifecycle events
 - `participant_draft_start/complete`, `participant_critique_start/complete`, `participant_final_response_start/complete`: Draft-critique-final phases
 - `pdf_generated`, `summaries_generated`: Post-dialog artifacts
 - `gpu_status_update`: Real-time GPU metrics
+- `cost_update`: Running cost tracking for cloud API dialogs
 
 ## Key Implementation Details
 
@@ -160,9 +176,10 @@ All system prompts include: "IMPORTANT: Use plain text only. No markdown formatt
 
 ### External Services
 
-- **Diagram service**: `http://192.168.6.202:7777` - Generates argument structure diagrams (optional)
-- **GPU monitoring**: Port 9999 on each Ollama server - Returns GPU status JSON (optional)
-- **Audio player**: Port 5002 - Separate Flask app in `audio_player/` subdirectory
+All service addresses are configured in `server_config.json`:
+- **Diagram service**: Generates argument structure diagrams (optional)
+- **GPU monitoring**: On each Ollama server (optional)
+- **Audio player**: Separate Flask app in `audio_player/` subdirectory
 
 ### Turn Logic
 

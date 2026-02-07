@@ -1,9 +1,9 @@
 #!/bin/bash
 
-echo "Checking for running intermediator_dialog.py instances..."
+echo "Checking for running app.py instances..."
 
-# Find processes running intermediator_dialog.py
-EXISTING_PIDS=$(pgrep -f "intermediator_dialog.py" 2>/dev/null)
+# Find processes running app.py
+EXISTING_PIDS=$(pgrep -f "app.py" 2>/dev/null)
 
 if [ -z "$EXISTING_PIDS" ]; then
     echo "No running instances found."
@@ -17,16 +17,16 @@ else
     echo "All instances terminated."
 fi
 
-# Also check port 5006 (default port)
+# Also check port 5005 (default port)
 if command -v lsof >/dev/null 2>&1; then
-    PORT_PID=$(lsof -ti:5006 2>/dev/null)
+    PORT_PID=$(lsof -ti:5005 2>/dev/null)
     if [ ! -z "$PORT_PID" ]; then
-        echo "Found process using port 5006: $PORT_PID"
-        echo "Killing process on port 5006..."
+        echo "Found process using port 5005: $PORT_PID"
+        echo "Killing process on port 5005..."
         kill $PORT_PID 2>/dev/null
         sleep 1
         kill -9 $PORT_PID 2>/dev/null
-        echo "Process on port 5006 terminated."
+        echo "Process on port 5005 terminated."
     fi
 fi
 

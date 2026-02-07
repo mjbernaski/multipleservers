@@ -27,7 +27,6 @@ from clients import get_available_providers, ANTHROPIC_AVAILABLE, OPENAI_AVAILAB
 from clients.anthropic_client import AnthropicClient
 from clients.openai_client import OpenAIClient
 from clients.gemini_client import GeminiClient
-from models import IntermediatorDialog
 from pdf_generator import generate_pdf_from_dialog
 from utils import debug_log, generate_filename_from_topic
 from version import get_version_info
@@ -407,7 +406,7 @@ def register_routes(app, socketio, state):
                     if response.status_code == 200:
                         models_data = response.json()
                         available_models = [model.get('name', '') for model in models_data.get('models', [])]
-                except:
+                except Exception:
                     pass
 
             server_statuses.append({
@@ -449,7 +448,7 @@ def register_routes(app, socketio, state):
             if temp_path and os.path.exists(temp_path):
                 try:
                     os.unlink(temp_path)
-                except:
+                except Exception:
                     pass
             return jsonify({'error': f'Failed to save file: {str(e)}'}), 500
 
@@ -598,3 +597,84 @@ def register_routes(app, socketio, state):
                 'participant2_key': client_map.get(dialog.participant2)
             }
         return jsonify({'active_dialogs': dialogs})
+
+    # =========================================================================
+    # DIALOG HISTORY ROUTES
+    # =========================================================================
+
+    @app.route('/api/history', methods=['GET'])
+    def get_dialog_history():
+        """Scan output/ for dialog JSON files and return a summary list."""
+        output_dir = Path(__file__).parent / 'output'
+        if not output_dir.exists():
+            return jsonify({'dialogs': []})
+
+        dialogs = []
+        for json_file in output_dir.glob('*.json'):
+            try:
+                with open(json_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+
+                metadata = data.get('metadata', {})
+                prompt_config = metadata.get('prompt_config', {})
+
+                topic = prompt_config.get('intermediator_topic_prompt', '')
+                if not topic:
+                    topic = data.get('topic', 'Unknown topic')
+
+                intermediator = metadata.get('intermediator', {})
+                participant1 = metadata.get('participant1', {})
+                participant2 = metadata.get('participant2', {})
+
+                mod_time = os.path.getmtime(str(json_file))
+                date_str = datetime.fromtimestamp(mod_time).isoformat()
+
+                turn_count = metadata.get('total_turns', 0)
+                if not turn_count:
+                    turn_count = len(data.get('conversation_history', []))
+
+                mode = prompt_config.get('dialog_mode', 'unknown')
+
+                dialogs.append({
+                    'dialog_id': data.get('dialog_id', ''),
+                    'topic': topic,
+                    'date': date_str,
+                    'participants': {
+                        'intermediator': intermediator.get('name', 'Unknown'),
+                        'participant1': participant1.get('name', 'Unknown'),
+                        'participant2': participant2.get('name', 'Unknown')
+                    },
+                    'models': {
+                        'intermediator': intermediator.get('model', ''),
+                        'participant1': participant1.get('model', ''),
+                        'participant2': participant2.get('model', '')
+                    },
+                    'turn_count': turn_count,
+                    'mode': mode,
+                    'filename': json_file.name,
+                    'runtime_seconds': metadata.get('runtime_seconds', 0)
+                })
+            except Exception:
+                continue
+
+        dialogs.sort(key=lambda d: d['date'], reverse=True)
+        return jsonify({'dialogs': dialogs})
+
+    @app.route('/api/history/<path:filename>', methods=['GET'])
+    def get_dialog_history_detail(filename):
+        """Return the full content of a specific dialog JSON file."""
+        output_dir = Path(__file__).parent / 'output'
+        file_path = output_dir / filename
+
+        if not file_path.is_relative_to(output_dir):
+            return jsonify({'error': 'Invalid file path'}), 403
+
+        if not file_path.exists():
+            return jsonify({'error': 'Dialog file not found'}), 404
+
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            return jsonify(data)
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500

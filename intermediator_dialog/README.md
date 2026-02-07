@@ -1,42 +1,52 @@
 # Intermediated Dialog (IDi)
 
-A new project that uses one AI to intermediate a dialog between two other AIs. The intermediator acts as a moderator, guiding the conversation and ensuring both participants have opportunities to contribute.
+A multi-AI dialog system where one AI intermediates a conversation between two other AIs. The intermediator acts as a moderator, guiding the conversation and ensuring both participants have opportunities to contribute.
 
 ## Features
 
 - **Three-AI System**: One intermediator (moderator) and two participants
-- **Default Configuration**: RT5090 is configured as the default intermediator
+- **Multiple Providers**: Ollama (local), OpenAI, Anthropic (Claude), Google Gemini
+- **Dialog Modes**: Debate, Exploration, Interview, Critique
+- **Phase-Aware Prompting**: Moderation adapts across early/middle/late phases
+- **Draft-Critique-Final Pipeline**: Participants refine responses before submission
 - **Web Interface**: Real-time dialog display with streaming responses
+- **TTS Support**: Text-to-speech audio generation with sentence-boundary chunking
 - **Context Support**: Upload context files to inform the discussion
-- **Configurable**: Customize all three AI configurations (host, model, name)
+- **Configurable**: All server addresses and defaults in `server_config.json`
 - **Real-time Updates**: See responses stream in as they're generated
+- **Pause/Resume/Stop**: Control dialog flow in real-time
+- **Cost Tracking**: Running cost display for cloud API dialogs
 
 ## Project Structure
 
 ```
 intermediator_dialog/
-├── intermediator_dialog.py    # Main Flask application
-├── templates/
-│   └── intermediator_dialog.html  # Web interface
-├── output/                     # Output directory for saved dialogs
-├── requirements.txt           # Python dependencies
-├── run_intermediator_dialog.sh # Startup script
-└── README.md                  # This file
+├── app.py                              # Flask entry point
+├── server_config.json                  # Server addresses, services, defaults
+├── intermediator_dialog_refactored.py  # Dialog engine with phase-aware prompts
+├── prompt_templates.py                 # Centralized prompt management
+├── clients/                            # LLM provider clients
+│   ├── base_client.py                  # Abstract base with retry logic
+│   ├── ollama_client.py                # Ollama (local)
+│   ├── anthropic_client.py             # Anthropic (Claude)
+│   ├── openai_client.py                # OpenAI
+│   └── gemini_client.py                # Google Gemini
+├── templates/                          # HTML templates
+│   └── intermediator_dialog.html       # Main web interface
+├── output/                             # Saved dialogs (JSON, TXT, PDF, audio)
+├── requirements.txt                    # Python dependencies
+├── run_intermediator_dialog.sh         # Startup script
+└── README.md                           # This file
 ```
 
 ## Installation
 
 1. Ensure you have Python 3.7+ installed
-2. Install dependencies (can use the parent project's venv or create a new one):
+2. Create a virtual environment and install dependencies:
 
 ```bash
-# If using parent project's venv
-source ../venv/bin/activate
-pip install -r requirements.txt
-
-# Or create a new venv
-python -m venv venv
-source venv/bin/activate
+python -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
@@ -45,51 +55,48 @@ pip install -r requirements.txt
 ### Starting the Server
 
 ```bash
-# Using the startup script
+# Using the startup script (recommended)
 ./run_intermediator_dialog.sh
 
 # Or directly with Python
-python intermediator_dialog.py --host 0.0.0.0 --port 5006
+python app.py --host 0.0.0.0 --port 5005
 ```
 
-The web interface will be available at `http://localhost:5006` (or the configured host/port).
+The web interface will be available at `http://localhost:5005`.
 
-### Default Server Configuration
+### Configuration
 
-- **Intermediator**: RT5090 (http://localhost:11434, model: gpt-oss:20b)
-- **Participant 1**: NVIDIA DGX Spark 1 (http://localhost:11434, model: gpt-oss:20b)
-- **Participant 2**: NVIDIA DGX Spark 2 (http://localhost:11434, model: gpt-oss:120b)
+Server addresses and defaults are in `server_config.json`:
+
+```json
+{
+  "servers": {
+    "intermediator": { "host": "http://...:11435", "name": "RT5090", "provider": "ollama", "default_model": "gpt-oss:20b" },
+    "participant1": { "host": "http://...:11434", "name": "NVIDIA DGX Spark A", "provider": "ollama", "default_model": "gpt-oss:20b" },
+    "participant2": { "host": "http://...:11434", "name": "NVIDIA DGX Spark B", "provider": "ollama", "default_model": "gpt-oss:120b" }
+  },
+  "services": { "diagram_service": "http://...:7777", "gpu_monitor_port": 9999, "app_port": 5005 },
+  "defaults": { "max_turns": 3 },
+  "tts": { "model": "tts-1", "voices": { "intermediator": "alloy", "participant1": "echo", "participant2": "fable" } }
+}
+```
 
 ### Using the Interface
 
-1. **Configure Prompt**: Enter the Intermediator Topic/Instructions Prompt (required) - this frames the topic and instructions
-2. **Configure AIs** (optional): Adjust host, model, and name for each AI
-3. **Upload Context** (optional): Upload a file to provide context for the discussion
-4. **Set Max Turns**: Configure how many turns the dialog should have (default: 3)
-5. **Start Dialog**: Click "Start Dialog" to begin
+1. **Configure Prompt**: Enter the Intermediator Topic/Instructions Prompt (required)
+2. **Select Dialog Mode**: Debate, Exploration, Interview, or Critique
+3. **Configure AIs** (optional): Adjust host, model, and name for each AI
+4. **Upload Context** (optional): Upload a file to provide context for the discussion
+5. **Set Max Turns**: Configure how many turns the dialog should have
+6. **Start Dialog**: Click "Start Dialog" to begin
 
 ### How It Works
 
-1. The intermediator introduces the topic (from its prompt) and starts the conversation
-2. Participants alternate turns, responding to each other and the intermediator
-3. The intermediator moderates after each participant response, keeping the dialog on track
+1. The intermediator introduces the topic and starts the conversation
+2. Participants alternate turns using a draft -> critique -> final response pipeline
+3. The intermediator moderates with phase-aware prompts (early/middle/late)
 4. All messages are passed between participants to maintain context
-5. The conversation continues for the specified number of turns
-6. The intermediator provides a final summary at the end
-
-## Configuration
-
-All three AI configurations can be customized in the web interface:
-- **Host**: Ollama server URL (e.g., `http://192.168.6.40:11434`)
-- **Model**: Model name on that server (e.g., `gpt-oss:20b`)
-- **Name**: Display name for the AI
-
-## Differences from Five Whys
-
-This project is a fork of the Five Whys project but with a different purpose:
-
-- **Five Whys**: Parallel analysis where multiple AIs independently answer the same question
-- **Intermediated Dialog (IDi)**: Collaborative dialog where AIs interact with each other through a moderator
+5. The intermediator provides a final summary at the end
 
 ## Requirements
 
@@ -97,12 +104,7 @@ This project is a fork of the Five Whys project but with a different purpose:
 - Flask-SocketIO >= 5.3.0
 - Requests >= 2.31.0
 - Python-dotenv >= 1.0.0
-
-## Notes
-
-- The intermediator moderates after each participant response to keep the dialog on track
-- Participants see each other's responses in their conversation cache
-- Each Spark server maintains its conversation cache until explicitly reset
-- All responses stream in real-time via WebSocket
-- Token usage is tracked and displayed for each response
-- A status bar at the bottom shows who currently has the ball (whose turn it is)
+- OpenAI >= 1.0.0 (for TTS)
+- Anthropic >= 0.21.0 (optional, for Claude)
+- Google-generativeai >= 0.5.0 (optional, for Gemini)
+- ReportLab >= 4.0.0 (for PDF generation)

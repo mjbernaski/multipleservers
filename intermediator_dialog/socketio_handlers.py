@@ -5,13 +5,13 @@ SocketIO event handlers for Intermediated Dialog system.
 import os
 import uuid
 import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict
 from datetime import datetime
 from flask_socketio import emit
 from clients import OllamaClient, create_client, get_available_providers
 from clients import AnthropicClient, OpenAIClient, GeminiClient
 from clients import ANTHROPIC_AVAILABLE, OPENAI_AVAILABLE, GEMINI_AVAILABLE
-from models import IntermediatorDialog
 from intermediator_dialog_refactored import IntermediatorDialogRefactored, DialogConfig
 from prompt_templates import DialogMode
 from gpu_monitor import start_gpu_monitoring, stop_gpu_monitoring
@@ -113,7 +113,21 @@ def register_socketio_handlers(socketio, state):
             )
             dialog_instances[dialog_id] = dialog
 
-            dialog.set_stream_callback(lambda data: socketio.emit('dialog_update', data))
+            def _emit_cost_update():
+                costs = {
+                    'intermediator': {'name': intermediator_client.name, 'cost': intermediator_client.total_cost, 'provider': intermediator_client.provider},
+                    'participant1': {'name': participant1_client.name, 'cost': participant1_client.total_cost, 'provider': participant1_client.provider},
+                    'participant2': {'name': participant2_client.name, 'cost': participant2_client.total_cost, 'provider': participant2_client.provider},
+                    'total': intermediator_client.total_cost + participant1_client.total_cost + participant2_client.total_cost
+                }
+                socketio.emit('cost_update', costs)
+
+            def _stream_with_cost(data):
+                socketio.emit('dialog_update', data)
+                if data.get('type') in ('response_complete', 'participant_final_response_complete', 'dialog_complete'):
+                    _emit_cost_update()
+
+            dialog.set_stream_callback(_stream_with_cost)
 
             start_gpu_monitoring(
                 dialog_id,
@@ -206,7 +220,7 @@ def register_socketio_handlers(socketio, state):
                         if os.path.exists(temp_path):
                             try:
                                 os.unlink(temp_path)
-                            except:
+                            except Exception:
                                 pass
                     if session_id in file_usage_count:
                         del file_usage_count[session_id]
@@ -414,32 +428,31 @@ def register_socketio_handlers(socketio, state):
         debug_log('info', f"Provider check - Intermediator: {int_provider}, P1: {p1_provider}, P2: {p2_provider}", socketio=socketio)
         debug_log('info', f"Models - Intermediator: {intermediator_config.get('model')}, P1: {participant1_config.get('model')}, P2: {participant2_config.get('model')}", socketio=socketio)
 
-        debug_log('info', f"Checking intermediator availability...", socketio=socketio)
-        if not intermediator_client.check_server_available():
-            if int_provider == 'ollama':
-                emit('error', {'error': f'Intermediator Ollama server ({intermediator_config.get("host")}) not available'})
-            else:
-                emit('error', {'error': f'Intermediator {int_provider} API not available - check API key and model'})
-            return
-        debug_log('info', f"✓ Intermediator check passed", socketio=socketio)
+        # Check all servers in parallel
+        debug_log('info', f"Checking all server availability in parallel...", socketio=socketio)
 
-        debug_log('info', f"Checking participant1 availability (provider={p1_provider}, model={participant1_config.get('model')}, client_type={type(participant1_client).__name__})...", socketio=socketio)
-        if not participant1_client.check_server_available():
-            if p1_provider == 'ollama':
-                emit('error', {'error': f'Participant A: Model "{participant1_config.get("model")}" not found on Ollama server {participant1_config.get("host")}. Check that the model exists or select a different provider.'})
-            else:
-                emit('error', {'error': f'Participant A {p1_provider} API not available - check API key and model "{participant1_config.get("model")}"'})
-            return
-        debug_log('info', f"✓ Participant1 check passed", socketio=socketio)
+        check_items = [
+            ('Intermediator', intermediator_client, intermediator_config, int_provider),
+            ('Participant A', participant1_client, participant1_config, p1_provider),
+            ('Participant B', participant2_client, participant2_config, p2_provider),
+        ]
 
-        debug_log('info', f"Checking participant2 availability (provider={p2_provider}, model={participant2_config.get('model')}, client_type={type(participant2_client).__name__})...", socketio=socketio)
-        if not participant2_client.check_server_available():
-            if p2_provider == 'ollama':
-                emit('error', {'error': f'Participant B: Model "{participant2_config.get("model")}" not found on Ollama server {participant2_config.get("host")}. Check that the model exists or select a different provider.'})
-            else:
-                emit('error', {'error': f'Participant B {p2_provider} API not available - check API key and model "{participant2_config.get("model")}"'})
-            return
-        debug_log('info', f"✓ Participant2 check passed", socketio=socketio)
+        def check_one(item):
+            label, client, cfg, provider = item
+            return label, client.check_server_available(), cfg, provider
+
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            futures = {executor.submit(check_one, item): item for item in check_items}
+            for future in as_completed(futures):
+                label, available, cfg, provider = future.result()
+                if not available:
+                    if provider == 'ollama':
+                        emit('error', {'error': f'{label}: Model "{cfg.get("model")}" not found on Ollama server {cfg.get("host")}. Check that the model exists or select a different provider.'})
+                    else:
+                        emit('error', {'error': f'{label} {provider} API not available - check API key and model "{cfg.get("model")}"'})
+                    return
+                debug_log('info', f"✓ {label} check passed", socketio=socketio)
+
         debug_log('info', f"All availability checks passed - starting dialog", socketio=socketio)
 
         if session_id and session_id in uploaded_files:
@@ -463,6 +476,30 @@ def register_socketio_handlers(socketio, state):
             daemon=True
         )
         thread.start()
+
+    @socketio.on('pause_dialog')
+    def handle_pause_dialog(data):
+        """Pause an active dialog."""
+        dialog_id = data.get('dialog_id')
+        if dialog_id and dialog_id in dialog_instances:
+            dialog_instances[dialog_id].pause()
+            emit('dialog_paused', {'dialog_id': dialog_id})
+
+    @socketio.on('resume_dialog')
+    def handle_resume_dialog(data):
+        """Resume a paused dialog."""
+        dialog_id = data.get('dialog_id')
+        if dialog_id and dialog_id in dialog_instances:
+            dialog_instances[dialog_id].resume()
+            emit('dialog_resumed', {'dialog_id': dialog_id})
+
+    @socketio.on('stop_dialog')
+    def handle_stop_dialog(data):
+        """Stop an active dialog."""
+        dialog_id = data.get('dialog_id')
+        if dialog_id and dialog_id in dialog_instances:
+            dialog_instances[dialog_id].stop()
+            emit('dialog_stopped', {'dialog_id': dialog_id})
 
     @socketio.on('reset_dialog_cache')
     def handle_reset_cache(data):

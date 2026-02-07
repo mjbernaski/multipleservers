@@ -4,10 +4,11 @@ OpenAI client implementation.
 import os
 import time
 from typing import Dict, Tuple, Optional
-from .base_client import BaseClient
+from .base_client import BaseClient, ClientConnectionError, ClientAuthError, ClientRateLimitError, ClientTimeoutError, ClientError
 
 try:
     from openai import OpenAI
+    import openai as openai_module
     OPENAI_AVAILABLE = True
 except ImportError:
     OPENAI_AVAILABLE = False
@@ -68,7 +69,7 @@ class OpenAIClient(BaseClient):
         if not self.api_key:
             raise ValueError("OPENAI_API_KEY not set in environment or provided")
 
-        self.client = OpenAI(api_key=self.api_key)
+        self.client = OpenAI(api_key=self.api_key, timeout=self.timeout)
         self.temperature = temperature
         self.max_tokens = max_tokens
         self.reasoning_effort = reasoning_effort
@@ -160,8 +161,16 @@ class OpenAIClient(BaseClient):
             completion_tokens = 0
             reasoning_tokens = 0
 
-            # Stream the response
-            stream = self.client.chat.completions.create(**params)
+            # Stream the response with retry logic
+            def _create_stream():
+                return self.client.chat.completions.create(**params)
+
+            retryable = (
+                openai_module.APIConnectionError,
+                openai_module.RateLimitError,
+                openai_module.InternalServerError,
+            )
+            stream = self._retry_with_backoff(_create_stream, retryable)
 
             for chunk in stream:
                 if chunk.choices and len(chunk.choices) > 0:
@@ -222,6 +231,8 @@ class OpenAIClient(BaseClient):
             self.total_thinking_tokens += thinking_tokens
             self.total_speaking_tokens += speaking_tokens
 
+            cost = self.calculate_cost(prompt_tokens, completion_tokens)
+
             token_info = {
                 'prompt_tokens': prompt_tokens,
                 'completion_tokens': completion_tokens,
@@ -231,7 +242,8 @@ class OpenAIClient(BaseClient):
                 'tokens_per_second': tokens_per_second,
                 'time_to_first_token': ttft,
                 'thinking': thinking_content if thinking_content else None,
-                'reasoning_tokens': reasoning_tokens
+                'reasoning_tokens': reasoning_tokens,
+                'cost': cost.to_dict()
             }
 
             if self.stream_callback:
@@ -245,6 +257,46 @@ class OpenAIClient(BaseClient):
 
             return answer, token_info
 
+        except openai_module.AuthenticationError as e:
+            error_msg = f"OpenAI authentication error: {e}"
+            if self.stream_callback:
+                self.stream_callback({
+                    'type': 'error',
+                    'error': error_msg,
+                    'name': self.name
+                })
+            raise ClientAuthError(error_msg) from e
+
+        except openai_module.RateLimitError as e:
+            error_msg = f"OpenAI rate limit exceeded: {e}"
+            if self.stream_callback:
+                self.stream_callback({
+                    'type': 'error',
+                    'error': error_msg,
+                    'name': self.name
+                })
+            raise ClientRateLimitError(error_msg) from e
+
+        except openai_module.APIConnectionError as e:
+            error_msg = f"OpenAI connection error: {e}"
+            if self.stream_callback:
+                self.stream_callback({
+                    'type': 'error',
+                    'error': error_msg,
+                    'name': self.name
+                })
+            raise ClientConnectionError(error_msg) from e
+
+        except openai_module.APITimeoutError as e:
+            error_msg = f"OpenAI request timed out: {e}"
+            if self.stream_callback:
+                self.stream_callback({
+                    'type': 'error',
+                    'error': error_msg,
+                    'name': self.name
+                })
+            raise ClientTimeoutError(error_msg) from e
+
         except Exception as e:
             error_msg = f"OpenAI API error: {e}"
             if self.stream_callback:
@@ -253,7 +305,7 @@ class OpenAIClient(BaseClient):
                     'error': error_msg,
                     'name': self.name
                 })
-            raise Exception(error_msg)
+            raise ClientError(error_msg) from e
 
     def _get_api_messages(self) -> list:
         """Get messages formatted for the API.

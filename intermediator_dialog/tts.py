@@ -3,15 +3,66 @@ Text-to-Speech generation using OpenAI API.
 """
 import os
 import re
+import json
+from pathlib import Path
 from typing import Optional
 from openai import OpenAI
 from dotenv import load_dotenv
 
-# Load environment variables
 load_dotenv()
 
-# Initialize OpenAI client for TTS
 openai_client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+
+
+def _load_tts_config() -> dict:
+    """Load TTS configuration from server_config.json."""
+    try:
+        config_path = Path(__file__).parent / 'server_config.json'
+        if config_path.exists():
+            with open(config_path, 'r', encoding='utf-8') as f:
+                cfg = json.load(f)
+            return cfg.get('tts', {})
+    except Exception:
+        pass
+    return {}
+
+
+def _split_text_at_sentence_boundaries(text: str, max_length: int = 4000) -> list:
+    """Split text into chunks of <= max_length characters at sentence boundaries.
+
+    Splits at sentence-ending punctuation (. ! ?) followed by a space or end of string.
+    Falls back to splitting at the last space if no sentence boundary is found.
+    """
+    if len(text) <= max_length:
+        return [text]
+
+    chunks = []
+    remaining = text
+
+    while remaining:
+        if len(remaining) <= max_length:
+            chunks.append(remaining)
+            break
+
+        segment = remaining[:max_length]
+
+        split_pos = -1
+        for i in range(len(segment) - 1, -1, -1):
+            if segment[i] in '.!?' and (i == len(segment) - 1 or segment[i + 1] == ' '):
+                split_pos = i + 1
+                break
+
+        if split_pos == -1:
+            last_space = segment.rfind(' ')
+            if last_space > 0:
+                split_pos = last_space
+            else:
+                split_pos = max_length
+
+        chunks.append(remaining[:split_pos].rstrip())
+        remaining = remaining[split_pos:].lstrip()
+
+    return chunks
 
 
 def generate_tts_audio(text: str, speaker: str, dialog_id: str, topic: str, sequence: int,
@@ -31,12 +82,13 @@ def generate_tts_audio(text: str, speaker: str, dialog_id: str, topic: str, sequ
     """
     print(f"[TTS Debug] generate_tts_audio called: speaker={speaker}, dialog_id={dialog_id[:8]}, sequence={sequence}")
     try:
-        # Map speakers to OpenAI TTS voices
-        voice_map = {
-            'intermediator': 'alloy',    # Neutral, balanced voice
-            'participant1': 'echo',       # Clear, articulate voice
-            'participant2': 'fable'       # Warm, expressive voice
+        tts_config = _load_tts_config()
+        default_voices = {
+            'intermediator': 'alloy',
+            'participant1': 'echo',
+            'participant2': 'fable'
         }
+        voice_map = tts_config.get('voices', default_voices)
         voice = voice_map.get(speaker, 'alloy')
 
         # Create folder name: Debate_{sanitized_topic}_{dialog_id}
@@ -54,47 +106,58 @@ def generate_tts_audio(text: str, speaker: str, dialog_id: str, topic: str, sequ
         filename = f"{sequence:03d}_{speaker}.mp3"
         filepath = os.path.join(audio_dir, filename)
 
-        # Emit TTS start event
-        if socketio:
-            socketio.emit('tts_progress', {
-                'status': 'generating',
-                'speaker': speaker,
-                'sequence': sequence,
-                'filename': filename
-            })
+        chunks = _split_text_at_sentence_boundaries(text)
+        tts_model = tts_config.get('model', 'tts-1')
+        generated_files = []
 
-        # OpenAI TTS has a 4096 character limit - truncate if necessary
-        max_length = 4000
-        if len(text) > max_length:
-            truncated_text = text[:max_length] + "..."
-        else:
-            truncated_text = text
+        for chunk_idx, chunk_text in enumerate(chunks):
+            if len(chunks) == 1:
+                part_filename = filename
+            else:
+                part_filename = f"{sequence:03d}_{speaker}_part{chunk_idx + 1:02d}.mp3"
 
-        # Generate speech using OpenAI TTS
-        print(f"[TTS Debug] Calling OpenAI TTS API for {speaker}, voice={voice}, text_len={len(truncated_text)}")
-        response = openai_client.audio.speech.create(
-            model="tts-1",
-            voice=voice,
-            input=truncated_text
-        )
-        print(f"[TTS Debug] OpenAI TTS API returned, saving to {filepath}")
+            part_filepath = os.path.join(audio_dir, part_filename)
 
-        # Save audio file
-        with open(filepath, 'wb') as f:
-            f.write(response.content)
-        print(f"[TTS Debug] Audio file saved: {filepath}")
+            if socketio:
+                socketio.emit('tts_progress', {
+                    'status': 'generating',
+                    'speaker': speaker,
+                    'sequence': sequence,
+                    'filename': part_filename,
+                    'part': chunk_idx + 1,
+                    'total_parts': len(chunks)
+                })
 
-        # Emit TTS complete event
-        if socketio:
-            socketio.emit('tts_progress', {
-                'status': 'complete',
-                'speaker': speaker,
-                'sequence': sequence,
-                'filename': filename,
-                'filepath': filepath
-            })
+            print(f"[TTS Debug] Calling OpenAI TTS API for {speaker}, voice={voice}, "
+                  f"part {chunk_idx + 1}/{len(chunks)}, text_len={len(chunk_text)}")
+            response = openai_client.audio.speech.create(
+                model=tts_model,
+                voice=voice,
+                input=chunk_text
+            )
+            print(f"[TTS Debug] OpenAI TTS API returned, saving to {part_filepath}")
 
-        return filepath
+            with open(part_filepath, 'wb') as f:
+                f.write(response.content)
+            print(f"[TTS Debug] Audio file saved: {part_filepath}")
+            generated_files.append(part_filepath)
+
+            if socketio:
+                socketio.emit('tts_progress', {
+                    'status': 'complete',
+                    'speaker': speaker,
+                    'sequence': sequence,
+                    'filename': part_filename,
+                    'filepath': part_filepath,
+                    'part': chunk_idx + 1,
+                    'total_parts': len(chunks)
+                })
+
+        if len(generated_files) > 1:
+            print(f"[TTS Debug] Generated {len(generated_files)} audio parts for {speaker}: "
+                  f"{[os.path.basename(f) for f in generated_files]}")
+
+        return generated_files[0] if generated_files else None
 
     except Exception as e:
         # Emit TTS error event
@@ -147,31 +210,31 @@ def generate_participant_summaries(dialog_data: dict, participant1_client, parti
 
 Be concise but comprehensive. Format your response in plain text with clear sections."""
 
-        # Generate summaries using each participant's own client
+        summary_model = "gpt-4o-mini"
+
         if socketio:
             socketio.emit('summary_progress', {'status': 'generating', 'participant': 1})
 
-        # Reset conversation for summary generation
-        original_p1_messages = participant1_client.messages.copy()
-        participant1_client.reset_conversation()
-        participant1_client.messages = [
-            {"role": "system", "content": "You are analyzing your own debate performance."},
-            {"role": "user", "content": f"Here were all your contributions to the debate:\n\n{p1_full_text}\n\n{summary_prompt}"}
-        ]
-        p1_summary, _ = participant1_client.ask("Generate the summary now.", round_num=0)
-        participant1_client.messages = original_p1_messages  # Restore
+        p1_response = openai_client.chat.completions.create(
+            model=summary_model,
+            messages=[
+                {"role": "system", "content": "You are analyzing a debate participant's performance."},
+                {"role": "user", "content": f"Here were all the contributions from {participant1_client.name} in the debate:\n\n{p1_full_text}\n\n{summary_prompt}"}
+            ]
+        )
+        p1_summary = p1_response.choices[0].message.content
 
         if socketio:
             socketio.emit('summary_progress', {'status': 'generating', 'participant': 2})
 
-        original_p2_messages = participant2_client.messages.copy()
-        participant2_client.reset_conversation()
-        participant2_client.messages = [
-            {"role": "system", "content": "You are analyzing your own debate performance."},
-            {"role": "user", "content": f"Here were all your contributions to the debate:\n\n{p2_full_text}\n\n{summary_prompt}"}
-        ]
-        p2_summary, _ = participant2_client.ask("Generate the summary now.", round_num=0)
-        participant2_client.messages = original_p2_messages  # Restore
+        p2_response = openai_client.chat.completions.create(
+            model=summary_model,
+            messages=[
+                {"role": "system", "content": "You are analyzing a debate participant's performance."},
+                {"role": "user", "content": f"Here were all the contributions from {participant2_client.name} in the debate:\n\n{p2_full_text}\n\n{summary_prompt}"}
+            ]
+        )
+        p2_summary = p2_response.choices[0].message.content
 
         # Save summaries to text files
         topic = dialog_data.get('topic', 'Dialog')

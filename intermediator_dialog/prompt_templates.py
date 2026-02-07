@@ -233,11 +233,11 @@ Keep your intro to 3-4 sentences."""
     ]
 
     MODERATION_LATE_DEBATE = [
-        """{speaker_name} has responded. We're approaching the end. Consider: Has anything been genuinely resolved? Is there a core disagreement that deserves final attention? Would it help to ask each side to state their strongest remaining point? Don't force false consensus.""",
-        
-        """{speaker_name} just spoke. Final phase—focus on what's been established and what remains contested. If there's a clear winner emerging, the summary will reflect that. For now, ensure both sides have said their piece.""",
-        
-        """{speaker_name} has made their point. As we near conclusion, identify the key unresolved tension. Give both sides a chance to make their final case on that specific point.""",
+        """{speaker_name} has responded. We're approaching the end. Consider: Has anything been genuinely resolved? Is there a core disagreement that deserves final attention? Would it help to ask each side to state their strongest remaining point? Don't force false consensus. If both sides have made their case and further discussion would be repetitive, include [CONCLUDE] in your response to end early.""",
+
+        """{speaker_name} just spoke. Final phase—focus on what's been established and what remains contested. If there's a clear winner emerging, the summary will reflect that. For now, ensure both sides have said their piece. If the debate has reached a natural conclusion, include [CONCLUDE] to wrap up.""",
+
+        """{speaker_name} has made their point. As we near conclusion, identify the key unresolved tension. Give both sides a chance to make their final case on that specific point. If both participants are repeating themselves, include [CONCLUDE] to signal it's time for the summary.""",
     ]
 
     MODERATION_EARLY_EXPLORATION = [
@@ -253,9 +253,9 @@ Keep your intro to 3-4 sentences."""
     ]
 
     MODERATION_LATE_EXPLORATION = [
-        """{speaker_name} has responded. We're nearing the end. Help the participants identify what they've discovered together, what questions remain open, and what surprised them. Synthesis without forcing artificial closure.""",
-        
-        """{speaker_name} just spoke. Final phase—what has this exploration revealed? Ask participants to articulate their key takeaway or what they now think differently about.""",
+        """{speaker_name} has responded. We're nearing the end. Help the participants identify what they've discovered together, what questions remain open, and what surprised them. Synthesis without forcing artificial closure. If the exploration has reached a natural resting point, include [CONCLUDE] to move to the summary.""",
+
+        """{speaker_name} just spoke. Final phase—what has this exploration revealed? Ask participants to articulate their key takeaway or what they now think differently about. If both have said their piece, include [CONCLUDE] to wrap up.""",
     ]
 
     # =========================================================================

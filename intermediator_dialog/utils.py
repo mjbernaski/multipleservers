@@ -225,6 +225,18 @@ def save_dialog_to_files(dialog_data: Dict, prompt_config: Dict,
         return None, None
 
 
+def _load_server_config() -> dict:
+    """Load server_config.json and return parsed data."""
+    try:
+        config_path = Path(__file__).parent / 'server_config.json'
+        if config_path.exists():
+            with open(config_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+    except Exception:
+        pass
+    return {}
+
+
 def generate_argument_diagram(summary_text: str, participant_name: str, output_dir: str) -> Optional[str]:
     """Generate argument structure diagram by posting to diagram service.
 
@@ -237,7 +249,8 @@ def generate_argument_diagram(summary_text: str, participant_name: str, output_d
         Path to saved diagram file, or None if failed
     """
     try:
-        diagram_service_url = "http://192.168.6.202:7777"
+        cfg = _load_server_config()
+        diagram_service_url = cfg.get('services', {}).get('diagram_service', 'http://192.168.6.202:7777')
 
         response = requests.post(
             diagram_service_url,

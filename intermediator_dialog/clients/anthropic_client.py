@@ -4,7 +4,10 @@ Anthropic Claude client implementation.
 import os
 import time
 from typing import Dict, Tuple, Optional
-from .base_client import BaseClient
+from .base_client import (
+    BaseClient, ClientConnectionError, ClientAuthError,
+    ClientRateLimitError, ClientTimeoutError, ClientError
+)
 
 try:
     import anthropic
@@ -56,7 +59,7 @@ class AnthropicClient(BaseClient):
         if not self.api_key:
             raise ValueError("ANTHROPIC_API_KEY not set in environment or provided")
 
-        self.client = anthropic.Anthropic(api_key=self.api_key)
+        self.client = anthropic.Anthropic(api_key=self.api_key, timeout=self.timeout)
         self.temperature = temperature
         self.max_tokens = max_tokens
         self.thinking = thinking
@@ -134,22 +137,27 @@ class AnthropicClient(BaseClient):
                 "budget_tokens": self.thinking_budget
             }
 
+        retryable_exceptions = (anthropic.APIConnectionError, anthropic.RateLimitError)
         try:
+            retryable_exceptions_with_internal = retryable_exceptions + (anthropic.InternalServerError,)
+        except AttributeError:
+            retryable_exceptions_with_internal = retryable_exceptions
+
+        def _do_api_call():
             start_time = time.time()
             first_token_time = None
             answer = ""
             thinking_content = ""
 
-            # Use streaming
             with self.client.messages.stream(**params) as stream:
                 for event in stream:
                     if hasattr(event, 'type'):
                         if event.type == 'content_block_start':
                             if hasattr(event, 'content_block'):
                                 if event.content_block.type == 'thinking':
-                                    pass  # Thinking block starting
+                                    pass
                                 elif event.content_block.type == 'text':
-                                    pass  # Text block starting
+                                    pass
 
                         elif event.type == 'content_block_delta':
                             if hasattr(event, 'delta'):
@@ -173,8 +181,13 @@ class AnthropicClient(BaseClient):
                                             'name': self.name
                                         })
 
-                # Get final message for token counts
                 final_message = stream.get_final_message()
+
+            return answer, thinking_content, final_message, start_time, first_token_time
+
+        try:
+            answer, thinking_content, final_message, start_time, first_token_time = \
+                self._retry_with_backoff(_do_api_call, retryable_exceptions_with_internal)
 
             prompt_tokens = final_message.usage.input_tokens
             completion_tokens = final_message.usage.output_tokens
@@ -184,7 +197,6 @@ class AnthropicClient(BaseClient):
             elapsed = time.time() - start_time
             tokens_per_second = completion_tokens / elapsed if elapsed > 0 else 0
 
-            # Store thinking content
             self.last_thinking = thinking_content
             if thinking_content:
                 self.thinking_history.append({
@@ -193,7 +205,6 @@ class AnthropicClient(BaseClient):
                     'thinking': thinking_content
                 })
 
-            # Store message
             message_entry = {"role": "assistant", "content": answer}
             if thinking_content:
                 message_entry["thinking"] = thinking_content
@@ -203,7 +214,6 @@ class AnthropicClient(BaseClient):
             self.total_completion_tokens += completion_tokens
             self.total_tokens += total
 
-            # Estimate thinking vs speaking token split
             thinking_tokens = 0
             speaking_tokens = completion_tokens
             if thinking_content and answer:
@@ -219,6 +229,8 @@ class AnthropicClient(BaseClient):
             self.total_thinking_tokens += thinking_tokens
             self.total_speaking_tokens += speaking_tokens
 
+            cost = self.calculate_cost(prompt_tokens, completion_tokens)
+
             token_info = {
                 'prompt_tokens': prompt_tokens,
                 'completion_tokens': completion_tokens,
@@ -227,7 +239,8 @@ class AnthropicClient(BaseClient):
                 'total': total,
                 'tokens_per_second': tokens_per_second,
                 'time_to_first_token': ttft,
-                'thinking': thinking_content if thinking_content else None
+                'thinking': thinking_content if thinking_content else None,
+                'cost': cost.to_dict()
             }
 
             if self.stream_callback:
@@ -241,28 +254,69 @@ class AnthropicClient(BaseClient):
 
             return answer, token_info
 
-        except anthropic.APIError as e:
-            error_msg = f"Anthropic API error: {e}"
-            print(f"[AnthropicClient] Error in ask(): {error_msg}")
-            print(f"[AnthropicClient] Message count: {len(self.messages)}, API message count: {len(self._get_api_messages())}")
+        except anthropic.AuthenticationError as e:
+            error_msg = f"Anthropic authentication error: {e}"
+            print(f"[AnthropicClient] {error_msg}")
             if self.stream_callback:
                 self.stream_callback({
                     'type': 'error',
                     'error': error_msg,
                     'name': self.name
                 })
-            raise Exception(error_msg)
+            raise ClientAuthError(error_msg) from e
+        except anthropic.RateLimitError as e:
+            error_msg = f"Anthropic rate limit error: {e}"
+            print(f"[AnthropicClient] {error_msg}")
+            if self.stream_callback:
+                self.stream_callback({
+                    'type': 'error',
+                    'error': error_msg,
+                    'name': self.name
+                })
+            raise ClientRateLimitError(error_msg) from e
+        except anthropic.APIConnectionError as e:
+            error_msg = f"Anthropic connection error: {e}"
+            print(f"[AnthropicClient] {error_msg}")
+            if self.stream_callback:
+                self.stream_callback({
+                    'type': 'error',
+                    'error': error_msg,
+                    'name': self.name
+                })
+            raise ClientConnectionError(error_msg) from e
+        except anthropic.APITimeoutError as e:
+            error_msg = f"Anthropic timeout error: {e}"
+            print(f"[AnthropicClient] {error_msg}")
+            if self.stream_callback:
+                self.stream_callback({
+                    'type': 'error',
+                    'error': error_msg,
+                    'name': self.name
+                })
+            raise ClientTimeoutError(error_msg) from e
+        except anthropic.APIError as e:
+            error_msg = f"Anthropic API error: {e}"
+            print(f"[AnthropicClient] {error_msg}")
+            if self.stream_callback:
+                self.stream_callback({
+                    'type': 'error',
+                    'error': error_msg,
+                    'name': self.name
+                })
+            raise ClientError(error_msg) from e
+        except (ClientError, ClientConnectionError, ClientAuthError,
+                ClientRateLimitError, ClientTimeoutError):
+            raise
         except Exception as e:
             error_msg = f"Anthropic error: {type(e).__name__}: {e}"
             print(f"[AnthropicClient] Unexpected error in ask(): {error_msg}")
-            print(f"[AnthropicClient] Message count: {len(self.messages)}, API message count: {len(self._get_api_messages())}")
             if self.stream_callback:
                 self.stream_callback({
                     'type': 'error',
                     'error': error_msg,
                     'name': self.name
                 })
-            raise Exception(error_msg)
+            raise ClientError(error_msg) from e
 
     def _get_api_messages(self) -> list:
         """Get messages formatted for the API (excluding system prompt).

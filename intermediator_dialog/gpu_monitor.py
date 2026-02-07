@@ -1,11 +1,26 @@
 """
 GPU monitoring for Ollama servers.
 """
+import json
 import time
 import requests
 import threading
+from pathlib import Path
 from typing import Dict, Optional
 from datetime import datetime
+
+
+def _get_gpu_monitor_port() -> int:
+    """Read GPU monitor port from server_config.json."""
+    try:
+        config_path = Path(__file__).parent / 'server_config.json'
+        if config_path.exists():
+            with open(config_path, 'r', encoding='utf-8') as f:
+                cfg = json.load(f)
+            return cfg.get('services', {}).get('gpu_monitor_port', 9999)
+    except Exception:
+        pass
+    return 9999
 
 
 def fetch_gpu_status(host: str) -> Optional[Dict]:
@@ -18,9 +33,10 @@ def fetch_gpu_status(host: str) -> Optional[Dict]:
         Dictionary with GPU status data or None if unavailable
     """
     try:
-        # Extract base host without port 11434, use port 9999 for GPU monitoring
-        base_host = host.split(':11434')[0]
-        gpu_status_url = f"{base_host}:9999/gpu-status"
+        gpu_port = _get_gpu_monitor_port()
+        import re
+        base_host = re.sub(r':\d+$', '', host)
+        gpu_status_url = f"{base_host}:{gpu_port}/gpu-status"
 
         response = requests.get(gpu_status_url, timeout=2)
         if response.status_code == 200:

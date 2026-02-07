@@ -271,6 +271,9 @@
                 </select>
                 <button class="refresh-btn" onclick="refresh()">Refresh</button>
                 <button onclick="openSeparateWindows()">Open in Windows</button>
+                <button onclick="copyToClipboard()" id="copyBtn">Copy to Clipboard</button>
+                <button onclick="exportAsJSON()">Export JSON</button>
+                <button onclick="exportAsText()">Export Text</button>
                 <label class="auto-refresh">
                     <input type="checkbox" id="autoRefresh" checked>
                     Auto-refresh (5s)
@@ -594,6 +597,123 @@
                     xOffset += 720;
                 }
             }
+        }
+
+        function downloadFile(content, filename, mimeType) {
+            const blob = new Blob([content], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function getTimestamp() {
+            const now = new Date();
+            const y = now.getFullYear();
+            const mo = String(now.getMonth() + 1).padStart(2, '0');
+            const d = String(now.getDate()).padStart(2, '0');
+            const h = String(now.getHours()).padStart(2, '0');
+            const mi = String(now.getMinutes()).padStart(2, '0');
+            const s = String(now.getSeconds()).padStart(2, '0');
+            return `${y}${mo}${d}_${h}${mi}${s}`;
+        }
+
+        function gatherPanelText() {
+            const roles = ['intermediator', 'participant1', 'participant2'];
+            let text = '';
+            for (const role of roles) {
+                const titleEl = document.getElementById(`${role}Title`);
+                const statsEl = document.getElementById(`${role}Stats`);
+                const contentEl = document.getElementById(`${role}Content`);
+                if (!titleEl || !contentEl) continue;
+
+                const title = titleEl.textContent;
+                const model = statsEl ? statsEl.textContent : '';
+
+                const prefix = role === 'intermediator' ? 'int' : (role === 'participant1' ? 'p1' : 'p2');
+                const msgCount = document.getElementById(`${prefix}MsgCount`)?.textContent || '0';
+                const speakingTokens = document.getElementById(`${prefix}SpeakingTokens`)?.textContent || '0';
+                const thinkingTokens = document.getElementById(`${prefix}ThinkingTokens`)?.textContent || '0';
+
+                text += `========================================\n`;
+                text += `${title} (${model})\n`;
+                text += `Messages: ${msgCount} | Speaking Tokens: ${speakingTokens} | Thinking Tokens: ${thinkingTokens}\n`;
+                text += `========================================\n\n`;
+
+                const messages = contentEl.querySelectorAll('.message');
+                if (messages.length === 0) {
+                    text += '(No messages)\n\n';
+                } else {
+                    messages.forEach(msg => {
+                        const roleLabel = msg.querySelector('.message-role')?.textContent || 'unknown';
+                        const content = msg.querySelector('.message-content')?.textContent || '';
+                        text += `${roleLabel.toUpperCase()}: ${content}\n\n`;
+                        const thinking = msg.querySelector('.thinking-content');
+                        if (thinking && thinking.textContent.trim()) {
+                            text += `  [THINKING]: ${thinking.textContent.trim()}\n\n`;
+                        }
+                    });
+                }
+                text += '\n';
+            }
+            return text;
+        }
+
+        async function copyToClipboard() {
+            const text = gatherPanelText();
+            try {
+                await navigator.clipboard.writeText(text);
+                const btn = document.getElementById('copyBtn');
+                const original = btn.textContent;
+                btn.textContent = 'Copied!';
+                btn.style.background = '#28a745';
+                setTimeout(() => {
+                    btn.textContent = original;
+                    btn.style.background = '';
+                }, 2000);
+            } catch (err) {
+                console.error('Failed to copy:', err);
+            }
+        }
+
+        async function exportAsJSON() {
+            const exportData = {
+                timestamp: new Date().toISOString(),
+                clients: {}
+            };
+
+            for (const [role, key] of Object.entries(selectedClients)) {
+                if (key) {
+                    try {
+                        const response = await fetch(`/api/context/client/${encodeURIComponent(key)}`);
+                        const data = await response.json();
+                        exportData.clients[role] = {
+                            key: key,
+                            name: data.name,
+                            model: data.model,
+                            thinking_enabled: data.thinking_enabled,
+                            reasoning_effort: data.reasoning_effort,
+                            stats: data.stats,
+                            messages: data.messages
+                        };
+                    } catch (err) {
+                        console.error(`Failed to fetch ${role}:`, err);
+                    }
+                }
+            }
+
+            const json = JSON.stringify(exportData, null, 2);
+            downloadFile(json, `context_export_${getTimestamp()}.json`, 'application/json');
+        }
+
+        function exportAsText() {
+            const text = gatherPanelText();
+            const header = `Context Export - ${new Date().toLocaleString()}\n${'='.repeat(60)}\n\n`;
+            downloadFile(header + text, `context_export_${getTimestamp()}.txt`, 'text/plain');
         }
 
         // Initial load

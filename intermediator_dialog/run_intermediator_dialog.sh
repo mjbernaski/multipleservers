@@ -15,7 +15,7 @@ fi
 
 # Default host and port (can be overridden with command line args)
 HOST="${1:-0.0.0.0}"
-PORT="${2:-5006}"
+PORT="${2:-5005}"
 AUDIO_PORT=5002
 
 # URL for the web interface

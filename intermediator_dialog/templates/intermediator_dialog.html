@@ -492,6 +492,10 @@
             background: #2d4a6b;
         }
 
+        body.dark-mode #costTracker {
+            background: rgba(45,74,107,0.95);
+        }
+
         .status-bar.intermediator {
             background: #4472c4;
         }
@@ -809,15 +813,19 @@
                         <input type="text" id="intermediator-name" value="RT5090" placeholder="Display name">
                     </div>
                     <div class="form-group" style="display: flex; align-items: center; gap: 12px; margin-top: 4px;">
-                        <label style="display: flex; align-items: center; gap: 4px; margin: 0; cursor: pointer;">
-                            <input type="checkbox" id="intermediator-thinking" checked style="width: auto; cursor: pointer;">
-                            <span style="font-size: 12px;">🧠 Thinking</span>
-                        </label>
-                        <select id="intermediator-reasoning-effort" style="padding: 4px 8px; font-size: 12px; border-radius: 4px; border: 1px solid #d0d0d0;">
-                            <option value="low">Low</option>
-                            <option value="medium" selected>Medium</option>
-                            <option value="high">High</option>
-                        </select>
+                        <div id="intermediator-thinking-group">
+                            <label style="display: flex; align-items: center; gap: 4px; margin: 0; cursor: pointer;">
+                                <input type="checkbox" id="intermediator-thinking" checked style="width: auto; cursor: pointer;">
+                                <span style="font-size: 12px;">🧠 Thinking</span>
+                            </label>
+                        </div>
+                        <div id="intermediator-reasoning-group">
+                            <select id="intermediator-reasoning-effort" style="padding: 4px 8px; font-size: 12px; border-radius: 4px; border: 1px solid #d0d0d0;">
+                                <option value="low">Low</option>
+                                <option value="medium" selected>Medium</option>
+                                <option value="high">High</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
 
@@ -861,15 +869,19 @@
                         <input type="text" id="participant1-name" value="NVIDIA DGX Spark A" placeholder="Display name">
                     </div>
                     <div class="form-group" style="display: flex; align-items: center; gap: 12px; margin-top: 4px;">
-                        <label style="display: flex; align-items: center; gap: 4px; margin: 0; cursor: pointer;">
-                            <input type="checkbox" id="participant1-thinking" checked style="width: auto; cursor: pointer;">
-                            <span style="font-size: 12px;">🧠 Thinking</span>
-                        </label>
-                        <select id="participant1-reasoning-effort" style="padding: 4px 8px; font-size: 12px; border-radius: 4px; border: 1px solid #d0d0d0;">
-                            <option value="low">Low</option>
-                            <option value="medium" selected>Medium</option>
-                            <option value="high">High</option>
-                        </select>
+                        <div id="participant1-thinking-group">
+                            <label style="display: flex; align-items: center; gap: 4px; margin: 0; cursor: pointer;">
+                                <input type="checkbox" id="participant1-thinking" checked style="width: auto; cursor: pointer;">
+                                <span style="font-size: 12px;">🧠 Thinking</span>
+                            </label>
+                        </div>
+                        <div id="participant1-reasoning-group">
+                            <select id="participant1-reasoning-effort" style="padding: 4px 8px; font-size: 12px; border-radius: 4px; border: 1px solid #d0d0d0;">
+                                <option value="low">Low</option>
+                                <option value="medium" selected>Medium</option>
+                                <option value="high">High</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
 
@@ -913,15 +925,19 @@
                         <input type="text" id="participant2-name" value="NVIDIA DGX Spark B" placeholder="Display name">
                     </div>
                     <div class="form-group" style="display: flex; align-items: center; gap: 12px; margin-top: 4px;">
-                        <label style="display: flex; align-items: center; gap: 4px; margin: 0; cursor: pointer;">
-                            <input type="checkbox" id="participant2-thinking" checked style="width: auto; cursor: pointer;">
-                            <span style="font-size: 12px;">🧠 Thinking</span>
-                        </label>
-                        <select id="participant2-reasoning-effort" style="padding: 4px 8px; font-size: 12px; border-radius: 4px; border: 1px solid #d0d0d0;">
-                            <option value="low">Low</option>
-                            <option value="medium" selected>Medium</option>
-                            <option value="high">High</option>
-                        </select>
+                        <div id="participant2-thinking-group">
+                            <label style="display: flex; align-items: center; gap: 4px; margin: 0; cursor: pointer;">
+                                <input type="checkbox" id="participant2-thinking" checked style="width: auto; cursor: pointer;">
+                                <span style="font-size: 12px;">🧠 Thinking</span>
+                            </label>
+                        </div>
+                        <div id="participant2-reasoning-group">
+                            <select id="participant2-reasoning-effort" style="padding: 4px 8px; font-size: 12px; border-radius: 4px; border: 1px solid #d0d0d0;">
+                                <option value="low">Low</option>
+                                <option value="medium" selected>Medium</option>
+                                <option value="high">High</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1039,9 +1055,41 @@
                             debates selected</div>
                     </div>
 
+                    <div style="display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap;">
+                        <input type="text" id="debateSearchInput" placeholder="Search debates..."
+                            oninput="filterDebates()"
+                            style="flex: 1; min-width: 150px; padding: 6px 10px; font-size: 12px;">
+                        <select id="debateTagFilter" onchange="filterDebates()"
+                            style="min-width: 140px; padding: 6px 10px; font-size: 12px;">
+                            <option value="">All Tags</option>
+                        </select>
+                    </div>
+
                     <div id="debateList"
                         style="max-height: 400px; overflow-y: auto; border: 1px solid #d0d0d0; border-radius: 4px; padding: 8px; background: #ffffff;">
                         <div style="text-align: center; padding: 20px; color: #808080;">Loading debates...</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group" style="border-top: 1px solid #d0d0d0; padding-top: 12px; margin-top: 12px;">
+                <label
+                    style="display: flex; align-items: center; cursor: pointer; font-weight: 600; color: #1f4e78; margin-bottom: 8px; font-size: 13px;"
+                    onclick="toggleDialogHistory()">
+                    <span id="dialogHistoryToggle" style="margin-right: 8px; font-size: 13px;">&#9654;</span>
+                    <span id="dialogHistoryCount">Dialog History (loading...)</span>
+                </label>
+
+                <div id="dialogHistorySection" style="display: none;">
+                    <div style="margin-bottom: 8px;">
+                        <input type="text" id="historySearchInput" placeholder="Search by topic, participant, or mode..."
+                            oninput="filterDialogHistory()"
+                            style="width: 100%; padding: 8px; border: 1px solid #d0d0d0; border-radius: 4px; font-size: 12px; box-sizing: border-box;">
+                    </div>
+
+                    <div id="dialogHistoryList"
+                        style="max-height: 500px; overflow-y: auto; border: 1px solid #d0d0d0; border-radius: 4px; padding: 8px; background: #ffffff;">
+                        <div style="text-align: center; padding: 20px; color: #808080;">Loading dialog history...</div>
                     </div>
                 </div>
             </div>
@@ -1178,6 +1226,10 @@
                 style="margin-top: 12px; display: flex; gap: 20px; justify-content: center; font-size: 13px;"></div>
             <div id="gpuStats" style="margin-top: 12px; font-size: 13px; color: #666; text-align: center;"></div>
         </div>
+    </div>
+
+    <div id="costTracker" style="display:none; position:fixed; bottom:48px; right:20px; background:rgba(31,78,120,0.92); color:#fff; padding:6px 14px; border-radius:6px 6px 0 0; font-size:12px; font-weight:500; z-index:1001; cursor:default; font-family:monospace;" title="">
+        Total Cost: <span id="totalCost">$0.00</span>
     </div>
 
     <div id="statusBar" class="status-bar idle" style="display: none;">
@@ -1348,6 +1400,10 @@ You follow the instructions of the intermediator, review the responses of your a
                         if (servers.intermediator.provider) {
                             document.getElementById('intermediator-provider').value = servers.intermediator.provider;
                         }
+                        if (servers.intermediator.default_model) {
+                            const modelInput = document.getElementById('intermediator-model');
+                            if (modelInput) modelInput.value = servers.intermediator.default_model;
+                        }
                     }
 
                     if (servers.participant1) {
@@ -1355,6 +1411,10 @@ You follow the instructions of the intermediator, review the responses of your a
                         document.getElementById('participant1-name').value = servers.participant1.name || '';
                         if (servers.participant1.provider) {
                             document.getElementById('participant1-provider').value = servers.participant1.provider;
+                        }
+                        if (servers.participant1.default_model) {
+                            const modelInput = document.getElementById('participant1-model');
+                            if (modelInput) modelInput.value = servers.participant1.default_model;
                         }
                     }
 
@@ -1364,6 +1424,15 @@ You follow the instructions of the intermediator, review the responses of your a
                         if (servers.participant2.provider) {
                             document.getElementById('participant2-provider').value = servers.participant2.provider;
                         }
+                        if (servers.participant2.default_model) {
+                            const modelInput = document.getElementById('participant2-model');
+                            if (modelInput) modelInput.value = servers.participant2.default_model;
+                        }
+                    }
+
+                    // Set default max_turns from config
+                    if (data.defaults && data.defaults.max_turns) {
+                        window._configDefaultMaxTurns = data.defaults.max_turns;
                     }
 
                     console.log('Server config loaded from server_config.json');
@@ -1428,8 +1497,8 @@ You follow the instructions of the intermediator, review the responses of your a
             const participant1Model = localStorage.getItem('idi_participant1_model');
             const participant2Model = localStorage.getItem('idi_participant2_model');
 
-            // Always set maxTurns to default of 3
-            document.getElementById('maxTurns').value = '3';
+            const defaultMaxTurns = window._configDefaultMaxTurns || 3;
+            document.getElementById('maxTurns').value = String(defaultMaxTurns);
 
             if (sharedSparkModel) {
                 document.getElementById('shared-spark-model').value = sharedSparkModel;
@@ -1477,7 +1546,8 @@ You follow the instructions of the intermediator, review the responses of your a
         function ensureMaxTurnsDefault() {
             const maxTurnsInput = document.getElementById('maxTurns');
             if (maxTurnsInput) {
-                maxTurnsInput.value = '3';
+                const defaultVal = window._configDefaultMaxTurns || 3;
+                maxTurnsInput.value = String(defaultVal);
             }
         }
 
@@ -1547,6 +1617,21 @@ You follow the instructions of the intermediator, review the responses of your a
             const modelSelect = document.getElementById(`${serverType}-model`);
             const statusIndicator = document.getElementById(`${serverType}-status-indicator`);
             const statusText = document.getElementById(`${serverType}-status-text`);
+
+            const thinkingGroup = document.getElementById(`${serverType}-thinking-group`);
+            const reasoningGroup = document.getElementById(`${serverType}-reasoning-group`);
+            if (thinkingGroup && reasoningGroup) {
+                if (provider === 'ollama') {
+                    thinkingGroup.style.display = '';
+                    reasoningGroup.style.display = '';
+                } else if (provider === 'anthropic' || provider === 'gemini') {
+                    thinkingGroup.style.display = '';
+                    reasoningGroup.style.display = 'none';
+                } else if (provider === 'openai') {
+                    thinkingGroup.style.display = 'none';
+                    reasoningGroup.style.display = '';
+                }
+            }
 
             if (provider === 'ollama') {
                 // Show host field for Ollama
@@ -1808,6 +1893,12 @@ You follow the instructions of the intermediator, review the responses of your a
             currentDialogId = data.dialog_id;
             dialogData = [];
 
+            // Reset cost tracker
+            const costTracker = document.getElementById('costTracker');
+            const totalCostEl = document.getElementById('totalCost');
+            if (costTracker) costTracker.style.display = 'none';
+            if (totalCostEl) totalCostEl.textContent = '$0.00';
+
             // Clear auto-play queue for new dialog
             autoPlayQueue = [];
             if (autoPlayPlayer) {
@@ -1845,6 +1936,28 @@ You follow the instructions of the intermediator, review the responses of your a
 
         socket.on('dialog_update', (data) => {
             handleDialogUpdate(data);
+        });
+
+        socket.on('cost_update', (data) => {
+            const tracker = document.getElementById('costTracker');
+            const totalEl = document.getElementById('totalCost');
+            if (!tracker || !totalEl) return;
+
+            const total = data.total || 0;
+            if (total > 0) {
+                totalEl.textContent = '$' + total.toFixed(4);
+                const lines = [];
+                ['intermediator', 'participant1', 'participant2'].forEach(role => {
+                    const info = data[role];
+                    if (info && info.cost > 0) {
+                        lines.push(info.name + ' (' + info.provider + '): $' + info.cost.toFixed(4));
+                    }
+                });
+                tracker.title = lines.length ? lines.join('\n') : '';
+                tracker.style.display = 'block';
+            } else {
+                tracker.style.display = 'none';
+            }
         });
 
         socket.on('context_length_update', (data) => {
@@ -2843,6 +2956,7 @@ You follow the instructions of the intermediator, review the responses of your a
                 // Update debate count in the header
                 updateDebateCount(debateLibrary.length);
 
+                populateTagFilter();
                 displayDebateLibrary();
             } catch (error) {
                 console.error('Error loading debate library:', error);
@@ -2853,24 +2967,74 @@ You follow the instructions of the intermediator, review the responses of your a
             }
         }
 
-        function displayDebateLibrary() {
+        function populateTagFilter() {
+            const tagFilter = document.getElementById('debateTagFilter');
+            if (!tagFilter) return;
+            const allTags = new Set();
+            debateLibrary.forEach(d => {
+                (d.tags || []).forEach(t => allTags.add(t));
+            });
+            const sorted = [...allTags].sort();
+            tagFilter.innerHTML = '<option value="">All Tags</option>';
+            sorted.forEach(tag => {
+                const opt = document.createElement('option');
+                opt.value = tag;
+                opt.textContent = tag.charAt(0).toUpperCase() + tag.slice(1);
+                tagFilter.appendChild(opt);
+            });
+        }
+
+        function filterDebates() {
+            const searchText = (document.getElementById('debateSearchInput')?.value || '').toLowerCase();
+            const selectedTag = document.getElementById('debateTagFilter')?.value || '';
+
+            const filtered = debateLibrary.filter(debate => {
+                const matchesSearch = !searchText ||
+                    debate.name.toLowerCase().includes(searchText) ||
+                    debate.description.toLowerCase().includes(searchText);
+                const matchesTag = !selectedTag ||
+                    (debate.tags || []).includes(selectedTag);
+                return matchesSearch && matchesTag;
+            });
+
+            displayDebateLibrary(filtered);
+        }
+
+        function displayDebateLibrary(debates) {
             const debateList = document.getElementById('debateList');
             if (!debateList || debateLibrary.length === 0) return;
 
+            const debatesToShow = debates || debateLibrary;
+
+            const checkedIds = new Set();
+            document.querySelectorAll('.debate-checkbox:checked').forEach(cb => {
+                checkedIds.add(cb.id);
+            });
+
             debateList.innerHTML = '';
 
-            debateLibrary.forEach((debate, index) => {
+            if (debatesToShow.length === 0) {
+                debateList.innerHTML = '<div style="text-align: center; padding: 20px; color: #808080;">No debates match the current filters</div>';
+                return;
+            }
+
+            debatesToShow.forEach((debate, index) => {
                 const debateItem = document.createElement('div');
                 debateItem.style.cssText = 'padding: 10px; margin-bottom: 8px; border: 1px solid #d0d0d0; border-radius: 4px; background: #f9f9f9; transition: background 0.2s;';
                 debateItem.onmouseover = () => debateItem.style.background = '#e7f3ff';
                 debateItem.onmouseout = () => debateItem.style.background = '#f9f9f9';
 
+                const tagsHtml = (debate.tags || []).map(t =>
+                    `<span style="display: inline-block; background: #e0ecf7; color: #1f4e78; font-size: 10px; padding: 1px 6px; border-radius: 8px; margin-right: 4px;">${t}</span>`
+                ).join('');
+
                 debateItem.innerHTML = `
                     <div style="display: flex; align-items: start; gap: 10px;">
-                        <input type="checkbox" id="debate-${debate.id}" class="debate-checkbox" onchange="updateDebateSelectionCount()" style="margin-top: 3px; width: 18px; height: 18px; cursor: pointer;">
+                        <input type="checkbox" id="debate-${debate.id}" class="debate-checkbox" onchange="updateDebateSelectionCount()" style="margin-top: 3px; width: 18px; height: 18px; cursor: pointer;"${checkedIds.has('debate-' + debate.id) ? ' checked' : ''}>
                         <label for="debate-${debate.id}" style="flex: 1; cursor: pointer; margin: 0;">
                             <div style="font-weight: 600; color: #1f4e78; margin-bottom: 4px;">${debate.name}</div>
-                            <div style="font-size: 12px; color: #808080;">${debate.description}</div>
+                            <div style="font-size: 12px; color: #808080; margin-bottom: 4px;">${debate.description}</div>
+                            <div>${tagsHtml}</div>
                         </label>
                         <button onclick="event.stopPropagation(); loadDebateToEdit('${debate.id}')"
                             style="background: #70ad47; padding: 4px 10px; font-size: 11px; white-space: nowrap;"
@@ -3483,6 +3647,223 @@ You follow the instructions of the intermediator, review the responses of your a
                 alert('Failed to save default prompts: ' + error.message);
             }
         }
+
+        // =====================================================================
+        // DIALOG HISTORY
+        // =====================================================================
+
+        let dialogHistoryData = [];
+        let dialogHistoryLoaded = false;
+
+        async function loadDialogHistory() {
+            try {
+                const response = await fetch('/api/history');
+                if (!response.ok) {
+                    throw new Error('Failed to load dialog history');
+                }
+                const data = await response.json();
+                dialogHistoryData = data.dialogs || [];
+                dialogHistoryLoaded = true;
+
+                const countLabel = document.getElementById('dialogHistoryCount');
+                if (countLabel) {
+                    countLabel.textContent = `Dialog History (${dialogHistoryData.length} dialog${dialogHistoryData.length !== 1 ? 's' : ''})`;
+                }
+
+                displayDialogHistory(dialogHistoryData);
+            } catch (error) {
+                console.error('Error loading dialog history:', error);
+                const list = document.getElementById('dialogHistoryList');
+                if (list) {
+                    list.innerHTML = '<div style="text-align: center; padding: 20px; color: #c55a11;">Failed to load dialog history</div>';
+                }
+            }
+        }
+
+        function displayDialogHistory(dialogs) {
+            const list = document.getElementById('dialogHistoryList');
+            if (!list) return;
+
+            if (dialogs.length === 0) {
+                list.innerHTML = '<div style="text-align: center; padding: 20px; color: #808080;">No dialog history found</div>';
+                return;
+            }
+
+            list.innerHTML = '';
+
+            dialogs.forEach((dialog) => {
+                const item = document.createElement('div');
+                item.style.cssText = 'padding: 10px; margin-bottom: 8px; border: 1px solid #d0d0d0; border-radius: 4px; background: #f9f9f9; transition: background 0.2s;';
+                item.onmouseover = () => item.style.background = '#e7f3ff';
+                item.onmouseout = () => { if (!item.classList.contains('expanded')) item.style.background = '#f9f9f9'; };
+
+                const dateObj = new Date(dialog.date);
+                const dateStr = dateObj.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+                const timeStr = dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+                const topicPreview = dialog.topic.length > 120 ? dialog.topic.substring(0, 120) + '...' : dialog.topic;
+
+                const runtimeMin = dialog.runtime_seconds ? (dialog.runtime_seconds / 60).toFixed(1) : '?';
+
+                const modeLabel = dialog.mode ? dialog.mode.charAt(0).toUpperCase() + dialog.mode.slice(1) : 'Unknown';
+
+                item.innerHTML = `
+                    <div style="cursor: pointer;" onclick="toggleHistoryTranscript(this.parentElement, '${dialog.filename}')">
+                        <div style="display: flex; justify-content: space-between; align-items: start; gap: 10px;">
+                            <div style="flex: 1;">
+                                <div style="font-weight: 600; color: #1f4e78; margin-bottom: 4px; font-size: 13px;">${topicPreview}</div>
+                                <div style="font-size: 11px; color: #808080; display: flex; gap: 12px; flex-wrap: wrap;">
+                                    <span>${dateStr} ${timeStr}</span>
+                                    <span style="color: #4472c4; font-weight: 500;">${modeLabel}</span>
+                                    <span>${dialog.turn_count} turns</span>
+                                    <span>${runtimeMin} min</span>
+                                </div>
+                                <div style="font-size: 11px; color: #666; margin-top: 4px;">
+                                    <span style="color: #9d60d6;">${dialog.participants.intermediator}</span> |
+                                    <span style="color: #70ad47;">${dialog.participants.participant1}</span> vs
+                                    <span style="color: #c55a11;">${dialog.participants.participant2}</span>
+                                </div>
+                            </div>
+                            <div style="font-size: 11px; color: #808080; white-space: nowrap;">&#9654; Transcript</div>
+                        </div>
+                    </div>
+                    <div class="history-transcript" style="display: none; margin-top: 10px; padding-top: 10px; border-top: 1px solid #d0d0d0;"></div>
+                `;
+
+                list.appendChild(item);
+            });
+        }
+
+        function toggleDialogHistory() {
+            const section = document.getElementById('dialogHistorySection');
+            const toggle = document.getElementById('dialogHistoryToggle');
+
+            if (section.style.display === 'none') {
+                section.style.display = 'block';
+                toggle.innerHTML = '&#9660;';
+                if (!dialogHistoryLoaded) {
+                    loadDialogHistory();
+                }
+            } else {
+                section.style.display = 'none';
+                toggle.innerHTML = '&#9654;';
+            }
+        }
+
+        function filterDialogHistory() {
+            const query = (document.getElementById('historySearchInput').value || '').toLowerCase();
+            if (!query) {
+                displayDialogHistory(dialogHistoryData);
+                return;
+            }
+
+            const filtered = dialogHistoryData.filter(d => {
+                const searchable = [
+                    d.topic,
+                    d.mode,
+                    d.participants.intermediator,
+                    d.participants.participant1,
+                    d.participants.participant2,
+                    d.models.intermediator,
+                    d.models.participant1,
+                    d.models.participant2
+                ].join(' ').toLowerCase();
+                return searchable.includes(query);
+            });
+
+            displayDialogHistory(filtered);
+        }
+
+        async function toggleHistoryTranscript(itemEl, filename) {
+            const transcriptDiv = itemEl.querySelector('.history-transcript');
+            const arrowSpan = itemEl.querySelector('div[style*="white-space: nowrap"]');
+            if (!transcriptDiv) return;
+
+            if (transcriptDiv.style.display !== 'none') {
+                transcriptDiv.style.display = 'none';
+                itemEl.classList.remove('expanded');
+                itemEl.style.background = '#f9f9f9';
+                if (arrowSpan) arrowSpan.innerHTML = '&#9654; Transcript';
+                return;
+            }
+
+            itemEl.classList.add('expanded');
+            itemEl.style.background = '#e7f3ff';
+            if (arrowSpan) arrowSpan.innerHTML = '&#9660; Transcript';
+
+            if (transcriptDiv.dataset.loaded) {
+                transcriptDiv.style.display = 'block';
+                return;
+            }
+
+            transcriptDiv.style.display = 'block';
+            transcriptDiv.innerHTML = '<div style="text-align: center; padding: 10px; color: #808080;">Loading transcript...</div>';
+
+            try {
+                const response = await fetch(`/api/history/${encodeURIComponent(filename)}`);
+                if (!response.ok) throw new Error('Failed to load transcript');
+                const data = await response.json();
+                const history = data.conversation_history || [];
+
+                if (history.length === 0) {
+                    transcriptDiv.innerHTML = '<div style="padding: 10px; color: #808080;">No conversation data found.</div>';
+                    transcriptDiv.dataset.loaded = 'true';
+                    return;
+                }
+
+                let html = '';
+                const speakerColors = {
+                    'intermediator': '#9d60d6',
+                    'participant1': '#70ad47',
+                    'participant2': '#c55a11'
+                };
+
+                const metadata = data.metadata || {};
+                const speakerNames = {
+                    'intermediator': (metadata.intermediator || {}).name || 'Intermediator',
+                    'participant1': (metadata.participant1 || {}).name || 'Participant 1',
+                    'participant2': (metadata.participant2 || {}).name || 'Participant 2'
+                };
+
+                history.forEach((entry) => {
+                    const speaker = entry.speaker || 'unknown';
+                    const color = speakerColors[speaker] || '#333';
+                    const name = speakerNames[speaker] || speaker;
+                    const message = (entry.message || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
+
+                    const tokensInfo = entry.tokens ? ` | ${entry.tokens.completion_tokens || 0} tokens` : '';
+                    const tpsInfo = entry.tokens && entry.tokens.tokens_per_second ? ` | ${entry.tokens.tokens_per_second.toFixed(1)} tok/s` : '';
+
+                    html += `
+                        <div style="margin-bottom: 10px; padding: 8px; border-left: 3px solid ${color}; background: #fafafa; border-radius: 2px;">
+                            <div style="font-weight: 600; color: ${color}; font-size: 12px; margin-bottom: 4px;">
+                                ${name} <span style="font-weight: 400; color: #aaa; font-size: 10px;">Turn ${entry.turn}${tokensInfo}${tpsInfo}</span>
+                            </div>
+                            <div style="font-size: 12px; line-height: 1.5; color: #333;">${message}</div>
+                        </div>
+                    `;
+                });
+
+                transcriptDiv.innerHTML = html;
+                transcriptDiv.dataset.loaded = 'true';
+            } catch (error) {
+                console.error('Error loading transcript:', error);
+                transcriptDiv.innerHTML = '<div style="padding: 10px; color: #c55a11;">Failed to load transcript</div>';
+            }
+        }
+
+        fetch('/api/history').then(r => r.json()).then(data => {
+            const count = (data.dialogs || []).length;
+            const countLabel = document.getElementById('dialogHistoryCount');
+            if (countLabel) {
+                countLabel.textContent = `Dialog History (${count} dialog${count !== 1 ? 's' : ''})`;
+            }
+        }).catch(() => {
+            const countLabel = document.getElementById('dialogHistoryCount');
+            if (countLabel) {
+                countLabel.textContent = 'Dialog History';
+            }
+        });
 
     </script>
 

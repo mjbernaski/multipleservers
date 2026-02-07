@@ -93,7 +93,12 @@ class IntermediatorDialogRefactored:
         self.audio_sequence = 0
         self.start_time: Optional[float] = None
         self.end_time: Optional[float] = None
-        
+
+        # Flow control
+        self._pause_event = threading.Event()
+        self._pause_event.set()  # Start unpaused
+        self._stop_requested = False
+
         # Callbacks
         self.stream_callback: Optional[Callable] = None
         self.tts_threads: List[threading.Thread] = []
@@ -104,6 +109,29 @@ class IntermediatorDialogRefactored:
             'participant1': self.participant1.name,
             'participant2': self.participant2.name,
         }
+
+    def pause(self):
+        """Pause the dialog after the current turn completes."""
+        self._pause_event.clear()
+        self._emit('dialog_paused', {})
+
+    def resume(self):
+        """Resume a paused dialog."""
+        self._pause_event.set()
+        self._emit('dialog_resumed', {})
+
+    def stop(self):
+        """Stop the dialog after the current turn completes."""
+        self._stop_requested = True
+        self._pause_event.set()  # Unblock if paused
+        self._emit('dialog_stopped', {})
+
+    def _check_flow_control(self) -> bool:
+        """Check pause/stop state. Returns False if dialog should stop."""
+        if self._stop_requested:
+            return False
+        self._pause_event.wait()
+        return not self._stop_requested
 
     def set_stream_callback(self, callback: Callable):
         """Set a callback function to receive streaming updates."""
@@ -324,8 +352,17 @@ class IntermediatorDialogRefactored:
             })
             raise LLMError(f"Final response generation failed: {e}", participant=speaker_key, turn=turn, phase="final")
         self._emit('participant_final_response_complete', {'speaker': speaker_key, 'turn': turn, 'response': response})
-        
-        
+
+        # Validate non-empty response
+        if not response or not response.strip():
+            self._emit('warning', {
+                'type': 'empty_response',
+                'speaker': speaker_key,
+                'turn': turn,
+                'message': f'{participant_name} returned an empty response'
+            })
+            response = f"[{participant_name} did not provide a response]"
+
         # Record in history
         self.conversation_history.append({
             'turn': self.turn_counter,
@@ -460,8 +497,8 @@ class IntermediatorDialogRefactored:
         if self.config.enable_tts and self.tts_callback:
             self._queue_tts(mod_response, 'intermediator')
 
-        # Check for early conclusion signal
-        should_continue = "CONCLUDE" not in mod_response.upper()
+        # Check for early conclusion signal using bracketed token
+        should_continue = "[CONCLUDE]" not in mod_response.upper()
         
         return mod_response, mod_tokens, should_continue
 
@@ -635,6 +672,10 @@ class IntermediatorDialogRefactored:
         dialog_error = None
 
         for turn in range(1, total_turns + 1):
+            if not self._check_flow_control():
+                self._emit('dialog_stopped', {'turn': turn, 'reason': 'User requested stop'})
+                break
+
             try:
                 # Determine which participant's turn
                 participant_num = 1 if turn % 2 == 1 else 2

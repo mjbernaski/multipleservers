@@ -3,17 +3,37 @@
     "intermediator": {
       "host": "http://192.168.6.40:11435",
       "name": "RT5090",
-      "provider": "ollama"
+      "provider": "ollama",
+      "default_model": "gpt-oss:20b"
     },
     "participant1": {
       "host": "http://192.168.5.40:11434",
       "name": "NVIDIA DGX Spark A",
-      "provider": "ollama"
+      "provider": "ollama",
+      "default_model": "gpt-oss:20b"
     },
     "participant2": {
       "host": "http://192.168.5.46:11434",
       "name": "NVIDIA DGX Spark B",
-      "provider": "ollama"
+      "provider": "ollama",
+      "default_model": "gpt-oss:120b"
+    }
+  },
+  "services": {
+    "diagram_service": "http://192.168.6.202:7777",
+    "gpu_monitor_port": 9999,
+    "audio_player_port": 5002,
+    "app_port": 5005
+  },
+  "defaults": {
+    "max_turns": 3
+  },
+  "tts": {
+    "model": "tts-1",
+    "voices": {
+      "intermediator": "alloy",
+      "participant1": "echo",
+      "participant2": "fable"
     }
   }
 }

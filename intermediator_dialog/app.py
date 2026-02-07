@@ -4,25 +4,38 @@ Intermediator Dialog System - Main Entry Point
 One AI intermediates a dialog between two other AIs.
 """
 import argparse
+import json
+import os
 import webbrowser
 import time
+from pathlib import Path
 from flask import Flask
 from flask_socketio import SocketIO
 from threading import Timer
 
-# Import configuration and modules
 import config
 from routes import register_routes
 from socketio_handlers import register_socketio_handlers
 from version import __version_full__, __version__, __build__
 
-# Initialize Flask app
-app = Flask(__name__)
-app.config['SECRET_KEY'] = 'your-secret-key-here'  # Change in production
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 
-# Initialize SocketIO
-socketio = SocketIO(app, cors_allowed_origins="*", max_http_buffer_size=16 * 1024 * 1024)
+def _load_app_config() -> dict:
+    """Load server_config.json for app settings."""
+    try:
+        config_path = Path(__file__).parent / 'server_config.json'
+        if config_path.exists():
+            with open(config_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+    except Exception:
+        pass
+    return {}
+
+app = Flask(__name__)
+app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', os.urandom(24).hex())
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
+
+cors_origins = os.environ.get('CORS_ORIGINS', '*')
+socketio = SocketIO(app, cors_allowed_origins=cors_origins, max_http_buffer_size=16 * 1024 * 1024)
 
 # Initialize global state
 state = {
@@ -49,11 +62,14 @@ def open_browser(host, port):
 
 def main():
     """Main entry point for the application."""
+    app_config = _load_app_config()
+    default_port = app_config.get('services', {}).get('app_port', 5005)
+
     parser = argparse.ArgumentParser(description='Run the Intermediator Dialog server')
     parser.add_argument('--host', type=str, default='0.0.0.0',
                        help='Host to bind to (default: 0.0.0.0)')
-    parser.add_argument('--port', type=int, default=5005,
-                       help='Port to bind to (default: 5005)')
+    parser.add_argument('--port', type=int, default=default_port,
+                       help=f'Port to bind to (default: {default_port})')
     parser.add_argument('--debug', action='store_true',
                        help='Enable debug mode')
     parser.add_argument('--no-browser', action='store_true',

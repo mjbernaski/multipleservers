@@ -4,7 +4,7 @@ Google Gemini client implementation.
 import os
 import time
 from typing import Dict, Tuple, Optional
-from .base_client import BaseClient
+from .base_client import BaseClient, ClientConnectionError, ClientAuthError, ClientRateLimitError, ClientTimeoutError, ClientError
 
 try:
     import google.generativeai as genai
@@ -132,6 +132,8 @@ class GeminiClient(BaseClient):
                     self._init_model()  # Reinitialize with system instruction
                     break
 
+        # NOTE: The Gemini chat session maintains its own history which can get
+        # out of sync with self.messages. self.messages is the source of truth.
         self.messages.append({"role": "user", "content": question})
 
         try:
@@ -140,8 +142,16 @@ class GeminiClient(BaseClient):
             answer = ""
             thinking_content = ""
 
-            # Stream the response
-            response = self.chat.send_message(question, stream=True)
+            # Stream the response (with retry for transient errors)
+            retryable = (ConnectionError, TimeoutError)
+            if GEMINI_AVAILABLE:
+                from google.api_core import exceptions as google_exceptions
+                retryable = (ConnectionError, TimeoutError, google_exceptions.ServiceUnavailable,
+                             google_exceptions.InternalServerError, google_exceptions.TooManyRequests)
+            response = self._retry_with_backoff(
+                lambda: self.chat.send_message(question, stream=True),
+                retryable
+            )
 
             for chunk in response:
                 if chunk.text:
@@ -219,6 +229,8 @@ class GeminiClient(BaseClient):
             self.total_thinking_tokens += thinking_tokens
             self.total_speaking_tokens += speaking_tokens
 
+            cost = self.calculate_cost(prompt_tokens, completion_tokens)
+
             token_info = {
                 'prompt_tokens': prompt_tokens,
                 'completion_tokens': completion_tokens,
@@ -227,7 +239,8 @@ class GeminiClient(BaseClient):
                 'total': total,
                 'tokens_per_second': tokens_per_second,
                 'time_to_first_token': ttft,
-                'thinking': thinking_content if thinking_content else (self.last_thinking if thinking_tokens > 0 else None)
+                'thinking': thinking_content if thinking_content else (self.last_thinking if thinking_tokens > 0 else None),
+                'cost': cost.to_dict()
             }
 
             if self.stream_callback:
@@ -241,6 +254,15 @@ class GeminiClient(BaseClient):
 
             return answer, token_info
 
+        except (ConnectionError, OSError) as e:
+            error_msg = f"Gemini connection error: {e}"
+            if self.stream_callback:
+                self.stream_callback({
+                    'type': 'error',
+                    'error': error_msg,
+                    'name': self.name
+                })
+            raise ClientConnectionError(error_msg) from e
         except Exception as e:
             error_msg = f"Gemini API error: {e}"
             if self.stream_callback:
@@ -249,11 +271,12 @@ class GeminiClient(BaseClient):
                     'error': error_msg,
                     'name': self.name
                 })
-            raise Exception(error_msg)
+            raise ClientError(error_msg) from e
 
     def reset_conversation(self):
         """Reset conversation history and token counts."""
         self.messages = []
+        self.system_instruction = None
         self.total_prompt_tokens = 0
         self.total_completion_tokens = 0
         self.total_tokens = 0
@@ -261,8 +284,7 @@ class GeminiClient(BaseClient):
         self.total_speaking_tokens = 0
         self.thinking_history = []
         self.last_thinking = ""
-        # Restart chat session
-        self.chat = self.genai_model.start_chat(history=[])
+        self._init_model()
 
     def set_system_prompt(self, prompt: str):
         """Set the system instruction for conversations.
