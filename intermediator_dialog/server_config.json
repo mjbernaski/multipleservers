@@ -1,7 +1,7 @@
 {
   "servers": {
     "intermediator": {
-      "host": "http://192.168.6.40:11434",
+      "host": "http://192.168.6.40:11435",
       "name": "RT5090",
       "provider": "ollama"
     },
